@@ -2898,7 +2898,7 @@
     init();
   }
 })();
-/* PT Assistant Layout V7 stable patch.
+/* PT Assistant Layout V8 stable patch.
    Dopiszane do czystej wersji V60. Layout korzysta z dzialajacych mechanizmow panelu,
    nie klika bazowego sidebaru WTL, utrzymuje natywne My Account, trwaly AI iframe
    oraz otwiera Thulium przez oryginalne przyciski panelu.
@@ -2906,8 +2906,8 @@
 (function () {
   'use strict';
 
-  if (window.__PT_ASSISTANT_LAYOUT_V7_STABLE__) return;
-  window.__PT_ASSISTANT_LAYOUT_V7_STABLE__ = true;
+  if (window.__PT_ASSISTANT_LAYOUT_V8_STABLE__) return;
+  window.__PT_ASSISTANT_LAYOUT_V8_STABLE__ = true;
 
   var CFG = {
     storagePrefix: 'pt_assistant_v60_',
@@ -3073,19 +3073,22 @@
   }
 
   function injectCss() {
-    if (document.getElementById('pt-layout-v7-style')) return;
+    if (document.getElementById('pt-layout-v8-style')) return;
     var css = ''
       + '#wtl-layout-enter{width:58px;height:28px;border:1px solid rgba(248,113,113,.42);border-radius:10px;background:rgba(239,68,68,.13);color:#fecaca;cursor:pointer;font-size:10px;font-weight:950;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-right:4px;}'
       + '#wtl-layout-enter:hover{background:rgba(239,68,68,.26);border-color:rgba(248,113,113,.72);}'
-      + 'html.wtl-layout-mode,html.wtl-layout-mode body{overflow-x:hidden!important;}'
+      + 'html.wtl-layout-mode{overflow-x:hidden!important;}'
+      + 'html.wtl-layout-mode body{overflow-x:hidden!important;padding-left:324px!important;transition:padding-left .18s ease!important;}'
+      + 'html.wtl-layout-mode.wtl-layout-nav-hidden body{padding-left:0!important;}'
       + 'html.wtl-layout-mode .header.header-user .header-left,html.wtl-layout-mode .header.header-user .header-center,html.wtl-layout-mode .header.header-user .header-right{visibility:hidden!important;pointer-events:none!important;}'
       + 'html.wtl-layout-mode .sidebar,html.wtl-layout-mode .sidebar-wrap,html.wtl-layout-mode .sidebar-menu,html.wtl-layout-mode [class*="sidebar-left"],html.wtl-layout-mode [class*="sidebar-menu"]{display:none!important;visibility:hidden!important;pointer-events:none!important;}'
       + 'html.wtl-layout-mode #wtl-assistant-panel:not(.pt-layout-thulium-proxy),html.wtl-layout-mode #wtl-mini,html.wtl-layout-mode #wtl-bottom-bar,html.wtl-layout-mode #wtl-site-switcher{display:none!important;visibility:hidden!important;pointer-events:none!important;}'
       + '#pt-layout-topbar,#pt-layout-left,#pt-layout-left-toggle,#pt-layout-bottom-actions,#pt-layout-ai-window{box-sizing:border-box;font-family:Inter,Arial,Helvetica,sans-serif;}'
       + '#pt-layout-topbar{position:fixed;z-index:2147483540;left:0;right:0;top:0;height:66px;background:radial-gradient(circle at 12% 0%,rgba(239,68,68,.26),transparent 34%),linear-gradient(135deg,#050505,#111 58%,#1a0505);border-bottom:1px solid rgba(239,68,68,.34);box-shadow:0 14px 44px rgba(0,0,0,.28);display:none;align-items:center;padding:0 12px;gap:12px;color:#fff;}'
       + 'html.wtl-layout-mode #pt-layout-topbar{display:flex;}'
+      + '.pt-layout-home{width:142px;height:44px;display:flex;align-items:center;justify-content:flex-start;flex-shrink:0;text-decoration:none;}'
       + '.pt-layout-logo{width:142px;height:44px;object-fit:contain;object-position:left center;display:block;flex-shrink:0;}'
-      + '.pt-layout-nav{display:flex;align-items:center;gap:10px;margin-left:12px;}'
+      + '.pt-layout-nav{display:flex;align-items:center;gap:10px;margin-left:158px;}'
       + '.pt-layout-link{height:38px;display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.12);border-radius:13px;background:rgba(255,255,255,.07);color:#fff;text-decoration:none;padding:0 18px;font-size:12px;font-weight:950;}'
       + '.pt-layout-link:hover{background:rgba(239,68,68,.20);border-color:rgba(248,113,113,.46);}'
       + '.pt-layout-top-actions{margin-left:auto;display:flex;align-items:center;gap:8px;}'
@@ -3125,12 +3128,16 @@
       + 'html.wtl-layout-mode .nav-menu-avatar.active{display:block!important;visibility:visible!important;opacity:1!important;pointer-events:auto!important;position:fixed!important;right:12px!important;top:74px!important;z-index:2147483647!important;}'
       + 'html.wtl-layout-mode .nav-menu-avatar.active *{visibility:visible!important;pointer-events:auto!important;}'
       + 'html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy{display:block!important;visibility:visible!important;pointer-events:auto!important;position:fixed!important;left:auto!important;top:auto!important;right:14px!important;bottom:68px!important;width:420px!important;max-width:calc(100vw - 28px)!important;z-index:2147483646!important;}'
-      + 'html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy .wtl-header{cursor:default!important;}'
-      + 'html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy #wtl-thulium-native-mount{background:#070707!important;overflow:hidden!important;}'
+      + 'html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy{height:520px!important;max-height:calc(100vh - 84px)!important;border-radius:18px!important;overflow:hidden!important;background:#070707!important;}'
+      + 'html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy .wtl-header,html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy .wtl-welcome,html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy .wtl-tabs,html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy .wtl-frame-head,html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy #wtl-thulium-choice,html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy #wtl-thulium-back{display:none!important;visibility:hidden!important;pointer-events:none!important;}'
+      + 'html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy .wtl-body{padding:0!important;overflow:hidden!important;background:#070707!important;height:520px!important;max-height:calc(100vh - 84px)!important;}'
+      + 'html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy .wtl-card{padding:0!important;border:0!important;border-radius:0!important;background:#070707!important;overflow:hidden!important;}'
+      + 'html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy #wtl-thulium-native-mount{height:520px!important;min-height:520px!important;max-height:520px!important;margin:0!important;border-top:0!important;background:#070707!important;overflow:hidden!important;}'
+      + 'html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy #wtl-thulium-cover-min,html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy #wtl-thulium-cover-close{display:none!important;visibility:hidden!important;pointer-events:none!important;}'
       + 'html.wtl-layout-mode .thulium-chat-wrapper:not(#wtl-thulium-native-mount .thulium-chat-wrapper),html.wtl-layout-mode .thulium-chat-frame-wrapper:not(#wtl-thulium-native-mount .thulium-chat-frame-wrapper){opacity:0!important;pointer-events:none!important;visibility:hidden!important;}'
-      + '@media(max-width:640px){.pt-layout-nav{display:none;}#pt-layout-left{width:304px;}html.wtl-layout-nav-hidden #pt-layout-left{transform:translateX(-304px);}#pt-layout-left-toggle{left:292px;}.pt-layout-logo{width:122px;}#pt-layout-ai-window{left:10px;right:10px;width:auto;}#pt-layout-bottom-actions{left:10px;right:10px;justify-content:flex-end;}.pt-bottom-btn{min-width:0;flex:1;}}';
+      + '@media(max-width:640px){.pt-layout-nav{display:none;}#pt-layout-left{width:304px;}html.wtl-layout-nav-hidden #pt-layout-left{transform:translateX(-304px);}#pt-layout-left-toggle{left:292px;}.pt-layout-home,.pt-layout-logo{width:122px;}#pt-layout-ai-window{left:10px;right:10px;width:auto;}#pt-layout-bottom-actions{left:10px;right:10px;justify-content:flex-end;}.pt-bottom-btn{min-width:0;flex:1;}}';
     var s = document.createElement('style');
-    s.id = 'pt-layout-v7-style';
+    s.id = 'pt-layout-v8-style';
     s.type = 'text/css';
     s.appendChild(document.createTextNode(css));
     document.head.appendChild(s);
@@ -3162,7 +3169,7 @@
       var top = document.createElement('div');
       top.id = 'pt-layout-topbar';
       top.innerHTML = ''
-        + '<img class="pt-layout-logo" src="' + esc(CFG.brandImageSrc) + '" alt="Profitable Trader Assistant">'
+        + '<a class="pt-layout-home" id="pt-layout-home" href="/next/public/" title="Strona główna"><img class="pt-layout-logo" src="' + esc(CFG.brandImageSrc) + '" alt="Profitable Trader Assistant"></a>'
         + '<div class="pt-layout-nav">'
         + '<a class="pt-layout-link" href="/next/public/category">Products</a>'
         + '<a class="pt-layout-link" href="https://edu.profitabletrader.ai/next/public/community/">Community</a>'
@@ -3219,6 +3226,17 @@
     if (restore && !restore.__ptBound) {
       restore.__ptBound = true;
       restore.addEventListener('click', function (ev) { ev.preventDefault(); ev.stopPropagation(); exitLayoutToPanel(); }, true);
+    }
+
+    var home = document.getElementById('pt-layout-home');
+    if (home && !home.__ptBound) {
+      home.__ptBound = true;
+      home.addEventListener('click', function (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        ev.stopImmediatePropagation();
+        location.href = '/next/public/';
+      }, true);
     }
 
     var toggle = document.getElementById('pt-layout-left-toggle');
@@ -3294,7 +3312,7 @@
           activeSection = '';
           save('layout_active_section', '');
           renderLayoutLeft();
-          refreshLayoutStatus(true);
+          refreshLayoutStatus(false);
           return;
         }
       }, true);
@@ -3790,6 +3808,22 @@
       panel.style.setProperty('left', 'auto', 'important');
       panel.style.setProperty('top', 'auto', 'important');
       panel.style.setProperty('width', '420px', 'important');
+      panel.style.setProperty('height', '520px', 'important');
+      panel.style.setProperty('max-height', 'calc(100vh - 84px)', 'important');
+      panel.style.setProperty('overflow', 'hidden', 'important');
+      var header = panel.querySelector('.wtl-header');
+      var frameHead = panel.querySelector('.wtl-frame-head');
+      var tabs = panel.querySelector('.wtl-tabs');
+      var welcome = panel.querySelector('.wtl-welcome');
+      if (header) header.style.setProperty('display', 'none', 'important');
+      if (frameHead) frameHead.style.setProperty('display', 'none', 'important');
+      if (tabs) tabs.style.setProperty('display', 'none', 'important');
+      if (welcome) welcome.style.setProperty('display', 'none', 'important');
+      mount.style.setProperty('height', '520px', 'important');
+      mount.style.setProperty('min-height', '520px', 'important');
+      mount.style.setProperty('max-height', '520px', 'important');
+      mount.style.setProperty('margin', '0', 'important');
+      mount.style.setProperty('border-top', '0', 'important');
       mount.style.setProperty('overflow', 'hidden', 'important');
       mount.style.setProperty('background', '#070707', 'important');
       if (frame) {

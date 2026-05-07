@@ -6025,3 +6025,528 @@
     setTimeout(run, 40);
   }
 })();
+
+/* PT Assistant Layout V6 correction patch.
+   Dopiszany po V5. Nie usuwa funkcji panelu - nadpisuje wyłącznie zachowanie trybu Layout.
+*/
+(function () {
+  'use strict';
+  if (window.__PT_ASSISTANT_LAYOUT_V6_CORRECTION__) return;
+  window.__PT_ASSISTANT_LAYOUT_V6_CORRECTION__ = true;
+
+  var BRAND = 'https://edu.profitabletrader.ai/uploads/media/12510/5/Group_361__1_.png?_t=1778149920';
+  var AI_SRC = 'https://app.multitools.ai/chat-embed-host.html?assistantId=83ab6507-f2b6-402d-8ffd-4ab42aa1e9b2';
+  var THULIUM_SRC = 'https://cdn.thulium.com/apps/chat-widget/chat-loader.js?hash=eliteexpertclub-4cb69311-31a0-4960-9608-ef51bf61693b';
+  var PREFIX = 'pt_assistant_v60_';
+  var ACTIVE_SECTION_KEY = 'wtl_layout_active_section_v6';
+  var NAV_COLLAPSED_KEY = PREFIX + 'layout_nav_collapsed_v6';
+  var lastLeftHtml = '';
+  var aiCreated = false;
+  var thuliumLoaded = false;
+  var thuliumLoading = false;
+  var thuliumOpenTimer = null;
+  var thuliumFitTimer = null;
+  var sidebarClickPatched = false;
+
+  var GROUPS = [
+    { id: 'start', title: 'Start / Wprowadzenie', source: ['Preparing / Get ready'], desc: 'Pierwsze lekcje, które klient powinien obejrzeć na start.', fallback: [
+      [191,'Witamy w Profitable Trader AI'],[192,'Przygotuj swoje stanowisko'],[193,'Model biznesowy w handlu'],[194,'Dziennik Inwestora'],[195,'Narzędzie wspierające: ZoomIT'],[196,'Narzędzie wspierające: Lightshot'],[197,'Przed Live Trading Session']
+    ]},
+    { id: 'platformy', title: 'Platformy handlowe', source: ['Trading Platforms'], desc: 'Lekcje dotyczące platform i środowiska tradingowego.', fallback: [
+      [198,'Platforma [darmowa] - MetaTrader 4'],[199,'Platforma [darmowa] - MetaTrader 5'],[200,'Platforma [płatna] - TradingView'],[201,'Dodawanie dodatkowej platformy MT4']
+    ]},
+    { id: 'podstawy', title: 'Podstawy handlu', source: ['ALLin for Beginner Trader'], desc: 'Podstawowe materiały dla początkującego tradera.', fallback: [
+      [212,'Wprowadzenie do rynku Forex'],[214,'Wprowadzenie do rynku Futures'],[215,"Typ Trader'a: Swing | Scalp | Day Trader"],[217,'Analiza Techniczna'],[218,'Analiza Fundamentalna'],[219,'Który typ analizy wybrać?'],[220,'Wykres: Świece Japońskie'],[221,'Typ Dnia Handlowego: Trend lub Range'],[222,'Linie Trendu'],[223,'Wsparcia i Opory'],[224,'Kanały Rotacyjne'],[225,"Kalendarz Trader'a"],[226,'Rodzaje Zleceń: Take Profit | Stop Loss | Limit Trailing'],[227,'Kluczowe słowa w handlu'],[228,'Teoria: Mądrość Tłumu na Rynkach'],[229,'Teoria: Fibonacci & Golden Ratio'],[230,'Teoria: Rynek Aukcyjny']
+    ]},
+    { id: 'psnd', title: 'Strategia PSND', source: ['ALLin PSND'], desc: 'Główna ścieżka nauki strategii PSND.', fallback: [
+      [232,'PSND - Zaczynamy!'],[233,'Przygotowanie Wykresu'],[234,'Instrumenty'],[235,'Separator Czasu'],[236,'Swing High & Low'],[237,'Trend Spadkowy & Wzrostowy'],[238,'Fibonacci: Ekspansje & Zniesienia'],[239,'Open High Low & Target'],[240,'Setup #1 Reakcja'],[241,'Cluster Fibbo'],[242,'Setup Uśrednienie'],[243,'Setup #2 Dojście'],[244,'Trading - Szybkie Nabywanie Umiejętności'],[245,'Market Replay'],[246,'Przewodnik po ALLin Panel']
+    ]},
+    { id: 'psnd-live', title: 'PSND na żywo!', source: ['ALLin Session - PSND'], desc: 'Nagrania sesji live dla strategii PSND.', fallback: [
+      [247,'LTS 13.02.2025 | Bartek'],[248,'LTS 31.01.2025 | Paweł'],[249,'LTS 07.02.2025 | Paweł'],[250,'LTS 13.12.2025 | Bartek']
+    ]},
+    { id: 'pac', title: 'Strategia PAC', source: ['Trading Workflow','Basics for Price Action','ALLin PAC','Price Action Setups'], desc: 'Pełna ścieżka strategii PAC, workflow oraz setupy.', fallback: [
+      [602,'Workflow'],[251,'Assets'],[252,'Charts'],[253,'PAC | Wprowadzenie'],[254,'PAC | Candles'],[255,'PAC | Trendlines'],[256,'PAC | EMA'],[257,'PAC | Fibo'],[258,'PAC | Elliot Waves'],[259,'PAC | Reversal Zone'],[260,'PAC | Double Top & Bottom'],[261,'PAC | Open High Low Close'],[262,'PAC | Session Objective'],[263,'PAC | Measured-Move'],[264,'PAC | Double Down & Up'],[265,'PAC | Hidden Channel'],[266,'PAC | Battle Zones'],[267,'PAC | Spike & Move'],[268,'PAC | Trading Range Basic'],[269,'PAC | 2-try Rule'],[270,'PAC | Price Action Scenario'],[271,'PAC | Micro Rotation'],[273,'PAC | Strenght & Pullback'],[274,'PAC | Price Action Scenario'],[275,'PAC | Micro Rotation Setups']
+    ]},
+    { id: 'pac-live', title: 'PAC na żywo!', source: ['ALLin Session - PAC'], desc: 'Nagrania sesji live dla strategii PAC.', fallback: [
+      [283,'LTS 09.06.2025 | Paweł'],[284,'LTS 06.02.2025 | Paweł'],[285,'LTS 23.01.2025 | Paweł'],[286,'LTS 15.01.2025 | Bartek'],[287,'LTS 08.07.2024 | Paweł']
+    ]}
+  ];
+
+  function isLayoutMode() { return document.documentElement.classList.contains('wtl-layout-mode'); }
+  function clean(v) { return String(v || '').replace(/\s+/g, ' ').trim(); }
+  function key(v) { return clean(v).toLowerCase(); }
+  function esc(v) { return String(v || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;'); }
+  function read(keyName, fallback) { try { var v = localStorage.getItem(PREFIX + keyName); return v ? JSON.parse(v) : fallback; } catch (e) { return fallback; } }
+  function saveRaw(keyName, value) { try { localStorage.setItem(keyName, JSON.stringify(value)); } catch (e) {} }
+  function readRaw(keyName, fallback) { try { var v = localStorage.getItem(keyName); return v ? JSON.parse(v) : fallback; } catch (e) { return fallback; } }
+  function lessonId(url) { var m = String(url || '').match(/\/lesson\/([^/?#]+)/i); return m && m[1] ? String(m[1]) : ''; }
+  function lessonUrl(id) { return location.origin + '/next/public/lesson/' + id; }
+
+  function clickElement(el) {
+    if (!el) return false;
+    try { el.click(); return true; } catch (e) {}
+    try {
+      var evt = document.createEvent('MouseEvents');
+      evt.initMouseEvent('click', true, true, window, 1, 0, 0, 0, 0, false, false, false, false, 0, null);
+      el.dispatchEvent(evt);
+      return true;
+    } catch (err) {}
+    return false;
+  }
+
+  function injectCss() {
+    if (document.getElementById('pt-layout-v6-style')) return;
+    var style = document.createElement('style');
+    style.id = 'pt-layout-v6-style';
+    style.textContent = [
+      'html.wtl-layout-mode,html.wtl-layout-mode body{overflow-x:hidden!important;scrollbar-gutter:stable!important}',
+      'html.wtl-layout-mode .sidebar-trigger{pointer-events:none!important}',
+      'html.wtl-layout-mode .sidebar:not(#wtl-layout-left),html.wtl-layout-mode .sidebar-wrap,html.wtl-layout-mode .sidebar-menu:not(#wtl-layout-left *),html.wtl-layout-mode [class*="sidebar-left"],html.wtl-layout-mode [class*="sidebar-menu"]:not(#wtl-layout-left *){display:none!important;visibility:hidden!important;pointer-events:none!important;transform:translateX(-120%)!important}',
+      'html.wtl-layout-mode #wtl-layout-topbar{z-index:2147483640!important;transition:none!important}',
+      'html.wtl-layout-mode #wtl-layout-left{top:64px!important;width:324px!important;transition:none!important;z-index:2147483638!important}',
+      'html.wtl-layout-mode #wtl-layout-left .wtl-layout-head{display:none!important}',
+      'html.wtl-layout-mode #wtl-layout-left .wtl-layout-body{padding-top:12px!important}',
+      'html.wtl-layout-mode #wtl-layout-right{z-index:2147483639!important}',
+      'html.wtl-layout-mode #wtl-layout-right .wtl-layout-native-dock{display:flex!important;gap:10px!important;align-items:center!important;justify-content:flex-end!important}',
+      'html.wtl-layout-mode .wtl-layout-page-shifted-v2{transition:none!important}',
+      'html.wtl-layout-nav-collapsed #wtl-layout-left{transform:translateX(-324px)!important;opacity:0!important;pointer-events:none!important}',
+      'html.wtl-layout-nav-collapsed .wtl-layout-page-shifted-v2{margin-left:0!important;width:100vw!important;max-width:100vw!important}',
+      '#wtl-layout-left-toggle{position:fixed!important;z-index:2147483646!important;left:318px!important;top:74px!important;width:28px!important;height:62px!important;border-radius:0 16px 16px 0!important;border:1px solid rgba(248,113,113,.46)!important;border-left:0!important;background:linear-gradient(135deg,#111,#451010)!important;color:#fecaca!important;box-shadow:10px 12px 32px rgba(0,0,0,.24)!important;display:none;align-items:center!important;justify-content:center!important;font-size:20px!important;font-weight:950!important;cursor:pointer!important;font-family:Inter,Arial,Helvetica,sans-serif!important}',
+      'html.wtl-layout-mode #wtl-layout-left-toggle{display:flex!important}',
+      'html.wtl-layout-nav-collapsed #wtl-layout-left-toggle{left:0!important;border-left:1px solid rgba(248,113,113,.46)!important;border-radius:0 16px 16px 0!important}',
+      '#wtl-layout-native-ai-pop{position:fixed!important;right:18px!important;bottom:76px!important;width:430px!important;max-width:calc(100vw - 36px)!important;height:620px!important;max-height:calc(100vh - 108px)!important;border:1px solid rgba(239,68,68,.42)!important;border-radius:18px!important;background:#070707!important;box-shadow:0 20px 70px rgba(0,0,0,.5)!important;overflow:hidden!important;display:none!important;pointer-events:auto!important;z-index:2147483645!important;isolation:isolate!important}',
+      '#wtl-layout-native-ai-pop.wtl-open{display:block!important}',
+      '#wtl-layout-native-ai-pop iframe{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;border:0!important;display:block!important;background:#111827!important;pointer-events:auto!important;z-index:1!important}',
+      '#wtl-layout-v6-thulium-mount{position:fixed!important;z-index:2147483645!important;right:18px!important;bottom:132px!important;width:420px!important;max-width:calc(100vw - 36px)!important;height:520px!important;max-height:calc(100vh - 154px)!important;border:1px solid rgba(239,68,68,.42)!important;border-radius:18px!important;background:#070707!important;box-shadow:0 20px 70px rgba(0,0,0,.52)!important;overflow:hidden!important;display:none!important;pointer-events:auto!important;font-family:Inter,Arial,Helvetica,sans-serif!important}',
+      '#wtl-layout-v6-thulium-mount.wtl-open{display:block!important}',
+      '#wtl-layout-v6-thulium-mount .wtl-layout-v6-thulium-loading{position:absolute!important;inset:0!important;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;color:rgba(255,255,255,.72);font-size:13px;background:#070707;z-index:2}',
+      '#wtl-layout-v6-thulium-close{position:absolute!important;right:10px!important;top:10px!important;z-index:999999!important;border:1px solid rgba(248,113,113,.46)!important;border-radius:11px!important;background:rgba(239,68,68,.18)!important;color:#fecaca!important;width:34px!important;height:34px!important;cursor:pointer!important;font-weight:950!important}',
+      '#wtl-layout-v6-thulium-mount iframe[title="Thulium Click2Contact"],#wtl-layout-v6-thulium-mount iframe,#wtl-layout-v6-thulium-mount .thulium-chat-wrapper,#wtl-layout-v6-thulium-mount .thulium-chat-frame-wrapper{position:absolute!important;left:-4px!important;top:-72px!important;right:auto!important;bottom:auto!important;width:calc(100% + 8px)!important;height:750px!important;min-width:0!important;min-height:750px!important;max-width:none!important;max-height:none!important;visibility:visible!important;opacity:1!important;display:block!important;pointer-events:auto!important;z-index:10!important;transform:none!important;border:0!important;overflow:hidden!important}',
+      'html.wtl-layout-mode #wtl-layout-v5-thulium-mount{display:none!important;visibility:hidden!important;pointer-events:none!important}',
+      'html.wtl-layout-mode #wtl-layout-v6-thulium-mount.wtl-open ~ .thulium-chat-wrapper,html.wtl-layout-mode #wtl-layout-v6-thulium-mount.wtl-open ~ .thulium-chat-frame-wrapper{display:none!important;visibility:hidden!important}',
+      'html.wtl-layout-mode body > .thulium-chat-wrapper:not(#wtl-layout-v6-thulium-mount *),html.wtl-layout-mode body > .thulium-chat-frame-wrapper:not(#wtl-layout-v6-thulium-mount *){opacity:0!important;visibility:hidden!important;pointer-events:none!important;left:-9999px!important;right:auto!important}',
+      'html.wtl-layout-mode .nav-menu-avatar.active,html.wtl-layout-mode .nav-menu-avatar.wtl-layout-native-account-open{display:block!important;visibility:visible!important;opacity:1!important;pointer-events:auto!important;position:fixed!important;right:8px!important;top:72px!important;z-index:2147483647!important}',
+      '@media(max-width:720px){#wtl-layout-native-ai-pop,#wtl-layout-v6-thulium-mount{left:10px!important;right:10px!important;width:auto!important;bottom:126px!important}#wtl-layout-left-toggle{top:70px!important}.wtl-layout-page-shifted-v2{margin-left:0!important;width:100vw!important;max-width:100vw!important}}'
+    ].join('');
+    document.head.appendChild(style);
+  }
+
+  function nativeSidebarLooksOpen() {
+    var nodes = document.querySelectorAll('.sidebar,.sidebar-wrap,.sidebar-menu,[class*="sidebar-left"],[class*="sidebar-menu"]');
+    for (var i = 0; i < nodes.length; i++) {
+      var el = nodes[i];
+      if (!el || (el.closest && el.closest('#wtl-layout-left'))) continue;
+      try {
+        var cs = window.getComputedStyle(el);
+        var r = el.getBoundingClientRect();
+        if (cs.display !== 'none' && cs.visibility !== 'hidden' && Number(cs.opacity) !== 0 && r.width > 40 && r.right > 10) return true;
+      } catch (e) {}
+    }
+    return false;
+  }
+
+  function closeNativeSidebarOnly() {
+    try {
+      var nodes = document.querySelectorAll('.sidebar,.sidebar-wrap,.sidebar-menu,[class*="sidebar-left"],[class*="sidebar-menu"]');
+      for (var i = 0; i < nodes.length; i++) {
+        var el = nodes[i];
+        if (!el || (el.closest && el.closest('#wtl-layout-left'))) continue;
+        el.style.setProperty('display','none','important');
+        el.style.setProperty('visibility','hidden','important');
+        el.style.setProperty('pointer-events','none','important');
+        el.style.setProperty('transform','translateX(-120%)','important');
+      }
+    } catch (e) {}
+  }
+
+  function patchSidebarClick() {
+    if (sidebarClickPatched) return;
+    sidebarClickPatched = true;
+
+    document.addEventListener('click', function (event) {
+      var t = event.target;
+      if (!isLayoutMode() || !t || !t.closest) return;
+      if (t.closest('.sidebar-trigger,[class*="sidebar-trigger"],[class*="SidebarTrigger"]')) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        closeNativeSidebarOnly();
+      }
+    }, true);
+
+    try {
+      var oldClick = HTMLElement.prototype.click;
+      HTMLElement.prototype.click = function () {
+        try {
+          if (isLayoutMode() && this && this.matches && this.matches('.sidebar-trigger,[class*="sidebar-trigger"],[class*="SidebarTrigger"]')) {
+            if (nativeSidebarLooksOpen()) closeNativeSidebarOnly();
+            return;
+          }
+        } catch (e) {}
+        return oldClick.apply(this, arguments);
+      };
+    } catch (e2) {}
+  }
+
+  function titleFromNode(node) { return clean(node ? (node.getAttribute('title') || node.textContent || node.innerText || '') : ''); }
+  function isDoneItem(item) {
+    if (!item) return false;
+    if (item.querySelector('.fa-circle-check,.fa-check,.wtl-color-green,.text-success,[class*="green"],[class*="success"]')) return true;
+    var txt = key(item.textContent || item.innerText || '');
+    return txt.indexOf('completed') !== -1 || txt.indexOf('ukończona') !== -1 || txt.indexOf('ukonczona') !== -1;
+  }
+  function extractSectionTitle(box) {
+    return titleFromNode(box && (box.querySelector('.lessons-box-header-top span') || box.querySelector('.lessons-box-header span') || box.querySelector('.lessons-box-header-top') || box.querySelector('[class*="header"]')));
+  }
+  function findBox(sourceTitle) {
+    var wanted = key(sourceTitle);
+    var boxes = document.querySelectorAll('.lessons-box,.lesson-list-box,[class*="lessons-box"],[class*="lesson-box"]');
+    for (var i = 0; i < boxes.length; i++) {
+      var t = key(extractSectionTitle(boxes[i]));
+      if (t && (t === wanted || t.indexOf(wanted) !== -1 || wanted.indexOf(t) !== -1)) return boxes[i];
+    }
+    return null;
+  }
+  function extractLessons(box) {
+    var out = [];
+    var seen = {};
+    if (!box) return out;
+    var links = box.querySelectorAll('a[href*="/lesson/"],a[href*="/next/public/lesson/"]');
+    for (var i = 0; i < links.length; i++) {
+      var a = links[i];
+      var id = lessonId(a.getAttribute('href') || a.href || '');
+      if (!id || seen[id]) continue;
+      seen[id] = true;
+      var item = a.closest('.lesson-item,li,.accordion-item,.item,div') || a;
+      var title = titleFromNode(a).replace(/Completed|Ukończona|Ukonczona|Do obejrzenia/gi,'').trim();
+      var href = '';
+      try { href = new URL(a.getAttribute('href') || a.href, location.origin).href; } catch (e) { href = lessonUrl(id); }
+      out.push({ id: Number(id), title: title || ('Lekcja ' + id), url: href, done: isDoneItem(item), fallback: false });
+    }
+    return out;
+  }
+  function fallbackLessons(group) {
+    var out = [];
+    for (var i = 0; i < (group.fallback || []).length; i++) {
+      out.push({ id: group.fallback[i][0], title: group.fallback[i][1], url: lessonUrl(group.fallback[i][0]), done: false, fallback: true });
+    }
+    return out;
+  }
+  function scanGroups() {
+    var groups = [];
+    for (var i = 0; i < GROUPS.length; i++) {
+      var cfg = GROUPS[i];
+      var lessons = [];
+      var seen = {};
+      for (var s = 0; s < cfg.source.length; s++) {
+        var items = extractLessons(findBox(cfg.source[s]));
+        for (var j = 0; j < items.length; j++) {
+          if (seen[items[j].id]) continue;
+          seen[items[j].id] = true;
+          lessons.push(items[j]);
+        }
+      }
+      if (!lessons.length) lessons = fallbackLessons(cfg);
+      groups.push({ id: cfg.id, title: cfg.title, sourceTitle: cfg.source.join(' + '), desc: cfg.desc, lessons: lessons });
+    }
+    return groups;
+  }
+  function progress(lessons) {
+    var done = 0;
+    for (var i = 0; i < lessons.length; i++) if (lessons[i].done) done++;
+    var total = lessons.length;
+    return { done: done, total: total, percent: total ? Math.round(done / total * 100) : 0 };
+  }
+  function groupById(id, groups) {
+    for (var i = 0; i < groups.length; i++) if (groups[i].id === id) return groups[i];
+    return groups[0] || null;
+  }
+  function currentLessonId() { return lessonId(location.href); }
+  function currentLessonTitle() {
+    return titleFromNode(document.querySelector('.lesson-content-item.title-nav > .title[title],.lesson-content-item.title-nav .title[title],.lesson-item.active .lesson-item-title[title],.content-lesson-in .title[title],h1,.title[title]')) || clean(document.title || '') || 'Ostatnia lekcja PT';
+  }
+  function formatDate(iso) {
+    if (!iso) return '';
+    try {
+      var date = new Date(iso), diff = Date.now() - date.getTime(), min = Math.floor(diff/60000), h = Math.floor(min/60), days = Math.floor(h/24);
+      if (min < 1) return 'przed chwilą';
+      if (min < 60) return min + ' min temu';
+      if (h < 24) return h + ' godz. temu';
+      if (days === 1) return 'wczoraj';
+      if (days < 7) return days + ' dni temu';
+      return date.toLocaleDateString('pl-PL');
+    } catch (e) { return ''; }
+  }
+  function saveCurrentLesson(groups) {
+    var id = currentLessonId();
+    if (!id) return;
+    var group = null;
+    for (var i = 0; i < groups.length; i++) {
+      for (var j = 0; j < groups[i].lessons.length; j++) {
+        if (String(groups[i].lessons[j].id) === String(id)) group = groups[i];
+      }
+    }
+    var lesson = { url: location.href, path: location.pathname, id: id, title: currentLessonTitle(), section: group ? group.title : 'Nieprzypisana sekcja', sectionId: group ? group.id : '', savedAt: new Date().toISOString() };
+    try { localStorage.setItem(PREFIX + 'last_lesson', JSON.stringify(lesson)); } catch (e) {}
+  }
+  function lastLessonHtml(groups) {
+    var lesson = read('last_lesson', null);
+    if (!lesson) return '';
+    var savedId = lesson.id || lessonId(lesson.url);
+    var isCurrent = currentLessonId() && savedId && String(currentLessonId()) === String(savedId);
+    var title = lesson.title || 'Ostatnia lekcja PT';
+    var section = lesson.section || 'Nieprzypisana sekcja';
+    return '<div class="wtl-layout-card">' +
+      '<div class="wtl-layout-label">↩ WRÓĆ DO OSTATNIEJ LEKCJI</div>' +
+      '<div class="wtl-layout-muted">Ostatnio oglądana lekcja:</div>' +
+      '<div class="wtl-layout-title">' + esc(title) + '</div>' +
+      '<div class="wtl-layout-muted">Sekcja: ' + esc(section) + '</div>' +
+      '<div class="wtl-layout-muted">Zapisano: ' + esc(formatDate(lesson.savedAt)) + '</div>' +
+      (isCurrent ? '<button type="button" class="wtl-layout-back" style="margin-top:10px;width:100%;justify-content:center;" disabled>Aktualnie oglądasz tę lekcję</button>' : '<a class="wtl-layout-back" style="margin-top:10px;text-decoration:none;display:flex;justify-content:center;" href="' + esc(lesson.url) + '">Wróć do: ' + esc(title.length > 34 ? title.slice(0,33) + '…' : title) + '</a>') +
+      '</div>';
+  }
+  function sectionsHtml(groups) {
+    var html = lastLessonHtml(groups) + '<div class="wtl-layout-card"><div class="wtl-layout-label">▶ PLAN LEKCJI</div><div class="wtl-layout-title">Wybierz sekcję</div><div class="wtl-layout-muted">Layout zczytuje lekcje bezpośrednio z listy lekcji na platformie i odświeża postęp na bieżąco.</div>';
+    for (var i = 0; i < groups.length; i++) {
+      var g = groups[i], p = progress(g.lessons || []);
+      html += '<button type="button" class="wtl-layout-section" data-layout-section="' + esc(g.id) + '"><div class="wtl-layout-num">' + (i + 1) + '</div><div style="flex:1;min-width:0;"><div class="wtl-layout-title">' + esc(g.title) + '</div><div class="wtl-layout-muted">' + esc(g.desc) + '</div><div class="wtl-layout-muted" style="opacity:.75;margin-top:3px;">Źródło: ' + esc(g.sourceTitle) + '</div><div class="wtl-layout-progress"><div class="wtl-layout-progress-top"><span>Postęp</span><strong>' + p.done + '/' + p.total + ' — ' + p.percent + '%</strong></div><div class="wtl-layout-bar"><div class="wtl-layout-fill" style="width:' + p.percent + '%"></div></div></div></div></button>';
+    }
+    return html + '</div>';
+  }
+  function lessonsHtml(id, groups) {
+    var g = groupById(id, groups), lessons = g && g.lessons ? g.lessons : [], p = progress(lessons);
+    var html = '<div class="wtl-layout-card"><div class="wtl-layout-topbar"><div><div class="wtl-layout-label">▶ PLAN LEKCJI</div><div class="wtl-layout-title">' + esc(g ? g.title : 'Plan lekcji') + '</div></div><button type="button" class="wtl-layout-back" id="wtl-layout-plan-back">← Wróć</button></div><div class="wtl-layout-muted">Źródło: ' + esc(g ? g.sourceTitle : '') + '</div><div class="wtl-layout-progress"><div class="wtl-layout-progress-top"><span>Postęp sekcji</span><strong>' + p.done + '/' + p.total + ' — ' + p.percent + '%</strong></div><div class="wtl-layout-bar"><div class="wtl-layout-fill" style="width:' + p.percent + '%"></div></div></div>';
+    for (var i = 0; i < lessons.length; i++) {
+      var l = lessons[i];
+      html += '<a class="wtl-layout-lesson" href="' + esc(l.url) + '"><div class="wtl-layout-num">' + (i + 1) + '</div><div><div class="wtl-layout-title">' + esc(l.title) + '</div><div class="wtl-layout-muted">Lekcja #' + esc(l.id) + (l.fallback ? ' · fallback' : '') + '</div><span class="wtl-layout-status ' + (l.done ? 'done' : 'todo') + '">' + (l.done ? 'Ukończona' : 'Do obejrzenia') + '</span></div></a>';
+    }
+    return html + '</div>';
+  }
+  function renderLeftV6(force) {
+    if (!isLayoutMode()) return;
+    var left = document.getElementById('wtl-layout-left');
+    if (!left) return;
+    var groups = scanGroups();
+    saveCurrentLesson(groups);
+    var active = sessionStorage.getItem(ACTIVE_SECTION_KEY) || sessionStorage.getItem('wtl_layout_active_section') || '';
+    var html = '<div class="wtl-layout-body">' + (active ? lessonsHtml(active, groups) : sectionsHtml(groups)) + '</div>';
+    if (force || html !== lastLeftHtml) {
+      left.innerHTML = html;
+      lastLeftHtml = html;
+    }
+  }
+
+  function ensureNavigatorToggle() {
+    var btn = document.getElementById('wtl-layout-left-toggle');
+    if (!btn) {
+      btn = document.createElement('button');
+      btn.type = 'button';
+      btn.id = 'wtl-layout-left-toggle';
+      btn.setAttribute('aria-label', 'Schowaj lub pokaż plan lekcji');
+      document.body.appendChild(btn);
+    }
+    var collapsed = !!readRaw(NAV_COLLAPSED_KEY, false);
+    document.documentElement.classList.toggle('wtl-layout-nav-collapsed', isLayoutMode() && collapsed);
+    btn.innerHTML = collapsed ? '›' : '‹';
+    btn.title = collapsed ? 'Pokaż plan lekcji' : 'Schowaj plan lekcji';
+  }
+  function toggleNavigator() { saveRaw(NAV_COLLAPSED_KEY, !readRaw(NAV_COLLAPSED_KEY, false)); ensureNavigatorToggle(); }
+
+  function ensureDock() {
+    if (!isLayoutMode()) return;
+    var right = document.getElementById('wtl-layout-right');
+    if (!right) return;
+    var dock = right.querySelector('.wtl-layout-native-dock');
+    if (!dock) { dock = document.createElement('div'); dock.className = 'wtl-layout-native-dock'; right.appendChild(dock); }
+    var html = '<button type="button" class="wtl-layout-native-btn" id="wtl-layout-v6-ai-btn">AI Agent</button><button type="button" class="wtl-layout-native-btn" id="wtl-layout-v6-thulium-chat">Thulium: Czat</button><button type="button" class="wtl-layout-native-btn" id="wtl-layout-v6-thulium-email">Thulium: E-mail</button>';
+    if (dock.innerHTML !== html) dock.innerHTML = html;
+  }
+  function ensureAi() {
+    var pop = document.getElementById('wtl-layout-native-ai-pop');
+    if (!pop) { pop = document.createElement('div'); pop.id = 'wtl-layout-native-ai-pop'; pop.className = 'wtl-layout-native-ai-pop'; document.body.appendChild(pop); }
+    if (!aiCreated || !pop.querySelector('iframe')) {
+      pop.innerHTML = '<iframe src="' + esc(AI_SRC) + '" allow="microphone; clipboard-read; clipboard-write" loading="eager" referrerpolicy="strict-origin-when-cross-origin"></iframe>';
+      aiCreated = true;
+    }
+    if (!isLayoutMode()) pop.classList.remove('wtl-open');
+  }
+  function toggleAi() { ensureAi(); var pop = document.getElementById('wtl-layout-native-ai-pop'); if (pop) pop.classList.toggle('wtl-open'); }
+
+  function ensureTcQueue() {
+    if (!window._tc || typeof window._tc !== 'function') {
+      window._tc = function () { (window._tc.q = window._tc.q || []).push(arguments); };
+    }
+  }
+  function ensureThuliumMount() {
+    var old = document.getElementById('wtl-layout-v5-thulium-mount');
+    if (old) old.classList.remove('wtl-open');
+    var mount = document.getElementById('wtl-layout-v6-thulium-mount');
+    if (!mount) {
+      mount = document.createElement('div');
+      mount.id = 'wtl-layout-v6-thulium-mount';
+      mount.innerHTML = '<button type="button" id="wtl-layout-v6-thulium-close" aria-label="Zamknij Thulium">×</button><div class="wtl-layout-v6-thulium-loading">Thulium gotowe do uruchomienia.</div><button type="button" class="wtl-thulium-native-control-cover" id="wtl-layout-v6-cover-min" aria-label="Wróć"></button><button type="button" class="wtl-thulium-native-control-cover" id="wtl-layout-v6-cover-close" aria-label="Wróć"></button>';
+      document.body.appendChild(mount);
+    }
+    return mount;
+  }
+  function setThuliumContainer() {
+    ensureTcQueue();
+    ensureThuliumMount();
+    try { if (window._tc && typeof window._tc.set_container === 'function') { window._tc.set_container('wtl-layout-v6-thulium-mount'); return true; } } catch (e) {}
+    try { if (typeof window._tc === 'function') { window._tc('set_container', 'wtl-layout-v6-thulium-mount'); return true; } } catch (e2) {}
+    return false;
+  }
+  function getThuliumScript() { return document.querySelector('script[src*="cdn.thulium.com/apps/chat-widget/chat-loader.js"]'); }
+  function getThuliumFrame() { return document.querySelector('#wtl-layout-v6-thulium-mount iframe[title="Thulium Click2Contact"]') || document.querySelector('#wtl-layout-v6-thulium-mount iframe') || document.querySelector('iframe[title="Thulium Click2Contact"]'); }
+  function loadThulium(callback) {
+    ensureTcQueue(); setThuliumContainer();
+    if (thuliumLoaded || getThuliumScript()) {
+      setTimeout(function () { thuliumLoaded = true; setThuliumContainer(); if (callback) callback(); }, thuliumLoaded ? 80 : 700);
+      return;
+    }
+    if (thuliumLoading) { setTimeout(function () { loadThulium(callback); }, 120); return; }
+    thuliumLoading = true;
+    var script = document.createElement('script'); script.async = true; script.id = 'pt-thulium-layout-loader-v6'; script.src = THULIUM_SRC + '&ptLayoutV6=' + Date.now();
+    script.onload = function () { thuliumLoaded = true; thuliumLoading = false; setTimeout(function () { setThuliumContainer(); if (callback) callback(); }, 750); };
+    script.onerror = function () { thuliumLoading = false; var l = ensureThuliumMount().querySelector('.wtl-layout-v6-thulium-loading'); if (l) l.innerHTML = 'Nie udało się załadować Thulium.'; };
+    document.head.appendChild(script);
+  }
+  function callTc(method) {
+    try { if (window._tc && typeof window._tc[method] === 'function') { window._tc[method](); return true; } } catch (e) {}
+    try { if (typeof window._tc === 'function') { window._tc(method); return true; } } catch (e2) {}
+    return false;
+  }
+  function wakeThulium() {
+    var selectors = ['#wtl-layout-v6-thulium-mount .thulium-chat-wrapper','#wtl-layout-v6-thulium-mount .thulium-chat-frame-wrapper','#wtl-layout-v6-thulium-mount iframe[title="Thulium Click2Contact"]','.thulium-chat-wrapper','.thulium-chat-frame-wrapper','iframe[title="Thulium Click2Contact"]'];
+    for (var i = 0; i < selectors.length; i++) { var n = document.querySelector(selectors[i]); if (n) clickElement(n); }
+  }
+  function fitThulium() {
+    var frame = getThuliumFrame(); if (!frame) return;
+    var mount = ensureThuliumMount();
+    try { if (frame.parentNode !== mount && frame.tagName && frame.tagName.toLowerCase() === 'iframe') mount.appendChild(frame); } catch (e) {}
+    try {
+      frame.style.setProperty('position','absolute','important'); frame.style.setProperty('left','-4px','important'); frame.style.setProperty('top','-72px','important'); frame.style.setProperty('right','auto','important'); frame.style.setProperty('bottom','auto','important'); frame.style.setProperty('width','calc(100% + 8px)','important'); frame.style.setProperty('height','750px','important'); frame.style.setProperty('min-height','750px','important'); frame.style.setProperty('max-height','none','important'); frame.style.setProperty('display','block','important'); frame.style.setProperty('visibility','visible','important'); frame.style.setProperty('opacity','1','important'); frame.style.setProperty('pointer-events','auto','important'); frame.style.setProperty('z-index','10','important'); frame.style.setProperty('transform','none','important'); frame.style.setProperty('border','0','important'); frame.style.setProperty('overflow','hidden','important');
+    } catch (e2) {}
+    var loading = mount.querySelector('.wtl-layout-v6-thulium-loading');
+    if (loading && frame) loading.style.display = 'none';
+  }
+  function openThulium(intent) {
+    if (intent !== 'email') intent = 'chat';
+    var mount = ensureThuliumMount(); mount.classList.add('wtl-open');
+    var loading = mount.querySelector('.wtl-layout-v6-thulium-loading'); if (loading) { loading.style.display = 'flex'; loading.innerHTML = 'Otwieranie Thulium...'; }
+    loadThulium(function () {
+      var methods = intent === 'email' ? ['open_email','open_email_form','open_message','open_message_form','open_contact_form','open_contact','send_message'] : ['open_chat','open_chat_form','chat'];
+      if (thuliumOpenTimer) clearInterval(thuliumOpenTimer); if (thuliumFitTimer) clearInterval(thuliumFitTimer);
+      var attempts = 0;
+      thuliumFitTimer = setInterval(function () { setThuliumContainer(); fitThulium(); }, 120);
+      thuliumOpenTimer = setInterval(function () {
+        attempts++; setThuliumContainer(); fitThulium();
+        if (attempts === 1 || attempts === 2 || attempts === 3 || attempts === 6 || attempts === 10 || attempts === 15) wakeThulium();
+        for (var i = 0; i < methods.length; i++) callTc(methods[i]);
+        if (loading && attempts >= 5 && getThuliumFrame()) loading.style.display = 'none';
+        if (attempts >= 42) { clearInterval(thuliumOpenTimer); thuliumOpenTimer = null; clearInterval(thuliumFitTimer); thuliumFitTimer = null; }
+      }, 150);
+    });
+  }
+  function closeThulium() {
+    if (thuliumOpenTimer) { clearInterval(thuliumOpenTimer); thuliumOpenTimer = null; }
+    if (thuliumFitTimer) { clearInterval(thuliumFitTimer); thuliumFitTimer = null; }
+    var m = document.getElementById('wtl-layout-v6-thulium-mount'); if (m) m.classList.remove('wtl-open');
+    try { if (window._tc && typeof window._tc.close === 'function') window._tc.close(); else if (typeof window._tc === 'function') window._tc('close'); } catch (e) {}
+  }
+
+  function openNativeAccount() {
+    var menu = document.querySelector('.header .nav-menu-avatar') || document.querySelector('.nav-menu-avatar');
+    var trigger = document.querySelector('.header .nav-menu-avatar-trigger') || document.querySelector('.nav-menu-avatar-trigger');
+    if (menu && menu.classList.contains('active')) return;
+    if (trigger) clickElement(trigger);
+    setTimeout(function () {
+      var m = document.querySelector('.header .nav-menu-avatar') || document.querySelector('.nav-menu-avatar');
+      if (m) {
+        m.classList.add('active');
+        m.classList.add('wtl-layout-native-account-open');
+        m.style.setProperty('display','block','important');
+        m.style.setProperty('visibility','visible','important');
+        m.style.setProperty('opacity','1','important');
+        m.style.setProperty('pointer-events','auto','important');
+      }
+    }, 40);
+  }
+  function closeOtherBasePopups() {
+    if (!isLayoutMode()) return;
+    var selectors = ['.nav-menu-boxed-wrap.active','.nav-menu-search-popup-wrap.active','.nav-menu-boxed-wrap[style*="display: block"]','.nav-menu-search-popup-wrap[style*="display: block"]'];
+    for (var s = 0; s < selectors.length; s++) {
+      var nodes = document.querySelectorAll(selectors[s]);
+      for (var i = 0; i < nodes.length; i++) { nodes[i].classList.remove('active'); nodes[i].style.setProperty('display','none','important'); nodes[i].style.setProperty('visibility','hidden','important'); nodes[i].style.setProperty('pointer-events','none','important'); }
+    }
+  }
+
+  function run() {
+    injectCss(); patchSidebarClick();
+    if (isLayoutMode()) {
+      closeNativeSidebarOnly();
+      closeOtherBasePopups();
+      ensureNavigatorToggle();
+      ensureDock();
+      ensureAi();
+      ensureThuliumMount();
+      renderLeftV6(false);
+    } else {
+      document.documentElement.classList.remove('wtl-layout-nav-collapsed');
+      var t = document.getElementById('wtl-layout-left-toggle'); if (t) t.style.display = 'none';
+      var ai = document.getElementById('wtl-layout-native-ai-pop'); if (ai) ai.classList.remove('wtl-open');
+      closeThulium();
+    }
+  }
+
+  document.addEventListener('click', function (event) {
+    var target = event.target;
+    if (!target) return;
+    var section = target.closest && target.closest('[data-layout-section]');
+    if (isLayoutMode() && section) {
+      event.preventDefault(); event.stopImmediatePropagation();
+      var id = section.getAttribute('data-layout-section') || '';
+      sessionStorage.setItem(ACTIVE_SECTION_KEY, id);
+      sessionStorage.setItem('wtl_layout_active_section', id);
+      lastLeftHtml = '';
+      renderLeftV6(true);
+      return;
+    }
+    if (isLayoutMode() && (target.id === 'wtl-layout-plan-back' || (target.closest && target.closest('#wtl-layout-plan-back')))) {
+      event.preventDefault(); event.stopImmediatePropagation();
+      sessionStorage.removeItem(ACTIVE_SECTION_KEY);
+      sessionStorage.removeItem('wtl_layout_active_section');
+      lastLeftHtml = '';
+      renderLeftV6(true);
+      return;
+    }
+    if (target.id === 'wtl-layout-left-toggle') { event.preventDefault(); event.stopImmediatePropagation(); toggleNavigator(); return; }
+    if (target.id === 'wtl-layout-v6-ai-btn' || target.id === 'wtl-layout-v5-ai-btn' || target.id === 'wtl-layout-native-ai-btn') { event.preventDefault(); event.stopImmediatePropagation(); toggleAi(); return; }
+    if (target.id === 'wtl-layout-v6-thulium-chat' || target.id === 'wtl-layout-v5-thulium-chat' || target.id === 'wtl-layout-native-thulium-chat') { event.preventDefault(); event.stopImmediatePropagation(); openThulium('chat'); return; }
+    if (target.id === 'wtl-layout-v6-thulium-email' || target.id === 'wtl-layout-v5-thulium-email' || target.id === 'wtl-layout-native-thulium-email') { event.preventDefault(); event.stopImmediatePropagation(); openThulium('email'); return; }
+    if (target.id === 'wtl-layout-v6-thulium-close' || target.id === 'wtl-layout-v6-cover-min' || target.id === 'wtl-layout-v6-cover-close') { event.preventDefault(); event.stopImmediatePropagation(); closeThulium(); return; }
+    if (target.id === 'wtl-layout-v5-account-trigger' || target.id === 'wtl-layout-account-trigger' || (target.closest && target.closest('.wtl-layout-header-avatar'))) { event.preventDefault(); event.stopImmediatePropagation(); openNativeAccount(); return; }
+  }, true);
+
+  document.addEventListener('change', function (event) {
+    if (!isLayoutMode()) return;
+    var t = event.target;
+    if (t && t.matches && (t.matches('input[name="lesson_done_form[isLessonDone]"]') || t.matches('#lesson_done_form_isLessonDone') || t.matches('.lesson-toggle-status input[type="checkbox"]'))) {
+      setTimeout(function () { lastLeftHtml = ''; renderLeftV6(true); }, 150);
+      setTimeout(function () { lastLeftHtml = ''; renderLeftV6(true); }, 900);
+    }
+  }, true);
+
+  if (window.MutationObserver && document.body) {
+    var timer = null;
+    var observer = new MutationObserver(function () {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(function () { run(); }, 120);
+    });
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class','style','checked'] });
+  }
+  window.addEventListener('resize', run);
+  setInterval(run, 900);
+  setTimeout(run, 30);
+  setTimeout(run, 300);
+  setTimeout(run, 900);
+})();

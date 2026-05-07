@@ -1,14 +1,14 @@
 (function () {
   'use strict';
 
-  if (window.__PT_ASSISTANT_GTM_MAIN_V54_PLAN_SECTIONS_SINGLE_SCROLL__) return;
-  window.__PT_ASSISTANT_GTM_MAIN_V54_PLAN_SECTIONS_SINGLE_SCROLL__ = true;
+  if (window.__PT_ASSISTANT_GTM_MAIN_V55_SECTION_PROGRESS_NAME_FIX__) return;
+  window.__PT_ASSISTANT_GTM_MAIN_V55_SECTION_PROGRESS_NAME_FIX__ = true;
 
   var CONFIG = {
     allowedHostnames: ['edu.profitabletrader.ai'],
     aiIframeSrc: 'https://app.multitools.ai/chat-embed-host.html?assistantId=83ab6507-f2b6-402d-8ffd-4ab42aa1e9b2',
     thuliumScriptSrc: 'https://cdn.thulium.com/apps/chat-widget/chat-loader.js?hash=eliteexpertclub-4cb69311-31a0-4960-9608-ef51bf61693b',
-    storagePrefix: 'pt_assistant_v54_',
+    storagePrefix: 'pt_assistant_v55_',
 
     brandImageSrc: 'TU_WKLEJ_LINK_DO_GRAFIKI',
 
@@ -343,12 +343,38 @@
       'profitable assistant',
       'twój panel',
       'welcome',
-      'tag assistant'
+      'tag assistant',
+      'plan lekcji',
+      'start',
+      'wprowadzenie',
+      'lesson',
+      'lessons',
+      'lekcja',
+      'lekcje',
+      'lts lesson',
+      'lts session',
+      'session',
+      'sesja',
+      'trading session',
+      'live trading session',
+      'przed live trading session',
+      'dziennik inwestora',
+      'narzędzie wspierające',
+      'narzedzie wspierajace',
+      'zoomit',
+      'lightshot',
+      'model biznesowy',
+      'completed',
+      'ukończona',
+      'ukonczona',
+      'do obejrzenia'
     ];
 
     for (var i = 0; i < blocked.length; i++) {
       if (lower === blocked[i] || lower.indexOf(blocked[i]) !== -1) return '';
     }
+
+    if (/\b(lesson|session|lekcja|lekcje|trading|zoomit|lightshot)\b/i.test(text)) return '';
 
     text = text.replace(/\s+/g, ' ').trim();
 
@@ -373,43 +399,76 @@
     return '';
   }
 
-  function getNameFromVisibleDom() {
+  function getNameFromLikelyUserAreas() {
+    var areaSelectors = [
+      '[class*="user"]',
+      '[class*="User"]',
+      '[class*="profile"]',
+      '[class*="Profile"]',
+      '[class*="account"]',
+      '[class*="Account"]',
+      '[class*="avatar"]',
+      '[class*="Avatar"]',
+      '[class*="dropdown"]',
+      '[class*="Dropdown"]',
+      '[class*="menu"]',
+      '[class*="Menu"]',
+      '[aria-label*="user"]',
+      '[aria-label*="User"]',
+      '[aria-label*="profile"]',
+      '[aria-label*="Profile"]',
+      '[aria-label*="account"]',
+      '[aria-label*="Account"]'
+    ];
+
     var best = '';
     var bestScore = 0;
 
     try {
-      var nodes = document.querySelectorAll('body *');
+      for (var a = 0; a < areaSelectors.length; a++) {
+        var nodes = document.querySelectorAll(areaSelectors[a]);
 
-      for (var i = 0; i < nodes.length; i++) {
-        var node = nodes[i];
-        if (!node) continue;
+        for (var i = 0; i < nodes.length; i++) {
+          var node = nodes[i];
+          if (!node) continue;
 
-        var style = window.getComputedStyle(node);
-        if (!style || style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0) continue;
+          if (node.closest && node.closest('#wtl-assistant-panel')) continue;
 
-        var rect = node.getBoundingClientRect();
-        if (rect.width < 20 || rect.height < 10) continue;
+          var style = window.getComputedStyle(node);
+          if (!style || style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0) continue;
 
-        var text = clean(node.textContent || node.innerText || '');
-        if (!text || text.length < 3 || text.length > 70) continue;
+          var rect = node.getBoundingClientRect();
+          if (rect.width < 15 || rect.height < 10) continue;
 
-        var candidate = normalizeNameCandidate(text);
-        if (!candidate) continue;
+          var raw = clean(
+            node.getAttribute('data-user-name') ||
+            node.getAttribute('data-username') ||
+            node.getAttribute('data-name') ||
+            node.getAttribute('aria-label') ||
+            node.textContent ||
+            node.innerText ||
+            ''
+          );
 
-        var classId = clean((node.className || '') + ' ' + (node.id || '')).toLowerCase();
+          if (!raw || raw.length > 90) continue;
 
-        var score = 1;
+          var candidate = normalizeNameCandidate(raw);
+          if (!candidate) continue;
 
-        if (candidate.toLowerCase().indexOf('allin ') === 0) score += 10;
-        if (classId.indexOf('user') !== -1) score += 4;
-        if (classId.indexOf('profile') !== -1) score += 4;
-        if (classId.indexOf('account') !== -1) score += 4;
-        if (classId.indexOf('menu') !== -1) score += 2;
-        if (text.length <= 35) score += 2;
+          var classId = clean((node.className || '') + ' ' + (node.id || '') + ' ' + (node.getAttribute('aria-label') || '')).toLowerCase();
 
-        if (score > bestScore) {
-          bestScore = score;
-          best = candidate;
+          var score = 1;
+          if (candidate.toLowerCase().indexOf('allin ') === 0) score += 20;
+          if (classId.indexOf('user') !== -1) score += 7;
+          if (classId.indexOf('profile') !== -1) score += 7;
+          if (classId.indexOf('account') !== -1) score += 7;
+          if (classId.indexOf('avatar') !== -1) score += 4;
+          if (raw.length <= 35) score += 3;
+
+          if (score > bestScore) {
+            bestScore = score;
+            best = candidate;
+          }
         }
       }
     } catch (e) {}
@@ -447,6 +506,7 @@
     for (var i = 0; i < selectors.length; i++) {
       var node = document.querySelector(selectors[i]);
       if (!node) continue;
+      if (node.closest && node.closest('#wtl-assistant-panel')) continue;
 
       var raw = clean(
         node.getAttribute('data-user-name') ||
@@ -466,11 +526,11 @@
       }
     }
 
-    var visibleName = getNameFromVisibleDom();
+    var likelyName = getNameFromLikelyUserAreas();
 
-    if (visibleName) {
-      save('name', visibleName);
-      return visibleName;
+    if (likelyName) {
+      save('name', likelyName);
+      return likelyName;
     }
 
     return read('name', '');
@@ -557,6 +617,85 @@
     return CONFIG.lessonPlanGroups[0];
   }
 
+  function calcLessonItemsProgress(items) {
+    var doneCount = 0;
+
+    for (var i = 0; i < items.length; i++) {
+      if (items[i].done) doneCount++;
+    }
+
+    var percent = items.length ? Math.round((doneCount / items.length) * 100) : 0;
+
+    return {
+      done: doneCount,
+      total: items.length,
+      percent: percent
+    };
+  }
+
+  function renderSectionProgress(groupId, items) {
+    var progress = calcLessonItemsProgress(items);
+    var text = document.getElementById('wtl-section-progress-text-' + groupId);
+    var fill = document.getElementById('wtl-section-progress-fill-' + groupId);
+
+    if (text) text.textContent = progress.done + '/' + progress.total + ' ukończone — ' + progress.percent + '%';
+    if (fill) fill.style.width = progress.percent + '%';
+  }
+
+  function loadSectionProgresses(force) {
+    for (var i = 0; i < CONFIG.lessonPlanGroups.length; i++) {
+      (function (group) {
+        var cacheKey = 'lesson_plan_' + group.id;
+        var cached = read(cacheKey, null);
+        var now = Date.now();
+
+        if (!force && cached && cached.items && cached.savedAt && now - cached.savedAt < 5 * 60 * 1000) {
+          renderSectionProgress(group.id, cached.items);
+          return;
+        }
+
+        Promise.all((group.lessons || []).map(function (id) {
+          var url = lessonUrlById(id);
+
+          return fetch(url, {
+            method: 'GET',
+            credentials: 'include',
+            cache: 'no-store'
+          })
+            .then(function (res) {
+              if (!res.ok) throw new Error('HTTP ' + res.status);
+              return res.text();
+            })
+            .then(function (html) {
+              var doc = new DOMParser().parseFromString(html, 'text/html');
+
+              return {
+                id: id,
+                url: url,
+                title: parseLessonTitleFromDoc(doc, id),
+                done: parseLessonDoneFromDoc(doc)
+              };
+            });
+        }))
+          .then(function (items) {
+            save(cacheKey, {
+              savedAt: Date.now(),
+              items: items
+            });
+
+            renderSectionProgress(group.id, items);
+          })
+          .catch(function () {
+            var text = document.getElementById('wtl-section-progress-text-' + group.id);
+            var fill = document.getElementById('wtl-section-progress-fill-' + group.id);
+
+            if (text) text.textContent = 'Nie udało się pobrać';
+            if (fill) fill.style.width = '0%';
+          });
+      })(CONFIG.lessonPlanGroups[i]);
+    }
+  }
+
   function renderLessonPlanLoading() {
     var list = document.getElementById('wtl-order-start-list');
     var progressText = document.getElementById('wtl-plan-progress-text');
@@ -581,16 +720,10 @@
 
     if (!list) return;
 
-    var doneCount = 0;
+    var progress = calcLessonItemsProgress(items);
 
-    for (var i = 0; i < items.length; i++) {
-      if (items[i].done) doneCount++;
-    }
-
-    var percent = items.length ? Math.round((doneCount / items.length) * 100) : 0;
-
-    if (progressText) progressText.textContent = doneCount + '/' + items.length + ' ukończone — ' + percent + '%';
-    if (progressFill) progressFill.style.width = percent + '%';
+    if (progressText) progressText.textContent = progress.done + '/' + progress.total + ' ukończone — ' + progress.percent + '%';
+    if (progressFill) progressFill.style.width = progress.percent + '%';
 
     var html = '';
 
@@ -690,8 +823,12 @@
     remove('lesson_plan_start');
 
     setTimeout(function () {
-      if (read('active_tab', 'order') === 'order' && read('active_plan_section', '') === 'start') {
-        loadLessonPlan(true);
+      if (read('active_tab', 'order') === 'order') {
+        if (read('active_plan_section', '') === 'start') {
+          loadLessonPlan(true);
+        } else {
+          loadSectionProgresses(true);
+        }
       }
     }, 350);
   }
@@ -774,9 +911,15 @@
       + '.wtl-section-card{display:flex;align-items:flex-start;gap:10px;width:100%;border:1px solid rgba(255,255,255,.09);border-radius:14px;background:rgba(255,255,255,.045);color:inherit;text-align:left;padding:11px;cursor:pointer;}'
       + '.wtl-section-card:hover{border-color:rgba(248,113,113,.42);background:rgba(239,68,68,.09);}'
       + '.wtl-section-icon{width:30px;height:30px;border-radius:10px;background:linear-gradient(135deg,rgba(239,68,68,.32),rgba(127,29,29,.26));border:1px solid rgba(248,113,113,.38);color:#fecaca;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;flex-shrink:0;}'
+      + '.wtl-section-content{flex:1;min-width:0;}'
       + '.wtl-section-title{font-size:13px;font-weight:900;color:rgba(255,255,255,.9);line-height:1.25;}'
       + '.wtl-section-desc{font-size:11.5px;color:rgba(255,255,255,.58);line-height:1.35;margin-top:3px;}'
       + '.wtl-section-meta{display:inline-flex;margin-top:8px;padding:4px 7px;border-radius:999px;background:rgba(239,68,68,.14);border:1px solid rgba(248,113,113,.28);color:#fecaca;font-size:10.5px;font-weight:850;}'
+      + '.wtl-section-progress-wrap{margin-top:10px;}'
+      + '.wtl-section-progress-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;color:rgba(255,255,255,.58);font-size:10.5px;font-weight:800;}'
+      + '.wtl-section-progress-top strong{color:#fecaca;font-size:10.5px;}'
+      + '.wtl-section-progress-bar{height:7px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden;}'
+      + '.wtl-section-progress-fill{height:100%;width:0%;border-radius:999px;background:linear-gradient(135deg,#ef4444,#b91c1c 58%,#7f1d1d);transition:width .25s ease;}'
 
       + '.wtl-plan-scroll{overflow:visible;padding-right:0;margin-top:11px;}'
       + '.wtl-order-list{display:flex;flex-direction:column;gap:8px;}'
@@ -786,7 +929,6 @@
       + '.wtl-order-num{width:26px;height:26px;border-radius:9px;background:linear-gradient(135deg,rgba(239,68,68,.32),rgba(127,29,29,.26));border:1px solid rgba(248,113,113,.38);color:#fecaca;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;flex-shrink:0;}'
       + '.wtl-order-title{font-size:12px;font-weight:850;color:rgba(255,255,255,.88);line-height:1.25;}'
       + '.wtl-order-desc{font-size:11px;color:rgba(255,255,255,.52);line-height:1.35;margin-top:2px;}'
-      + '.wtl-badge-soon{display:inline-flex;margin-top:10px;padding:7px 9px;border-radius:999px;background:rgba(239,68,68,.14);border:1px solid rgba(248,113,113,.28);color:#fecaca;font-size:11px;font-weight:850;}'
       + '.wtl-plan-progress-wrap{margin-top:11px;padding:10px;border:1px solid rgba(255,255,255,.09);border-radius:13px;background:rgba(255,255,255,.04);}'
       + '.wtl-plan-progress-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;color:rgba(255,255,255,.72);font-size:11px;font-weight:800;}'
       + '.wtl-plan-progress-top strong{color:#fecaca;font-size:11px;}'
@@ -890,7 +1032,7 @@
       + '}';
 
     var style = document.createElement('style');
-    style.id = 'pt-assistant-style-v54';
+    style.id = 'pt-assistant-style-v55';
     style.type = 'text/css';
     style.appendChild(document.createTextNode(css));
     document.head.appendChild(style);
@@ -946,10 +1088,17 @@
       html += ''
         + '<button type="button" class="wtl-section-card" data-wtl-plan-section="' + esc(group.id) + '">'
         + '<div class="wtl-section-icon">' + (i + 1) + '</div>'
-        + '<div>'
+        + '<div class="wtl-section-content">'
         + '<div class="wtl-section-title">' + esc(group.title) + '</div>'
         + '<div class="wtl-section-desc">' + esc(group.description) + '</div>'
         + '<span class="wtl-section-meta">' + count + ' lekcji</span>'
+        + '<div class="wtl-section-progress-wrap">'
+        + '<div class="wtl-section-progress-top">'
+        + '<span>Postęp sekcji</span>'
+        + '<strong id="wtl-section-progress-text-' + esc(group.id) + '">Ładowanie...</strong>'
+        + '</div>'
+        + '<div class="wtl-section-progress-bar"><div class="wtl-section-progress-fill" id="wtl-section-progress-fill-' + esc(group.id) + '"></div></div>'
+        + '</div>'
         + '</div>'
         + '</button>';
     }
@@ -1001,8 +1150,6 @@
       + '</div>'
       + '</div>'
       + '</div>'
-
-      + '<span class="wtl-badge-soon">Sekcja dynamiczna</span>'
       + '</div>';
   }
 
@@ -1156,6 +1303,8 @@
     if (read('active_plan_section', '')) {
       loadLessonPlan(false);
       updateLessonBox();
+    } else {
+      loadSectionProgresses(false);
     }
   }
 
@@ -1596,7 +1745,7 @@
 
     var script = document.createElement('script');
     script.async = true;
-    script.id = 'pt-thulium-loader-v54';
+    script.id = 'pt-thulium-loader-v55';
     script.src = CONFIG.thuliumScriptSrc + '&ptReload=' + Date.now();
 
     script.onload = function () {
@@ -2080,6 +2229,8 @@
       if (read('active_tab', 'order') === 'order' || read('active_tab', 'order') === 'lesson') {
         if (read('active_plan_section', '')) {
           loadLessonPlan(false);
+        } else {
+          loadSectionProgresses(false);
         }
       }
     }, 1200);

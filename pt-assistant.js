@@ -9,7 +9,7 @@
     aiIframeSrc: 'https://app.multitools.ai/chat-embed-host.html?assistantId=83ab6507-f2b6-402d-8ffd-4ab42aa1e9b2',
     thuliumScriptSrc: 'https://cdn.thulium.com/apps/chat-widget/chat-loader.js?hash=eliteexpertclub-4cb69311-31a0-4960-9608-ef51bf61693b',
     storagePrefix: 'pt_assistant_v58_',
-    brandImageSrc: 'https://raw.githubusercontent.com/wojciechmathea-hash/pt-assistant-test/main/Untitled%20(5).png',
+    brandImageSrc: 'https://edu.profitabletrader.ai/uploads/media/12510/5/Group_361__1_.png?_t=1778149920',
 
     siteLinks: [
       { label: 'MFA Traders', url: 'https://mfatraders.com/', domain: 'mfatraders.com' },

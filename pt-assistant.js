@@ -1,16 +1,24 @@
 (function () {
   'use strict';
 
-  if (window.__PT_ASSISTANT_GTM_MAIN_V59_SUBS_LESSONS__) return;
-  window.__PT_ASSISTANT_GTM_MAIN_V59_SUBS_LESSONS__ = true;
+  if (window.__PT_ASSISTANT_GTM_MAIN_V60_SUBSCRIPTION_FIX__) return;
+  window.__PT_ASSISTANT_GTM_MAIN_V60_SUBSCRIPTION_FIX__ = true;
 
   var CONFIG = {
     allowedHostnames: ['edu.profitabletrader.ai'],
     aiIframeSrc: 'https://app.multitools.ai/chat-embed-host.html?assistantId=83ab6507-f2b6-402d-8ffd-4ab42aa1e9b2',
     thuliumScriptSrc: 'https://cdn.thulium.com/apps/chat-widget/chat-loader.js?hash=eliteexpertclub-4cb69311-31a0-4960-9608-ef51bf61693b',
-    storagePrefix: 'pt_assistant_v59_',
+    storagePrefix: 'pt_assistant_v60_',
     brandImageSrc: 'https://edu.profitabletrader.ai/uploads/media/12510/5/Group_361__1_.png?_t=1778149920',
+
     subscriptionId: 3,
+    subscriptionName: 'Profitable Trader AI',
+    subscriptionMatchPhrases: [
+      'Profitable Trader AI',
+      'PL | Profitable Trader AI',
+      'Abonament PL | Profitable Trader AI',
+      'Pakiet Profitable Trader AI'
+    ],
 
     profileUrls: [
       '/next/public/settings/profile',
@@ -780,9 +788,6 @@
 
       var welcome = document.querySelector('.wtl-welcome-title');
       if (welcome) welcome.innerHTML = esc(welcomeText());
-
-      var cached = read('last_lesson', null);
-      if (cached) save('last_lesson', cached);
     });
   }
 
@@ -791,24 +796,127 @@
     return name ? 'Witaj ponownie, ' + name + ' 👋' : 'Witaj ponownie 👋';
   }
 
-  function parseSubscriptionStatusFromDoc(doc) {
-    var id = String(CONFIG.subscriptionId);
-    var bodyText = keyText(doc.body ? doc.body.textContent || doc.body.innerText || '' : '');
+  function parseDateFromText(text) {
+    text = clean(text);
 
-    var activeWords = [
-      'aktywny',
-      'active',
-      'opłacony',
-      'oplacony',
-      'paid',
-      'current',
-      'ważny',
-      'wazny',
-      'subskrypcja aktywna',
-      'abonament aktywny'
+    var m = text.match(/(\d{1,2})[.\-/](\d{1,2})[.\-/](\d{4})(?:,\s*|\s+)?(\d{1,2})?:?(\d{2})?/);
+
+    if (!m) return null;
+
+    var day = parseInt(m[1], 10);
+    var month = parseInt(m[2], 10) - 1;
+    var year = parseInt(m[3], 10);
+    var hour = typeof m[4] !== 'undefined' && m[4] ? parseInt(m[4], 10) : 23;
+    var minute = typeof m[5] !== 'undefined' && m[5] ? parseInt(m[5], 10) : 59;
+
+    var date = new Date(year, month, day, hour, minute, 0);
+
+    if (isNaN(date.getTime())) return null;
+
+    return date;
+  }
+
+  function textHasAny(text, arr) {
+    text = keyText(text);
+
+    for (var i = 0; i < arr.length; i++) {
+      if (text.indexOf(keyText(arr[i])) !== -1) return true;
+    }
+
+    return false;
+  }
+
+  function nodeLooksLikeTargetSubscription(node) {
+    if (!node) return false;
+
+    var txt = clean(node.textContent || node.innerText || '');
+    var html = clean(node.innerHTML || '');
+    var combined = txt + ' ' + html;
+
+    if (textHasAny(combined, CONFIG.subscriptionMatchPhrases)) return true;
+
+    var id = String(CONFIG.subscriptionId);
+
+    if (
+      combined.indexOf('ID: ' + id) !== -1 ||
+      combined.indexOf('ID ' + id) !== -1 ||
+      combined.indexOf('id: ' + id) !== -1 ||
+      combined.indexOf('id ' + id) !== -1 ||
+      combined.indexOf('abonament ' + id) !== -1 ||
+      combined.indexOf('subscription ' + id) !== -1 ||
+      combined.indexOf('/abonament/' + id) !== -1 ||
+      combined.indexOf('/subscription/' + id) !== -1 ||
+      combined.indexOf('value="' + id + '"') !== -1 ||
+      combined.indexOf("value='" + id + "'") !== -1 ||
+      combined.indexOf('data-id="' + id + '"') !== -1 ||
+      combined.indexOf("data-id='" + id + "'") !== -1
+    ) {
+      return true;
+    }
+
+    return false;
+  }
+
+  function getBestSubscriptionCard(doc) {
+    var selectors = [
+      'article',
+      'section',
+      '.subscription',
+      '.subscriptions',
+      '.abonament',
+      '.plan',
+      '.card',
+      '.box',
+      '.item',
+      'li',
+      'tr',
+      'div'
     ];
 
-    var inactiveWords = [
+    var best = null;
+    var bestScore = 0;
+
+    for (var s = 0; s < selectors.length; s++) {
+      var nodes = doc.querySelectorAll(selectors[s]);
+
+      for (var i = 0; i < nodes.length; i++) {
+        var node = nodes[i];
+
+        if (!nodeLooksLikeTargetSubscription(node)) continue;
+
+        var txt = clean(node.textContent || node.innerText || '');
+        var lower = keyText(txt);
+
+        var score = 1;
+
+        if (textHasAny(txt, CONFIG.subscriptionMatchPhrases)) score += 40;
+        if (lower.indexOf('valid until') !== -1 || lower.indexOf('ważny do') !== -1 || lower.indexOf('wazny do') !== -1) score += 20;
+        if (lower.indexOf('expires') !== -1 || lower.indexOf('wygasa') !== -1) score += 15;
+        if (lower.indexOf('automatic payment') !== -1 || lower.indexOf('subscription') !== -1) score += 10;
+        if (lower.indexOf('666 pln') !== -1) score += 5;
+
+        var rectScore = Math.min(txt.length, 1200) / 1200;
+        score += rectScore;
+
+        if (score > bestScore) {
+          bestScore = score;
+          best = node;
+        }
+      }
+    }
+
+    return best;
+  }
+
+  function parseSubscriptionStatusFromDoc(doc) {
+    var card = getBestSubscriptionCard(doc);
+    var searchArea = card || doc.body;
+    var text = clean(searchArea ? searchArea.textContent || searchArea.innerText || '' : '');
+    var lower = keyText(text);
+
+    if (!text) return 'unknown';
+
+    var directInactive = [
       'nieaktywny',
       'inactive',
       'expired',
@@ -823,82 +931,77 @@
       'no active'
     ];
 
-    function hasAny(text, words) {
-      for (var i = 0; i < words.length; i++) {
-        if (text.indexOf(words[i]) !== -1) return true;
-      }
-      return false;
+    var directActive = [
+      'active',
+      'aktywny',
+      'opłacony',
+      'oplacony',
+      'paid',
+      'current',
+      'ważny',
+      'wazny',
+      'subskrypcja aktywna',
+      'abonament aktywny'
+    ];
+
+    var hasExpires = lower.indexOf('expires') !== -1 || lower.indexOf('wygasa') !== -1 || lower.indexOf('valid until') !== -1 || lower.indexOf('ważny do') !== -1 || lower.indexOf('wazny do') !== -1;
+    var date = parseDateFromText(text);
+
+    if (hasExpires && date) {
+      if (date.getTime() > Date.now()) return 'expires';
+      return 'inactive';
     }
 
-    var candidates = doc.querySelectorAll('tr,li,.card,.box,.subscription,.abonament,.plan,.product,.item,form,section,article,div');
+    if (textHasAny(text, directInactive)) return 'inactive';
 
-    for (var i = 0; i < candidates.length; i++) {
-      var el = candidates[i];
-      var txt = keyText(el.textContent || el.innerText || '');
-      var html = keyText(el.innerHTML || '');
+    if (textHasAny(text, directActive)) return 'active';
 
-      var mentionsId =
-        txt.indexOf('id: ' + id) !== -1 ||
-        txt.indexOf('id ' + id) !== -1 ||
-        txt.indexOf('abonament ' + id) !== -1 ||
-        txt.indexOf('subscription ' + id) !== -1 ||
-        html.indexOf('abonament/' + id) !== -1 ||
-        html.indexOf('subscription/' + id) !== -1 ||
-        html.indexOf('value="' + id + '"') !== -1 ||
-        html.indexOf("value='" + id + "'") !== -1 ||
-        html.indexOf('data-id="' + id + '"') !== -1 ||
-        html.indexOf("data-id='" + id + "'") !== -1;
-
-      if (!mentionsId) continue;
-
-      if (hasAny(txt, inactiveWords)) return 'inactive';
-      if (hasAny(txt, activeWords)) return 'active';
-    }
-
-    if (
-      bodyText.indexOf('abonament') !== -1 ||
-      bodyText.indexOf('subscription') !== -1 ||
-      bodyText.indexOf('subskrypcja') !== -1
-    ) {
-      if (hasAny(bodyText, inactiveWords)) return 'inactive';
-      if (hasAny(bodyText, activeWords)) return 'active';
+    if (card && textHasAny(text, CONFIG.subscriptionMatchPhrases)) {
+      if (hasExpires) return 'expires';
+      return 'active';
     }
 
     return 'unknown';
   }
 
-  function setSubscriptionBadge(status) {
+  function setSubscriptionBadge(status, dateText) {
     var badge = document.getElementById('wtl-subscription-badge');
     if (!badge) return;
 
-    badge.classList.remove('active', 'inactive', 'unknown', 'loading');
+    badge.classList.remove('active', 'inactive', 'unknown', 'loading', 'expires');
 
     if (status === 'active') {
       badge.classList.add('active');
-      badge.innerHTML = 'Abonament: aktywny';
+      badge.innerHTML = '<span>Profitable Trader AI:</span><strong>aktywne</strong>';
+      return;
+    }
+
+    if (status === 'expires') {
+      badge.classList.add('expires');
+      badge.innerHTML = '<span>Profitable Trader AI:</span><strong>aktywne</strong>';
       return;
     }
 
     if (status === 'inactive') {
       badge.classList.add('inactive');
-      badge.innerHTML = 'Abonament: nieaktywny';
+      badge.innerHTML = '<span>Profitable Trader AI:</span><strong>nieaktywne</strong>';
       return;
     }
 
     if (status === 'loading') {
       badge.classList.add('loading');
-      badge.innerHTML = 'Abonament: sprawdzam...';
+      badge.innerHTML = '<span>Profitable Trader AI:</span><strong>sprawdzam...</strong>';
       return;
     }
 
     badge.classList.add('unknown');
-    badge.innerHTML = 'Abonament: nieznany';
+    badge.innerHTML = '<span>Profitable Trader AI:</span><strong>nieznane</strong>';
   }
 
   function fetchSubscriptionStatus() {
     var cached = read('subscription_status_cache', null);
 
-    if (cached && cached.status && cached.savedAt && Date.now() - cached.savedAt < 3 * 60 * 1000) {
+    if (cached && cached.status && cached.savedAt && Date.now() - cached.savedAt < 2 * 60 * 1000) {
       setSubscriptionBadge(cached.status);
       return;
     }
@@ -909,13 +1012,20 @@
     var index = 0;
     var finalStatus = 'unknown';
 
+    function finish(status) {
+      finalStatus = status || finalStatus || 'unknown';
+
+      save('subscription_status_cache', {
+        status: finalStatus,
+        savedAt: Date.now()
+      });
+
+      setSubscriptionBadge(finalStatus);
+    }
+
     function next() {
       if (index >= urls.length) {
-        save('subscription_status_cache', {
-          status: finalStatus,
-          savedAt: Date.now()
-        });
-        setSubscriptionBadge(finalStatus);
+        finish(finalStatus);
         return;
       }
 
@@ -934,13 +1044,8 @@
           var doc = new DOMParser().parseFromString(html, 'text/html');
           var status = parseSubscriptionStatusFromDoc(doc);
 
-          if (status === 'active' || status === 'inactive') {
-            finalStatus = status;
-            save('subscription_status_cache', {
-              status: finalStatus,
-              savedAt: Date.now()
-            });
-            setSubscriptionBadge(finalStatus);
+          if (status === 'active' || status === 'expires' || status === 'inactive') {
+            finish(status);
           } else {
             next();
           }
@@ -1487,19 +1592,17 @@
       + '#wtl-assistant-panel,#wtl-mini,#wtl-bottom-bar,#wtl-bottom-tab,#wtl-site-switcher{box-sizing:border-box;font-family:Inter,Arial,Helvetica,sans-serif;}'
       + '#wtl-assistant-panel{position:fixed;z-index:2147483640;width:390px;max-width:calc(100vw - 18px);max-height:min(560px,calc(100vh - 14px));background:#070707;color:#fff;border:1px solid rgba(239,68,68,.34);border-radius:20px;box-shadow:0 22px 70px rgba(0,0,0,.52),0 0 40px rgba(239,68,68,.12);overflow:hidden;display:flex;flex-direction:column;}'
       + '#wtl-assistant-panel.wtl-hidden{display:none;}'
-      + '.wtl-header{display:flex;align-items:center;justify-content:space-between;padding:9px 12px 8px 12px;background:radial-gradient(circle at 18% 0%,rgba(239,68,68,.26),transparent 34%),linear-gradient(135deg,#050505,#111111 55%,#1a0505);cursor:move;border-bottom:1px solid rgba(239,68,68,.22);order:1;min-height:58px;gap:8px;flex-shrink:0;}'
+      + '.wtl-header{display:flex;align-items:center;justify-content:space-between;padding:9px 10px 8px 10px;background:radial-gradient(circle at 18% 0%,rgba(239,68,68,.26),transparent 34%),linear-gradient(135deg,#050505,#111111 55%,#1a0505);cursor:move;border-bottom:1px solid rgba(239,68,68,.22);order:1;min-height:62px;gap:8px;flex-shrink:0;}'
       + '.wtl-brand{display:flex;align-items:center;gap:8px;min-width:0;flex:1;}'
-      + '.wtl-brand-main{display:flex;flex-direction:column;gap:5px;min-width:0;}'
-      + '.wtl-brand-art-box{height:32px;width:190px;max-width:100%;display:flex;align-items:center;justify-content:flex-start;overflow:hidden;border-radius:9px;background:transparent!important;}'
-      + '.wtl-brand-art-img{height:32px;width:190px;max-width:100%;object-fit:contain;object-position:left center;display:block;background:transparent!important;border:0!important;box-shadow:none!important;filter:drop-shadow(0 0 8px rgba(255,255,255,.1));}'
-      + '#wtl-subscription-badge{display:inline-flex;align-items:center;width:max-content;max-width:190px;border-radius:999px;padding:3px 7px;font-size:9.5px;font-weight:900;line-height:1;border:1px solid rgba(255,255,255,.12);white-space:nowrap;}'
-      + '#wtl-subscription-badge.loading{color:#fde68a;background:rgba(234,179,8,.12);border-color:rgba(234,179,8,.3);}'
-      + '#wtl-subscription-badge.active{color:#bbf7d0;background:rgba(34,197,94,.12);border-color:rgba(34,197,94,.32);}'
-      + '#wtl-subscription-badge.inactive{color:#fecaca;background:rgba(239,68,68,.13);border-color:rgba(239,68,68,.36);}'
-      + '#wtl-subscription-badge.unknown{color:rgba(255,255,255,.68);background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.13);}'
-      + '.wtl-logo{width:30px;height:30px;border-radius:10px;background:linear-gradient(135deg,#ef4444,#b91c1c 58%,#450a0a);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:12px;flex-shrink:0;}'
-      + '.wtl-title{font-size:13px;font-weight:900;line-height:1.2;}'
-      + '.wtl-subtitle{margin-top:2px;color:rgba(255,255,255,.68);font-size:10px;}'
+      + '.wtl-brand-art-box{height:32px;width:168px;max-width:100%;display:flex;align-items:center;justify-content:flex-start;overflow:hidden;border-radius:9px;background:transparent!important;}'
+      + '.wtl-brand-art-img{height:32px;width:168px;max-width:100%;object-fit:contain;object-position:left center;display:block;background:transparent!important;border:0!important;box-shadow:none!important;filter:drop-shadow(0 0 8px rgba(255,255,255,.1));}'
+      + '#wtl-subscription-badge{margin-left:auto;margin-right:2px;width:92px;min-height:42px;border-radius:12px;padding:6px 7px;font-size:9px;font-weight:900;line-height:1.12;border:1px solid rgba(255,255,255,.12);display:flex;flex-direction:column;align-items:flex-start;justify-content:center;text-align:left;white-space:normal;flex-shrink:0;}'
+      + '#wtl-subscription-badge span{display:block;color:rgba(255,255,255,.78);font-size:8.5px;font-weight:900;line-height:1.05;margin-bottom:3px;}'
+      + '#wtl-subscription-badge strong{display:block;font-size:10px;font-weight:950;line-height:1.05;}'
+      + '#wtl-subscription-badge.loading{color:#fde68a;background:rgba(234,179,8,.14);border-color:rgba(234,179,8,.34);}'
+      + '#wtl-subscription-badge.active,#wtl-subscription-badge.expires{color:#bbf7d0;background:rgba(34,197,94,.16);border-color:rgba(34,197,94,.42);box-shadow:0 0 14px rgba(34,197,94,.12);}'
+      + '#wtl-subscription-badge.inactive{color:#fecaca;background:rgba(239,68,68,.16);border-color:rgba(239,68,68,.46);box-shadow:0 0 14px rgba(239,68,68,.12);}'
+      + '#wtl-subscription-badge.unknown{color:rgba(255,255,255,.72);background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.16);}'
       + '.wtl-actions{display:flex;gap:6px;align-items:center;flex-shrink:0;}'
       + '.wtl-icon-btn{width:27px;height:27px;border:0;border-radius:9px;background:rgba(255,255,255,.08);color:#fff;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;}'
       + '.wtl-icon-btn:hover{background:rgba(239,68,68,.22);}'
@@ -1608,10 +1711,10 @@
       + '.wtl-bottom-title{font-size:13px;font-weight:850;}'
       + '.wtl-bottom-subtitle{font-size:11px;color:rgba(255,255,255,.62);}'
       + '.wtl-bottom-open{border:0;border-radius:12px;background:linear-gradient(135deg,#ef4444,#b91c1c 58%,#7f1d1d);color:#fff;padding:10px 13px;font-size:12px;font-weight:900;cursor:pointer;white-space:nowrap;}'
-      + '@media(max-width:480px){#wtl-assistant-panel{width:calc(100vw - 12px);max-width:calc(100vw - 12px);max-height:min(540px,calc(100vh - 12px));}#wtl-assistant-panel.wtl-thulium-window-open{width:calc(100vw - 10px);}.wtl-brand-art-box{width:168px;height:30px;}.wtl-brand-art-img{width:168px;height:30px;}#wtl-subscription-badge{max-width:168px;font-size:9px;}.wtl-body{padding:8px;}.wtl-tabs{grid-template-columns:1fr;}.wtl-choice-row{grid-template-columns:1fr;}.wtl-frame{height:calc(100vh - 240px)!important;min-height:450px!important;}.wtl-frame iframe{min-height:450px!important;}#wtl-assistant-panel.wtl-thulium-expanded #wtl-thulium-native-mount{height:540px!important;min-height:540px!important;max-height:540px!important;}#wtl-assistant-panel.wtl-thulium-window-open #wtl-thulium-native-mount{height:520px!important;min-height:520px!important;max-height:520px!important;}#wtl-assistant-panel.wtl-thulium-window-open #wtl-thulium-native-mount iframe[title="Thulium Click2Contact"],#wtl-assistant-panel.wtl-thulium-window-open #wtl-thulium-native-mount .thulium-chat-wrapper,#wtl-assistant-panel.wtl-thulium-window-open #wtl-thulium-native-mount .thulium-chat-frame-wrapper{left:-4px!important;top:-72px!important;width:calc(100% + 8px)!important;height:750px!important;min-height:750px!important;max-height:none!important;}#wtl-thulium-cover-min{right:50px!important;}#wtl-thulium-cover-close{right:12px!important;}#wtl-site-switcher{transform:scale(.92);transform-origin:top right;}#wtl-mini{right:24px;bottom:16px;}#wtl-bottom-bar{height:auto;}#wtl-bottom-tab{align-items:stretch;flex-direction:column;}.wtl-bottom-open{width:100%;}}';
+      + '@media(max-width:480px){#wtl-assistant-panel{width:calc(100vw - 12px);max-width:calc(100vw - 12px);max-height:min(540px,calc(100vh - 12px));}#wtl-assistant-panel.wtl-thulium-window-open{width:calc(100vw - 10px);}.wtl-brand-art-box{width:136px;height:30px;}.wtl-brand-art-img{width:136px;height:30px;}#wtl-subscription-badge{width:86px;min-height:40px;font-size:8.5px;padding:5px 6px;}#wtl-subscription-badge span{font-size:8px;}#wtl-subscription-badge strong{font-size:9.5px;}.wtl-body{padding:8px;}.wtl-tabs{grid-template-columns:1fr;}.wtl-choice-row{grid-template-columns:1fr;}.wtl-frame{height:calc(100vh - 240px)!important;min-height:450px!important;}.wtl-frame iframe{min-height:450px!important;}#wtl-assistant-panel.wtl-thulium-expanded #wtl-thulium-native-mount{height:540px!important;min-height:540px!important;max-height:540px!important;}#wtl-assistant-panel.wtl-thulium-window-open #wtl-thulium-native-mount{height:520px!important;min-height:520px!important;max-height:520px!important;}#wtl-assistant-panel.wtl-thulium-window-open #wtl-thulium-native-mount iframe[title="Thulium Click2Contact"],#wtl-assistant-panel.wtl-thulium-window-open #wtl-thulium-native-mount .thulium-chat-wrapper,#wtl-assistant-panel.wtl-thulium-window-open #wtl-thulium-native-mount .thulium-chat-frame-wrapper{left:-4px!important;top:-72px!important;width:calc(100% + 8px)!important;height:750px!important;min-height:750px!important;max-height:none!important;}#wtl-thulium-cover-min{right:50px!important;}#wtl-thulium-cover-close{right:12px!important;}#wtl-site-switcher{transform:scale(.92);transform-origin:top right;}#wtl-mini{right:24px;bottom:16px;}#wtl-bottom-bar{height:auto;}#wtl-bottom-tab{align-items:stretch;flex-direction:column;}.wtl-bottom-open{width:100%;}}';
 
     var style = document.createElement('style');
-    style.id = 'pt-assistant-style-v59';
+    style.id = 'pt-assistant-style-v60';
     style.type = 'text/css';
     style.appendChild(document.createTextNode(css));
     document.head.appendChild(style);
@@ -1747,13 +1850,7 @@
   }
 
   function brandHtml() {
-    var src = clean(CONFIG.brandImageSrc);
-
-    return ''
-      + '<div class="wtl-brand-main">'
-      + '<div class="wtl-brand-art-box"><img class="wtl-brand-art-img" src="' + esc(src) + '" alt="Profitable Trader Assistant"></div>'
-      + '<div id="wtl-subscription-badge" class="loading">Abonament: sprawdzam...</div>'
-      + '</div>';
+    return '<div class="wtl-brand-art-box"><img class="wtl-brand-art-img" src="' + esc(CONFIG.brandImageSrc) + '" alt="Profitable Trader Assistant"></div>';
   }
 
   function mainHtml() {
@@ -1806,6 +1903,7 @@
       + '<button type="button" id="wtl-sites-toggle" title="Nasze witryny">‹</button>'
       + brandHtml()
       + '</div>'
+      + '<div id="wtl-subscription-badge" class="loading"><span>Profitable Trader AI:</span><strong>sprawdzam...</strong></div>'
       + '<button type="button" id="wtl-thulium-header-back">← Wróć</button>'
       + '<div class="wtl-actions">'
       + '<button type="button" class="wtl-icon-btn" id="wtl-min">–</button>'
@@ -2302,7 +2400,7 @@
 
     var script = document.createElement('script');
     script.async = true;
-    script.id = 'pt-thulium-loader-v59';
+    script.id = 'pt-thulium-loader-v60';
     script.src = CONFIG.thuliumScriptSrc + '&ptReload=' + Date.now();
 
     script.onload = function () {
@@ -2723,6 +2821,7 @@
 
   function handleUrlChange() {
     remove('dynamic_lesson_groups');
+    remove('subscription_status_cache');
     saveLessonDelayed();
 
     var welcome = document.querySelector('.wtl-welcome-title');

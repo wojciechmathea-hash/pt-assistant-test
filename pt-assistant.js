@@ -1,15 +1,26 @@
 (function () {
   'use strict';
 
-  if (window.__PT_ASSISTANT_GTM_MAIN_V58_DYNAMIC_LESSONS_BOX__) return;
-  window.__PT_ASSISTANT_GTM_MAIN_V58_DYNAMIC_LESSONS_BOX__ = true;
+  if (window.__PT_ASSISTANT_GTM_MAIN_V59_SUBS_LESSONS__) return;
+  window.__PT_ASSISTANT_GTM_MAIN_V59_SUBS_LESSONS__ = true;
 
   var CONFIG = {
     allowedHostnames: ['edu.profitabletrader.ai'],
     aiIframeSrc: 'https://app.multitools.ai/chat-embed-host.html?assistantId=83ab6507-f2b6-402d-8ffd-4ab42aa1e9b2',
     thuliumScriptSrc: 'https://cdn.thulium.com/apps/chat-widget/chat-loader.js?hash=eliteexpertclub-4cb69311-31a0-4960-9608-ef51bf61693b',
-    storagePrefix: 'pt_assistant_v58_',
+    storagePrefix: 'pt_assistant_v59_',
     brandImageSrc: 'https://edu.profitabletrader.ai/uploads/media/12510/5/Group_361__1_.png?_t=1778149920',
+    subscriptionId: 3,
+
+    profileUrls: [
+      '/next/public/settings/profile',
+      '/next/public/settings/profile/security'
+    ],
+
+    subscriptionUrls: [
+      '/next/public/account/subscription',
+      '/next/public/account/abonament'
+    ],
 
     siteLinks: [
       { label: 'MFA Traders', url: 'https://mfatraders.com/', domain: 'mfatraders.com' },
@@ -20,7 +31,7 @@
       {
         id: 'start',
         title: 'Start / Wprowadzenie',
-        sourceTitle: 'Preparing / Get ready',
+        sourceTitles: ['Preparing / Get ready'],
         description: 'Pierwsze lekcje, które klient powinien obejrzeć na start.',
         fallbackLessons: [
           { id: 191, title: 'Witamy w Profitable Trader AI' },
@@ -35,7 +46,7 @@
       {
         id: 'platformy',
         title: 'Platformy handlowe',
-        sourceTitle: 'Trading Platforms',
+        sourceTitles: ['Trading Platforms'],
         description: 'Lekcje dotyczące platform i środowiska tradingowego.',
         fallbackLessons: [
           { id: 198, title: 'Platforma [darmowa] - MetaTrader 4' },
@@ -47,7 +58,7 @@
       {
         id: 'podstawy',
         title: 'Podstawy handlu',
-        sourceTitle: 'ALLin for Beginner Trader',
+        sourceTitles: ['ALLin for Beginner Trader'],
         description: 'Podstawowe materiały dla początkującego tradera.',
         fallbackLessons: [
           { id: 212, title: 'Wprowadzenie do rynku Forex' },
@@ -67,6 +78,87 @@
           { id: 228, title: 'Teoria: Mądrość Tłumu na Rynkach' },
           { id: 229, title: 'Teoria: Fibonacci & Golden Ratio' },
           { id: 230, title: 'Teoria: Rynek Aukcyjny' }
+        ]
+      },
+      {
+        id: 'psnd',
+        title: 'Strategia PSND',
+        sourceTitles: ['ALLin PSND'],
+        description: 'Główna ścieżka nauki strategii PSND.',
+        fallbackLessons: [
+          { id: 232, title: 'PSND - Zaczynamy!' },
+          { id: 233, title: 'Przygotowanie Wykresu' },
+          { id: 234, title: 'Instrumenty' },
+          { id: 235, title: 'Separator Czasu' },
+          { id: 236, title: 'Swing High & Low' },
+          { id: 237, title: 'Trend Spadkowy & Wzrostowy' },
+          { id: 238, title: 'Fibonacci: Ekspansje & Zniesienia' },
+          { id: 239, title: 'Open High Low & Target' },
+          { id: 240, title: 'Setup #1 Reakcja' },
+          { id: 241, title: 'Cluster Fibbo' },
+          { id: 242, title: 'Setup Uśrednienie' },
+          { id: 243, title: 'Setup #2 Dojście' },
+          { id: 244, title: 'Trading - Szybkie Nabywanie Umiejętności' },
+          { id: 245, title: 'Market Replay' },
+          { id: 246, title: 'Przewodnik po ALLin Panel' }
+        ]
+      },
+      {
+        id: 'psnd-live',
+        title: 'PSND na żywo!',
+        sourceTitles: ['ALLin Session - PSND'],
+        description: 'Nagrania sesji live dla strategii PSND.',
+        fallbackLessons: [
+          { id: 247, title: 'LTS 13.02.2025 | Bartek' },
+          { id: 248, title: 'LTS 31.01.2025 | Paweł' },
+          { id: 249, title: 'LTS 07.02.2025 | Paweł' },
+          { id: 250, title: 'LTS 13.12.2025 | Bartek' }
+        ]
+      },
+      {
+        id: 'pac',
+        title: 'Strategia PAC',
+        sourceTitles: ['Trading Workflow', 'Basics for Price Action', 'ALLin PAC', 'Price Action Setups'],
+        description: 'Pełna ścieżka strategii PAC, workflow oraz setupy.',
+        fallbackLessons: [
+          { id: 602, title: 'Workflow' },
+          { id: 251, title: 'Assets' },
+          { id: 252, title: 'Charts' },
+          { id: 253, title: 'PAC | Wprowadzenie' },
+          { id: 254, title: 'PAC | Candles' },
+          { id: 255, title: 'PAC | Trendlines' },
+          { id: 256, title: 'PAC | EMA' },
+          { id: 257, title: 'PAC | Fibo' },
+          { id: 258, title: 'PAC | Elliot Waves' },
+          { id: 259, title: 'PAC | Reversal Zone' },
+          { id: 260, title: 'PAC | Double Top & Bottom' },
+          { id: 261, title: 'PAC | Open High Low Close' },
+          { id: 262, title: 'PAC | Session Objective' },
+          { id: 263, title: 'PAC | Measured-Move' },
+          { id: 264, title: 'PAC | Double Down & Up' },
+          { id: 265, title: 'PAC | Hidden Channel' },
+          { id: 266, title: 'PAC | Battle Zones' },
+          { id: 267, title: 'PAC | Spike & Move' },
+          { id: 268, title: 'PAC | Trading Range Basic' },
+          { id: 269, title: 'PAC | 2-try Rule' },
+          { id: 270, title: 'PAC | Price Action Scenario' },
+          { id: 271, title: 'PAC | Micro Rotation' },
+          { id: 273, title: 'PAC | Strenght & Pullback' },
+          { id: 274, title: 'PAC | Price Action Scenario' },
+          { id: 275, title: 'PAC | Micro Rotation Setups' }
+        ]
+      },
+      {
+        id: 'pac-live',
+        title: 'PAC na żywo!',
+        sourceTitles: ['ALLin Session - PAC'],
+        description: 'Nagrania sesji live dla strategii PAC.',
+        fallbackLessons: [
+          { id: 283, title: 'LTS 09.06.2025 | Paweł' },
+          { id: 284, title: 'LTS 06.02.2025 | Paweł' },
+          { id: 285, title: 'LTS 23.01.2025 | Paweł' },
+          { id: 286, title: 'LTS 15.01.2025 | Bartek' },
+          { id: 287, title: 'LTS 08.07.2024 | Paweł' }
         ]
       }
     ]
@@ -156,6 +248,20 @@
 
   function lessonUrlById(id) {
     return location.origin + '/next/public/lesson/' + id;
+  }
+
+  function uniqueLessons(lessons) {
+    var seen = {};
+    var out = [];
+
+    for (var i = 0; i < lessons.length; i++) {
+      var item = lessons[i];
+      if (!item || !item.id || seen[item.id]) continue;
+      seen[item.id] = true;
+      out.push(item);
+    }
+
+    return out;
   }
 
   function removeOldPanel() {
@@ -352,6 +458,12 @@
       'get ready',
       'trading platforms',
       'allin for beginner trader',
+      'allin psnd',
+      'allin session',
+      'allin pac',
+      'trading workflow',
+      'basics for price action',
+      'price action setups',
       'lesson',
       'lessons',
       'lekcja',
@@ -371,14 +483,15 @@
       'completed',
       'ukończona',
       'ukonczona',
-      'do obejrzenia'
+      'do obejrzenia',
+      'pl profitable'
     ];
 
     for (var i = 0; i < blocked.length; i++) {
       if (lower === blocked[i] || lower.indexOf(blocked[i]) !== -1) return '';
     }
 
-    if (/\b(lesson|session|lekcja|lekcje|trading|zoomit|lightshot|platforms|beginner|preparing)\b/i.test(text)) return '';
+    if (/\b(lesson|session|lekcja|lekcje|trading|zoomit|lightshot|platforms|beginner|preparing|profitable)\b/i.test(text)) return '';
 
     var parts = text.split(' ').filter(function (p) {
       return p && p.length > 1;
@@ -399,6 +512,124 @@
     }
 
     return '';
+  }
+
+  function candidateFromInput(doc, selectors) {
+    for (var i = 0; i < selectors.length; i++) {
+      var node = doc.querySelector(selectors[i]);
+      if (!node) continue;
+
+      var value = clean(node.value || node.getAttribute('value') || '');
+      var candidate = normalizeNameCandidate(value);
+
+      if (candidate) return candidate;
+    }
+
+    return '';
+  }
+
+  function parseProfileNameFromDoc(doc) {
+    var exact = candidateFromInput(doc, [
+      'input[name="firstName"]',
+      'input[name="first_name"]',
+      'input[name="firstname"]',
+      'input[name*="[firstName]"]',
+      'input[name*="[first_name]"]',
+      'input[name*="[firstname]"]',
+      'input[id*="firstName"]',
+      'input[id*="first_name"]',
+      'input[id*="firstname"]',
+      'input[name="name"]',
+      'input[name*="[name]"]'
+    ]);
+
+    var last = candidateFromInput(doc, [
+      'input[name="lastName"]',
+      'input[name="last_name"]',
+      'input[name="lastname"]',
+      'input[name*="[lastName]"]',
+      'input[name*="[last_name]"]',
+      'input[name*="[lastname]"]',
+      'input[id*="lastName"]',
+      'input[id*="last_name"]',
+      'input[id*="lastname"]'
+    ]);
+
+    if (exact && last && exact.toLowerCase().indexOf(last.toLowerCase()) === -1) {
+      return clean(exact + ' ' + last);
+    }
+
+    if (exact) return exact;
+
+    var allInputs = doc.querySelectorAll('input[value]');
+
+    for (var i = 0; i < allInputs.length; i++) {
+      var input = allInputs[i];
+      var name = clean((input.name || '') + ' ' + (input.id || '')).toLowerCase();
+
+      if (
+        name.indexOf('csrf') !== -1 ||
+        name.indexOf('password') !== -1 ||
+        name.indexOf('email') !== -1 ||
+        name.indexOf('phone') !== -1 ||
+        name.indexOf('token') !== -1
+      ) {
+        continue;
+      }
+
+      var value = normalizeNameCandidate(input.value || input.getAttribute('value') || '');
+      if (value) return value;
+    }
+
+    return '';
+  }
+
+  function fetchProfileName(callback) {
+    var cached = read('profile_name_cache', null);
+
+    if (cached && cached.name && cached.savedAt && Date.now() - cached.savedAt < 10 * 60 * 1000) {
+      callback(cached.name);
+      return;
+    }
+
+    var urls = CONFIG.profileUrls.slice();
+    var index = 0;
+
+    function next() {
+      if (index >= urls.length) {
+        callback('');
+        return;
+      }
+
+      var url = urls[index++];
+
+      fetch(url, {
+        method: 'GET',
+        credentials: 'include',
+        cache: 'no-store'
+      })
+        .then(function (res) {
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          return res.text();
+        })
+        .then(function (html) {
+          var doc = new DOMParser().parseFromString(html, 'text/html');
+          var name = parseProfileNameFromDoc(doc);
+
+          if (name) {
+            save('profile_name_cache', {
+              name: name,
+              savedAt: Date.now()
+            });
+            callback(name);
+          } else {
+            next();
+          }
+        })
+        .catch(next);
+    }
+
+    next();
   }
 
   function getNameFromLikelyUserAreas() {
@@ -478,6 +709,10 @@
   }
 
   function getName() {
+    var cachedProfile = read('profile_name_cache', null);
+
+    if (cachedProfile && cachedProfile.name) return cachedProfile.name;
+
     var selectors = [
       '[data-user-name]',
       '[data-username]',
@@ -537,9 +772,183 @@
     return read('name', '');
   }
 
+  function updateWelcomeName() {
+    fetchProfileName(function (name) {
+      if (!name) return;
+
+      save('name', name);
+
+      var welcome = document.querySelector('.wtl-welcome-title');
+      if (welcome) welcome.innerHTML = esc(welcomeText());
+
+      var cached = read('last_lesson', null);
+      if (cached) save('last_lesson', cached);
+    });
+  }
+
   function welcomeText() {
     var name = getName();
     return name ? 'Witaj ponownie, ' + name + ' 👋' : 'Witaj ponownie 👋';
+  }
+
+  function parseSubscriptionStatusFromDoc(doc) {
+    var id = String(CONFIG.subscriptionId);
+    var bodyText = keyText(doc.body ? doc.body.textContent || doc.body.innerText || '' : '');
+
+    var activeWords = [
+      'aktywny',
+      'active',
+      'opłacony',
+      'oplacony',
+      'paid',
+      'current',
+      'ważny',
+      'wazny',
+      'subskrypcja aktywna',
+      'abonament aktywny'
+    ];
+
+    var inactiveWords = [
+      'nieaktywny',
+      'inactive',
+      'expired',
+      'wygasł',
+      'wygasl',
+      'wygasła',
+      'wygasla',
+      'cancelled',
+      'canceled',
+      'anulowany',
+      'brak aktywnego',
+      'no active'
+    ];
+
+    function hasAny(text, words) {
+      for (var i = 0; i < words.length; i++) {
+        if (text.indexOf(words[i]) !== -1) return true;
+      }
+      return false;
+    }
+
+    var candidates = doc.querySelectorAll('tr,li,.card,.box,.subscription,.abonament,.plan,.product,.item,form,section,article,div');
+
+    for (var i = 0; i < candidates.length; i++) {
+      var el = candidates[i];
+      var txt = keyText(el.textContent || el.innerText || '');
+      var html = keyText(el.innerHTML || '');
+
+      var mentionsId =
+        txt.indexOf('id: ' + id) !== -1 ||
+        txt.indexOf('id ' + id) !== -1 ||
+        txt.indexOf('abonament ' + id) !== -1 ||
+        txt.indexOf('subscription ' + id) !== -1 ||
+        html.indexOf('abonament/' + id) !== -1 ||
+        html.indexOf('subscription/' + id) !== -1 ||
+        html.indexOf('value="' + id + '"') !== -1 ||
+        html.indexOf("value='" + id + "'") !== -1 ||
+        html.indexOf('data-id="' + id + '"') !== -1 ||
+        html.indexOf("data-id='" + id + "'") !== -1;
+
+      if (!mentionsId) continue;
+
+      if (hasAny(txt, inactiveWords)) return 'inactive';
+      if (hasAny(txt, activeWords)) return 'active';
+    }
+
+    if (
+      bodyText.indexOf('abonament') !== -1 ||
+      bodyText.indexOf('subscription') !== -1 ||
+      bodyText.indexOf('subskrypcja') !== -1
+    ) {
+      if (hasAny(bodyText, inactiveWords)) return 'inactive';
+      if (hasAny(bodyText, activeWords)) return 'active';
+    }
+
+    return 'unknown';
+  }
+
+  function setSubscriptionBadge(status) {
+    var badge = document.getElementById('wtl-subscription-badge');
+    if (!badge) return;
+
+    badge.classList.remove('active', 'inactive', 'unknown', 'loading');
+
+    if (status === 'active') {
+      badge.classList.add('active');
+      badge.innerHTML = 'Abonament: aktywny';
+      return;
+    }
+
+    if (status === 'inactive') {
+      badge.classList.add('inactive');
+      badge.innerHTML = 'Abonament: nieaktywny';
+      return;
+    }
+
+    if (status === 'loading') {
+      badge.classList.add('loading');
+      badge.innerHTML = 'Abonament: sprawdzam...';
+      return;
+    }
+
+    badge.classList.add('unknown');
+    badge.innerHTML = 'Abonament: nieznany';
+  }
+
+  function fetchSubscriptionStatus() {
+    var cached = read('subscription_status_cache', null);
+
+    if (cached && cached.status && cached.savedAt && Date.now() - cached.savedAt < 3 * 60 * 1000) {
+      setSubscriptionBadge(cached.status);
+      return;
+    }
+
+    setSubscriptionBadge('loading');
+
+    var urls = CONFIG.subscriptionUrls.slice();
+    var index = 0;
+    var finalStatus = 'unknown';
+
+    function next() {
+      if (index >= urls.length) {
+        save('subscription_status_cache', {
+          status: finalStatus,
+          savedAt: Date.now()
+        });
+        setSubscriptionBadge(finalStatus);
+        return;
+      }
+
+      var url = urls[index++];
+
+      fetch(url, {
+        method: 'GET',
+        credentials: 'include',
+        cache: 'no-store'
+      })
+        .then(function (res) {
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          return res.text();
+        })
+        .then(function (html) {
+          var doc = new DOMParser().parseFromString(html, 'text/html');
+          var status = parseSubscriptionStatusFromDoc(doc);
+
+          if (status === 'active' || status === 'inactive') {
+            finalStatus = status;
+            save('subscription_status_cache', {
+              status: finalStatus,
+              savedAt: Date.now()
+            });
+            setSubscriptionBadge(finalStatus);
+          } else {
+            next();
+          }
+        })
+        .catch(next);
+    }
+
+    next();
   }
 
   function formatDate(iso) {
@@ -567,13 +976,6 @@
   function shortText(text, max) {
     text = clean(text);
     return text.length > max ? text.slice(0, max - 1) + '…' : text;
-  }
-
-  function getConfiguredGroup(id) {
-    for (var i = 0; i < CONFIG.lessonPlanGroups.length; i++) {
-      if (CONFIG.lessonPlanGroups[i].id === id) return CONFIG.lessonPlanGroups[i];
-    }
-    return CONFIG.lessonPlanGroups[0];
   }
 
   function isDoneFromLessonItem(item) {
@@ -651,14 +1053,13 @@
   function findLessonBoxBySourceTitle(doc, sourceTitle) {
     var boxes = doc.querySelectorAll('.lessons-box');
     var wanted = keyText(sourceTitle);
-    var looseWanted = wanted.replace(/\s+/g, ' ');
 
     for (var i = 0; i < boxes.length; i++) {
       var boxTitle = keyText(extractSectionTitleFromBox(boxes[i]));
 
       if (!boxTitle) continue;
       if (boxTitle === wanted) return boxes[i];
-      if (boxTitle.indexOf(looseWanted) !== -1) return boxes[i];
+      if (boxTitle.indexOf(wanted) !== -1) return boxes[i];
     }
 
     return null;
@@ -683,8 +1084,15 @@
 
     for (var i = 0; i < CONFIG.lessonPlanGroups.length; i++) {
       var cfg = CONFIG.lessonPlanGroups[i];
-      var box = findLessonBoxBySourceTitle(doc, cfg.sourceTitle);
-      var lessons = extractLessonsFromBox(box);
+      var sourceTitles = cfg.sourceTitles || [cfg.sourceTitle || cfg.title];
+      var lessons = [];
+
+      for (var s = 0; s < sourceTitles.length; s++) {
+        var box = findLessonBoxBySourceTitle(doc, sourceTitles[s]);
+        lessons = lessons.concat(extractLessonsFromBox(box));
+      }
+
+      lessons = uniqueLessons(lessons);
 
       if (!lessons.length) {
         lessons = fallbackLessonsForGroup(cfg);
@@ -693,7 +1101,8 @@
       groups.push({
         id: cfg.id,
         title: cfg.title,
-        sourceTitle: cfg.sourceTitle,
+        sourceTitles: sourceTitles,
+        sourceTitle: sourceTitles.join(' + '),
         description: cfg.description,
         lessons: lessons
       });
@@ -778,7 +1187,7 @@
       if (groups[i].id === id) return groups[i];
     }
 
-    return groups[0] || getConfiguredGroup(id);
+    return groups[0] || CONFIG.lessonPlanGroups[0];
   }
 
   function groupForLessonId(id) {
@@ -1025,23 +1434,6 @@
     list.innerHTML = html;
   }
 
-  function renderLessonPlanError() {
-    var list = document.getElementById('wtl-order-start-list');
-    var progressText = document.getElementById('wtl-plan-progress-text');
-    var progressFill = document.getElementById('wtl-plan-progress-fill');
-
-    if (progressText) progressText.textContent = 'Nie udało się pobrać';
-    if (progressFill) progressFill.style.width = '0%';
-
-    if (list) {
-      list.innerHTML =
-        '<div class="wtl-order-item">'
-        + '<div class="wtl-order-num">!</div>'
-        + '<div><div class="wtl-order-title">Nie udało się pobrać planu lekcji</div><div class="wtl-order-desc">Sprawdź, czy użytkownik jest zalogowany i ma dostęp do lekcji.</div></div>'
-        + '</div>';
-    }
-  }
-
   function loadLessonPlan(force) {
     var groupId = read('active_plan_section', 'start');
 
@@ -1095,11 +1487,16 @@
       + '#wtl-assistant-panel,#wtl-mini,#wtl-bottom-bar,#wtl-bottom-tab,#wtl-site-switcher{box-sizing:border-box;font-family:Inter,Arial,Helvetica,sans-serif;}'
       + '#wtl-assistant-panel{position:fixed;z-index:2147483640;width:390px;max-width:calc(100vw - 18px);max-height:min(560px,calc(100vh - 14px));background:#070707;color:#fff;border:1px solid rgba(239,68,68,.34);border-radius:20px;box-shadow:0 22px 70px rgba(0,0,0,.52),0 0 40px rgba(239,68,68,.12);overflow:hidden;display:flex;flex-direction:column;}'
       + '#wtl-assistant-panel.wtl-hidden{display:none;}'
-      + '.wtl-header{display:flex;align-items:center;justify-content:space-between;padding:10px 12px 9px 12px;background:radial-gradient(circle at 18% 0%,rgba(239,68,68,.26),transparent 34%),linear-gradient(135deg,#050505,#111111 55%,#1a0505);cursor:move;border-bottom:1px solid rgba(239,68,68,.22);order:1;min-height:60px;gap:8px;flex-shrink:0;}'
+      + '.wtl-header{display:flex;align-items:center;justify-content:space-between;padding:9px 12px 8px 12px;background:radial-gradient(circle at 18% 0%,rgba(239,68,68,.26),transparent 34%),linear-gradient(135deg,#050505,#111111 55%,#1a0505);cursor:move;border-bottom:1px solid rgba(239,68,68,.22);order:1;min-height:58px;gap:8px;flex-shrink:0;}'
       + '.wtl-brand{display:flex;align-items:center;gap:8px;min-width:0;flex:1;}'
-      + '.wtl-brand-art-box{height:44px;width:280px;max-width:100%;display:flex;align-items:center;justify-content:flex-start;overflow:hidden;border-radius:12px;background:transparent!important;}'
-      + '.wtl-brand-art-img{height:44px;width:280px;max-width:100%;object-fit:contain;object-position:left center;display:block;background:transparent!important;border:0!important;box-shadow:none!important;filter:drop-shadow(0 0 10px rgba(255,255,255,.12));}'
-      + '.wtl-brand-fallback{display:flex;align-items:center;gap:9px;min-width:0;}'
+      + '.wtl-brand-main{display:flex;flex-direction:column;gap:5px;min-width:0;}'
+      + '.wtl-brand-art-box{height:32px;width:190px;max-width:100%;display:flex;align-items:center;justify-content:flex-start;overflow:hidden;border-radius:9px;background:transparent!important;}'
+      + '.wtl-brand-art-img{height:32px;width:190px;max-width:100%;object-fit:contain;object-position:left center;display:block;background:transparent!important;border:0!important;box-shadow:none!important;filter:drop-shadow(0 0 8px rgba(255,255,255,.1));}'
+      + '#wtl-subscription-badge{display:inline-flex;align-items:center;width:max-content;max-width:190px;border-radius:999px;padding:3px 7px;font-size:9.5px;font-weight:900;line-height:1;border:1px solid rgba(255,255,255,.12);white-space:nowrap;}'
+      + '#wtl-subscription-badge.loading{color:#fde68a;background:rgba(234,179,8,.12);border-color:rgba(234,179,8,.3);}'
+      + '#wtl-subscription-badge.active{color:#bbf7d0;background:rgba(34,197,94,.12);border-color:rgba(34,197,94,.32);}'
+      + '#wtl-subscription-badge.inactive{color:#fecaca;background:rgba(239,68,68,.13);border-color:rgba(239,68,68,.36);}'
+      + '#wtl-subscription-badge.unknown{color:rgba(255,255,255,.68);background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.13);}'
       + '.wtl-logo{width:30px;height:30px;border-radius:10px;background:linear-gradient(135deg,#ef4444,#b91c1c 58%,#450a0a);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:12px;flex-shrink:0;}'
       + '.wtl-title{font-size:13px;font-weight:900;line-height:1.2;}'
       + '.wtl-subtitle{margin-top:2px;color:rgba(255,255,255,.68);font-size:10px;}'
@@ -1211,10 +1608,10 @@
       + '.wtl-bottom-title{font-size:13px;font-weight:850;}'
       + '.wtl-bottom-subtitle{font-size:11px;color:rgba(255,255,255,.62);}'
       + '.wtl-bottom-open{border:0;border-radius:12px;background:linear-gradient(135deg,#ef4444,#b91c1c 58%,#7f1d1d);color:#fff;padding:10px 13px;font-size:12px;font-weight:900;cursor:pointer;white-space:nowrap;}'
-      + '@media(max-width:480px){#wtl-assistant-panel{width:calc(100vw - 12px);max-width:calc(100vw - 12px);max-height:min(540px,calc(100vh - 12px));}#wtl-assistant-panel.wtl-thulium-window-open{width:calc(100vw - 10px);}.wtl-brand-art-box{width:240px;height:42px;}.wtl-brand-art-img{width:240px;height:42px;}.wtl-body{padding:8px;}.wtl-tabs{grid-template-columns:1fr;}.wtl-choice-row{grid-template-columns:1fr;}.wtl-frame{height:calc(100vh - 240px)!important;min-height:450px!important;}.wtl-frame iframe{min-height:450px!important;}#wtl-assistant-panel.wtl-thulium-expanded #wtl-thulium-native-mount{height:540px!important;min-height:540px!important;max-height:540px!important;}#wtl-assistant-panel.wtl-thulium-window-open #wtl-thulium-native-mount{height:520px!important;min-height:520px!important;max-height:520px!important;}#wtl-assistant-panel.wtl-thulium-window-open #wtl-thulium-native-mount iframe[title="Thulium Click2Contact"],#wtl-assistant-panel.wtl-thulium-window-open #wtl-thulium-native-mount .thulium-chat-wrapper,#wtl-assistant-panel.wtl-thulium-window-open #wtl-thulium-native-mount .thulium-chat-frame-wrapper{left:-4px!important;top:-72px!important;width:calc(100% + 8px)!important;height:750px!important;min-height:750px!important;max-height:none!important;}#wtl-thulium-cover-min{right:50px!important;}#wtl-thulium-cover-close{right:12px!important;}#wtl-site-switcher{transform:scale(.92);transform-origin:top right;}#wtl-mini{right:24px;bottom:16px;}#wtl-bottom-bar{height:auto;}#wtl-bottom-tab{align-items:stretch;flex-direction:column;}.wtl-bottom-open{width:100%;}}';
+      + '@media(max-width:480px){#wtl-assistant-panel{width:calc(100vw - 12px);max-width:calc(100vw - 12px);max-height:min(540px,calc(100vh - 12px));}#wtl-assistant-panel.wtl-thulium-window-open{width:calc(100vw - 10px);}.wtl-brand-art-box{width:168px;height:30px;}.wtl-brand-art-img{width:168px;height:30px;}#wtl-subscription-badge{max-width:168px;font-size:9px;}.wtl-body{padding:8px;}.wtl-tabs{grid-template-columns:1fr;}.wtl-choice-row{grid-template-columns:1fr;}.wtl-frame{height:calc(100vh - 240px)!important;min-height:450px!important;}.wtl-frame iframe{min-height:450px!important;}#wtl-assistant-panel.wtl-thulium-expanded #wtl-thulium-native-mount{height:540px!important;min-height:540px!important;max-height:540px!important;}#wtl-assistant-panel.wtl-thulium-window-open #wtl-thulium-native-mount{height:520px!important;min-height:520px!important;max-height:520px!important;}#wtl-assistant-panel.wtl-thulium-window-open #wtl-thulium-native-mount iframe[title="Thulium Click2Contact"],#wtl-assistant-panel.wtl-thulium-window-open #wtl-thulium-native-mount .thulium-chat-wrapper,#wtl-assistant-panel.wtl-thulium-window-open #wtl-thulium-native-mount .thulium-chat-frame-wrapper{left:-4px!important;top:-72px!important;width:calc(100% + 8px)!important;height:750px!important;min-height:750px!important;max-height:none!important;}#wtl-thulium-cover-min{right:50px!important;}#wtl-thulium-cover-close{right:12px!important;}#wtl-site-switcher{transform:scale(.92);transform-origin:top right;}#wtl-mini{right:24px;bottom:16px;}#wtl-bottom-bar{height:auto;}#wtl-bottom-tab{align-items:stretch;flex-direction:column;}.wtl-bottom-open{width:100%;}}';
 
     var style = document.createElement('style');
-    style.id = 'pt-assistant-style-v58';
+    style.id = 'pt-assistant-style-v59';
     style.type = 'text/css';
     style.appendChild(document.createTextNode(css));
     document.head.appendChild(style);
@@ -1352,14 +1749,10 @@
   function brandHtml() {
     var src = clean(CONFIG.brandImageSrc);
 
-    if (src) {
-      return '<div class="wtl-brand-art-box"><img class="wtl-brand-art-img" src="' + esc(src) + '" alt="Profitable Trader Assistant"></div>';
-    }
-
     return ''
-      + '<div class="wtl-brand-fallback">'
-      + '<div class="wtl-logo">PT</div>'
-      + '<div><div class="wtl-title">Profitable Assistant</div><div class="wtl-subtitle">Twój panel szybkiej pomocy.</div></div>'
+      + '<div class="wtl-brand-main">'
+      + '<div class="wtl-brand-art-box"><img class="wtl-brand-art-img" src="' + esc(src) + '" alt="Profitable Trader Assistant"></div>'
+      + '<div id="wtl-subscription-badge" class="loading">Abonament: sprawdzam...</div>'
       + '</div>';
   }
 
@@ -1909,7 +2302,7 @@
 
     var script = document.createElement('script');
     script.async = true;
-    script.id = 'pt-thulium-loader-v58';
+    script.id = 'pt-thulium-loader-v59';
     script.src = CONFIG.thuliumScriptSrc + '&ptReload=' + Date.now();
 
     script.onload = function () {
@@ -2341,6 +2734,8 @@
       renderPlanTab();
     }
 
+    setTimeout(updateWelcomeName, 500);
+    setTimeout(fetchSubscriptionStatus, 700);
     updateSiteSwitcherPosition();
   }
 
@@ -2383,6 +2778,8 @@
     bindLessonDoneObserver();
     saveLessonDelayed();
 
+    setTimeout(updateWelcomeName, 350);
+    setTimeout(fetchSubscriptionStatus, 450);
     setTimeout(prepareThuliumContainer, 500);
     setTimeout(warmupThulium, 900);
     setTimeout(updateSiteSwitcherPosition, 1200);

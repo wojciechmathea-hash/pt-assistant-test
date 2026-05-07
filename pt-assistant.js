@@ -2898,15 +2898,17 @@
     init();
   }
 })();
-/* PT Assistant V60 safe patch.
-   Dopisz ten kod na samym końcu obecnego pt-assistant.js.
-   Patch nie usuwa funkcji V60: tylko nadpisuje UI statusu subskrypcji, dodaje tryb layoutu,
-   chowa przycisk X i zmienia minimalizację na pasek z logo/statusem/strzałką.
+/* PT Assistant V60 layout patch 2026-05-07.
+   Wersja kompletna do dopisania na koniec bazowego pt-assistant.js.
+   Patch zachowuje funkcje V60 i nadpisuje tylko elementy UI: Layout na topbar + sidebar,
+   ukrywanie panelu w Layout, powrót do panelu z topbara, zminimalizowany AI Agent w Layout
+   oraz czytanie lekcji/statusu tak samo jak panel: z DOM, cache i fallbacków.
 */
 (function () {
   'use strict';
-  if (window.__PT_ASSISTANT_V60_SAFE_PATCH_2026_05__) return;
-  window.__PT_ASSISTANT_V60_SAFE_PATCH_2026_05__ = true;
+
+  if (window.__PT_ASSISTANT_V60_LAYOUT_FULL_TOPBAR_2026_05_07__) return;
+  window.__PT_ASSISTANT_V60_LAYOUT_FULL_TOPBAR_2026_05_07__ = true;
 
   var PATCH = {
     brand: 'https://edu.profitabletrader.ai/uploads/media/12510/5/Group_361__1_.png?_t=1778149920',
@@ -2915,50 +2917,201 @@
     subTitle: 'Abonament PL | Profitable Trader AI',
     subLabel: 'Profitable Trader AI',
     subUrls: ['/next/public/account/abonament', '/next/public/account/subscription'],
+    cachePrefix: 'pt_assistant_v60_layout_patch_',
     groups: [
-      { id: 'start', title: 'Start / Wprowadzenie', source: ['Preparing / Get ready'], desc: 'Pierwsze lekcje, które klient powinien obejrzeć na start.' },
-      { id: 'platformy', title: 'Platformy handlowe', source: ['Trading Platforms'], desc: 'Lekcje dotyczące platform i środowiska tradingowego.' },
-      { id: 'podstawy', title: 'Podstawy handlu', source: ['ALLin for Beginner Trader'], desc: 'Podstawowe materiały dla początkującego tradera.' },
-      { id: 'psnd', title: 'Strategia PSND', source: ['ALLin PSND'], desc: 'Główna ścieżka nauki strategii PSND.' },
-      { id: 'psnd-live', title: 'PSND na żywo!', source: ['ALLin Session - PSND'], desc: 'Nagrania sesji live dla strategii PSND.' },
-      { id: 'pac', title: 'Strategia PAC', source: ['Trading Workflow', 'Basics for Price Action', 'ALLin PAC', 'Price Action Setups'], desc: 'Pełna ścieżka strategii PAC, workflow oraz setupy.' },
-      { id: 'pac-live', title: 'PAC na żywo!', source: ['ALLin Session - PAC'], desc: 'Nagrania sesji live dla strategii PAC.' }
+      {
+        id: 'start',
+        title: 'Start / Wprowadzenie',
+        source: ['Preparing / Get ready'],
+        desc: 'Pierwsze lekcje, które klient powinien obejrzeć na start.',
+        fallback: [
+          { id: 191, title: 'Witamy w Profitable Trader AI' },
+          { id: 192, title: 'Przygotuj swoje stanowisko' },
+          { id: 193, title: 'Model biznesowy w handlu' },
+          { id: 194, title: 'Dziennik Inwestora' },
+          { id: 195, title: 'Narzędzie wspierające: ZoomIT' },
+          { id: 196, title: 'Narzędzie wspierające: Lightshot' },
+          { id: 197, title: 'Przed Live Trading Session' }
+        ]
+      },
+      {
+        id: 'platformy',
+        title: 'Platformy handlowe',
+        source: ['Trading Platforms'],
+        desc: 'Lekcje dotyczące platform i środowiska tradingowego.',
+        fallback: [
+          { id: 198, title: 'Platforma [darmowa] - MetaTrader 4' },
+          { id: 199, title: 'Platforma [darmowa] - MetaTrader 5' },
+          { id: 200, title: 'Platforma [płatna] - TradingView' },
+          { id: 201, title: 'Dodawanie dodatkowej platformy MT4' }
+        ]
+      },
+      {
+        id: 'podstawy',
+        title: 'Podstawy handlu',
+        source: ['ALLin for Beginner Trader'],
+        desc: 'Podstawowe materiały dla początkującego tradera.',
+        fallback: [
+          { id: 212, title: 'Wprowadzenie do rynku Forex' },
+          { id: 214, title: 'Wprowadzenie do rynku Futures' },
+          { id: 215, title: "Typ Trader'a: Swing | Scalp | Day Trader" },
+          { id: 217, title: 'Analiza Techniczna' },
+          { id: 218, title: 'Analiza Fundamentalna' },
+          { id: 219, title: 'Który typ analizy wybrać?' },
+          { id: 220, title: 'Wykres: Świece Japońskie' },
+          { id: 221, title: 'Typ Dnia Handlowego: Trend lub Range' },
+          { id: 222, title: 'Linie Trendu' },
+          { id: 223, title: 'Wsparcia i Opory' },
+          { id: 224, title: 'Kanały Rotacyjne' },
+          { id: 225, title: "Kalendarz Trader'a" },
+          { id: 226, title: 'Rodzaje Zleceń: Take Profit | Stop Loss | Limit Trailing' },
+          { id: 227, title: 'Kluczowe słowa w handlu' },
+          { id: 228, title: 'Teoria: Mądrość Tłumu na Rynkach' },
+          { id: 229, title: 'Teoria: Fibonacci & Golden Ratio' },
+          { id: 230, title: 'Teoria: Rynek Aukcyjny' }
+        ]
+      },
+      {
+        id: 'psnd',
+        title: 'Strategia PSND',
+        source: ['ALLin PSND'],
+        desc: 'Główna ścieżka nauki strategii PSND.',
+        fallback: [
+          { id: 232, title: 'PSND - Zaczynamy!' },
+          { id: 233, title: 'Przygotowanie Wykresu' },
+          { id: 234, title: 'Instrumenty' },
+          { id: 235, title: 'Separator Czasu' },
+          { id: 236, title: 'Swing High & Low' },
+          { id: 237, title: 'Trend Spadkowy & Wzrostowy' },
+          { id: 238, title: 'Fibonacci: Ekspansje & Zniesienia' },
+          { id: 239, title: 'Open High Low & Target' },
+          { id: 240, title: 'Setup #1 Reakcja' },
+          { id: 241, title: 'Cluster Fibbo' },
+          { id: 242, title: 'Setup Uśrednienie' },
+          { id: 243, title: 'Setup #2 Dojście' },
+          { id: 244, title: 'Trading - Szybkie Nabywanie Umiejętności' },
+          { id: 245, title: 'Market Replay' },
+          { id: 246, title: 'Przewodnik po ALLin Panel' }
+        ]
+      },
+      {
+        id: 'psnd-live',
+        title: 'PSND na żywo!',
+        source: ['ALLin Session - PSND'],
+        desc: 'Nagrania sesji live dla strategii PSND.',
+        fallback: [
+          { id: 247, title: 'LTS 13.02.2025 | Bartek' },
+          { id: 248, title: 'LTS 31.01.2025 | Paweł' },
+          { id: 249, title: 'LTS 07.02.2025 | Paweł' },
+          { id: 250, title: 'LTS 13.12.2025 | Bartek' }
+        ]
+      },
+      {
+        id: 'pac',
+        title: 'Strategia PAC',
+        source: ['Trading Workflow', 'Basics for Price Action', 'ALLin PAC', 'Price Action Setups'],
+        desc: 'Pełna ścieżka strategii PAC, workflow oraz setupy.',
+        fallback: [
+          { id: 602, title: 'Workflow' },
+          { id: 251, title: 'Assets' },
+          { id: 252, title: 'Charts' },
+          { id: 253, title: 'PAC | Wprowadzenie' },
+          { id: 254, title: 'PAC | Candles' },
+          { id: 255, title: 'PAC | Trendlines' },
+          { id: 256, title: 'PAC | EMA' },
+          { id: 257, title: 'PAC | Fibo' },
+          { id: 258, title: 'PAC | Elliot Waves' },
+          { id: 259, title: 'PAC | Reversal Zone' },
+          { id: 260, title: 'PAC | Double Top & Bottom' },
+          { id: 261, title: 'PAC | Open High Low Close' },
+          { id: 262, title: 'PAC | Session Objective' },
+          { id: 263, title: 'PAC | Measured-Move' },
+          { id: 264, title: 'PAC | Double Down & Up' },
+          { id: 265, title: 'PAC | Hidden Channel' },
+          { id: 266, title: 'PAC | Battle Zones' },
+          { id: 267, title: 'PAC | Spike & Move' },
+          { id: 268, title: 'PAC | Trading Range Basic' },
+          { id: 269, title: 'PAC | 2-try Rule' },
+          { id: 270, title: 'PAC | Price Action Scenario' },
+          { id: 271, title: 'PAC | Micro Rotation' },
+          { id: 273, title: 'PAC | Strenght & Pullback' },
+          { id: 274, title: 'PAC | Price Action Scenario' },
+          { id: 275, title: 'PAC | Micro Rotation Setups' }
+        ]
+      },
+      {
+        id: 'pac-live',
+        title: 'PAC na żywo!',
+        source: ['ALLin Session - PAC'],
+        desc: 'Nagrania sesji live dla strategii PAC.',
+        fallback: [
+          { id: 283, title: 'LTS 09.06.2025 | Paweł' },
+          { id: 284, title: 'LTS 06.02.2025 | Paweł' },
+          { id: 285, title: 'LTS 23.01.2025 | Paweł' },
+          { id: 286, title: 'LTS 15.01.2025 | Bartek' },
+          { id: 287, title: 'LTS 08.07.2024 | Paweł' }
+        ]
+      }
     ]
   };
 
-  function c(v) { return String(v || '').replace(/\s+/g, ' ').trim(); }
-  function k(v) { return c(v).toLowerCase(); }
-  function e(v) {
-    return String(v || '')
-      .replace(/&/g,'&amp;')
-      .replace(/</g,'&lt;')
-      .replace(/>/g,'&gt;')
-      .replace(/"/g,'&quot;')
-      .replace(/'/g,'&#039;');
+  var refreshTimer = null;
+  var lastUrl = location.href;
+
+  function clean(value) { return String(value || '').replace(/\s+/g, ' ').trim(); }
+  function key(value) { return clean(value).toLowerCase(); }
+  function esc(value) {
+    return String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+  function storeKey(name) { return PATCH.cachePrefix + name; }
+  function save(name, value) {
+    try { localStorage.setItem(storeKey(name), JSON.stringify(value)); } catch (e) {}
+  }
+  function read(name, fallback) {
+    try {
+      var raw = localStorage.getItem(storeKey(name));
+      return raw ? JSON.parse(raw) : fallback;
+    } catch (e) {
+      return fallback;
+    }
+  }
+  function remove(name) {
+    try { localStorage.removeItem(storeKey(name)); } catch (e) {}
   }
 
-  function lessonId(url) {
-    var m = String(url || '').match(/\/lesson\/([^/?#]+)/i);
-    return m && m[1] ? String(m[1]) : '';
+  function lessonIdFromUrl(url) {
+    var match = String(url || '').match(/\/lesson\/([^/?#]+)/i);
+    return match && match[1] ? String(match[1]) : '';
+  }
+  function lessonUrlById(id) { return location.origin + '/next/public/lesson/' + id; }
+
+  function cssEscape(value) {
+    value = String(value || '');
+    if (window.CSS && typeof window.CSS.escape === 'function') return window.CSS.escape(value);
+    return value.replace(/["\\]/g, '\\$&');
   }
 
-  function lessonUrl(id) {
-    return location.origin + '/next/public/lesson/' + id;
-  }
+  function injectCss() {
+    var old = document.getElementById('pt-v60-safe-patch-style');
+    if (old && old.parentNode) old.parentNode.removeChild(old);
 
-  function css() {
-    if (document.getElementById('pt-v60-safe-patch-style')) return;
+    if (document.getElementById('pt-v60-layout-full-topbar-style')) return;
 
-    var s = document.createElement('style');
-    s.id = 'pt-v60-safe-patch-style';
-    s.textContent = [
+    var style = document.createElement('style');
+    style.id = 'pt-v60-layout-full-topbar-style';
+    style.textContent = [
       '#wtl-dock{display:none!important}',
       '#wtl-subscription-badge{margin-left:auto!important;margin-right:8px!important;width:124px!important;min-height:44px!important;border-radius:12px!important;padding:6px 8px!important;text-align:left!important}',
       '#wtl-subscription-badge span{font-size:8.5px!important;line-height:1.05!important}',
       '#wtl-subscription-badge strong{font-size:10.5px!important;line-height:1.05!important}',
 
-      '#wtl-layout-enter{width:58px;height:28px;border:1px solid rgba(248,113,113,.42);border-radius:10px;background:rgba(239,68,68,.13);color:#fecaca;cursor:pointer;font-size:10px;font-weight:950;display:flex;align-items:center;justify-content:center;flex-shrink:0}',
-      '#wtl-layout-enter:hover{background:rgba(239,68,68,.26);border-color:rgba(248,113,113,.72)}',
+      '#wtl-layout-enter{width:68px;height:30px;border:1px solid rgba(248,113,113,.48);border-radius:10px;background:rgba(239,68,68,.16);color:#fecaca;cursor:pointer;font-size:10.5px;font-weight:950;display:flex;align-items:center;justify-content:center;flex-shrink:0}',
+      '#wtl-layout-enter:hover{background:rgba(239,68,68,.30);border-color:rgba(248,113,113,.78)}',
 
       '#wtl-mini{width:326px!important;max-width:calc(100vw - 24px)!important;height:60px!important;border-radius:18px!important;right:22px!important;bottom:22px!important;padding:8px 10px!important;gap:9px!important;justify-content:flex-start!important;background:radial-gradient(circle at 20% 0%,rgba(239,68,68,.24),transparent 36%),linear-gradient(135deg,#050505,#111 58%,#1a0505)!important}',
       '#wtl-mini:after{display:none!important}',
@@ -2973,19 +3126,28 @@
       '.wtl-mini-arrow{width:32px;height:32px;border-radius:12px;background:linear-gradient(135deg,#ef4444,#b91c1c);color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:950;flex-shrink:0}',
 
       'html.wtl-layout-mode body{overflow-x:hidden!important}',
-      'html.wtl-layout-mode .sidebar,html.wtl-layout-mode .sidebar-wrap,html.wtl-layout-mode .sidebar-menu,html.wtl-layout-mode [class*="sidebar-left"],html.wtl-layout-mode [class*="sidebar-menu"]{display:none!important}',
-      'html.wtl-layout-mode .nav-menu-avatar,html.wtl-layout-mode .nav-menu-boxed-wrap,html.wtl-layout-mode .nav-menu-search-popup-wrap{display:none!important}',
+      'html.wtl-layout-mode #wtl-assistant-panel,html.wtl-layout-mode #wtl-mini,html.wtl-layout-mode #wtl-bottom-bar,html.wtl-layout-mode #wtl-site-switcher{display:none!important}',
+      'html.wtl-layout-mode .sidebar,html.wtl-layout-mode .sidebar-wrap,html.wtl-layout-mode .sidebar-menu,html.wtl-layout-mode [class*="sidebar-left"],html.wtl-layout-mode [class*="sidebar-menu"],html.wtl-layout-mode [class*="Sidebar"]{display:none!important;visibility:hidden!important;pointer-events:none!important}',
+      'html.wtl-layout-mode .nav-menu-avatar,html.wtl-layout-mode .nav-menu-boxed-wrap,html.wtl-layout-mode .nav-menu-search-popup-wrap{display:none!important;visibility:hidden!important;pointer-events:none!important}',
 
-      '#wtl-layout-left,#wtl-layout-right{box-sizing:border-box;font-family:Inter,Arial,Helvetica,sans-serif}',
-      '#wtl-layout-left{position:fixed;z-index:2147483500;left:0;top:56px;bottom:0;width:312px;max-width:calc(100vw - 20px);background:#070707;color:#fff;border-right:1px solid rgba(239,68,68,.34);box-shadow:18px 0 55px rgba(0,0,0,.35);display:none;flex-direction:column}',
+      '#wtl-layout-topbar,#wtl-layout-left,#wtl-layout-right{box-sizing:border-box;font-family:Inter,Arial,Helvetica,sans-serif}',
+      '#wtl-layout-topbar{position:fixed;z-index:2147483502;left:0;right:0;top:0;height:64px;background:radial-gradient(circle at 18% 0%,rgba(239,68,68,.28),transparent 32%),linear-gradient(135deg,#050505,#111 58%,#1a0505);border-bottom:1px solid rgba(239,68,68,.36);box-shadow:0 14px 44px rgba(0,0,0,.36);color:#fff;display:none;align-items:center;gap:12px;padding:10px 14px}',
+      '#wtl-layout-topbar.wtl-show{display:flex}',
+      '.wtl-layout-topbar-logo{width:174px;height:38px;object-fit:contain;object-position:left center;display:block;flex-shrink:0}',
+      '.wtl-layout-topbar-title{font-size:13px;font-weight:950;color:#fecaca;line-height:1.15}',
+      '.wtl-layout-topbar-sub{font-size:11px;color:rgba(255,255,255,.62);font-weight:750;line-height:1.25}',
+      '.wtl-layout-topbar-spacer{flex:1;min-width:8px}',
+      '.wtl-layout-panel-return,.wtl-layout-topbar-close,.wtl-layout-ai-toggle{border:1px solid rgba(248,113,113,.42);border-radius:12px;background:rgba(239,68,68,.14);color:#fecaca;height:38px;padding:0 13px;font-size:12px;font-weight:950;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap}',
+      '.wtl-layout-panel-return:hover,.wtl-layout-topbar-close:hover,.wtl-layout-ai-toggle:hover{background:rgba(239,68,68,.28);border-color:rgba(248,113,113,.72)}',
+      '.wtl-layout-panel-return{background:linear-gradient(135deg,#ef4444,#b91c1c 58%,#7f1d1d);color:#fff;border-color:rgba(248,113,113,.65)}',
+
+      '#wtl-layout-left{position:fixed;z-index:2147483501;left:0;top:64px;bottom:0;width:324px;max-width:calc(100vw - 20px);background:#070707;color:#fff;border-right:1px solid rgba(239,68,68,.34);box-shadow:18px 0 55px rgba(0,0,0,.35);display:none;flex-direction:column}',
       '#wtl-layout-left.wtl-show{display:flex}',
-      '#wtl-layout-right{position:fixed;z-index:2147483500;right:18px;bottom:18px;width:350px;max-width:calc(100vw - 36px);display:none;flex-direction:column;gap:10px}',
+      '#wtl-layout-right{position:fixed;z-index:2147483501;right:18px;bottom:18px;width:360px;max-width:calc(100vw - 36px);display:none;flex-direction:column;gap:10px}',
       '#wtl-layout-right.wtl-show{display:flex}',
 
-      '.wtl-layout-head{height:58px;display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid rgba(239,68,68,.26);background:radial-gradient(circle at 20% 0%,rgba(239,68,68,.22),transparent 34%),linear-gradient(135deg,#050505,#111 58%,#1a0505)}',
+      '.wtl-layout-head{height:58px;display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid rgba(239,68,68,.26);background:rgba(255,255,255,.025)}',
       '.wtl-layout-head img{width:152px;height:34px;object-fit:contain;object-position:left center}',
-      '.wtl-layout-close{margin-left:auto;width:30px;height:30px;border-radius:10px;border:1px solid rgba(248,113,113,.38);background:rgba(239,68,68,.12);color:#fecaca;cursor:pointer;font-weight:950}',
-
       '.wtl-layout-body{flex:1;min-height:0;overflow:auto;padding:10px}',
       '.wtl-layout-body::-webkit-scrollbar{width:6px}',
       '.wtl-layout-body::-webkit-scrollbar-thumb{background:rgba(239,68,68,.42);border-radius:99px}',
@@ -2995,52 +3157,49 @@
       '.wtl-layout-label{display:inline-flex;color:#fca5a5;font-size:10.5px;font-weight:950;text-transform:uppercase;letter-spacing:.04em;margin-bottom:7px}',
       '.wtl-layout-title{font-size:13px;font-weight:950;line-height:1.3;margin-bottom:5px;color:#fff}',
       '.wtl-layout-muted{color:rgba(255,255,255,.62);font-size:11.5px;line-height:1.4}',
-
       '.wtl-layout-section{display:flex;gap:10px;width:100%;border:1px solid rgba(255,255,255,.09);border-radius:14px;background:rgba(255,255,255,.045);color:inherit;text-align:left;padding:11px;cursor:pointer;margin-top:8px}',
       '.wtl-layout-section:hover,.wtl-layout-lesson:hover{border-color:rgba(248,113,113,.44);background:rgba(239,68,68,.09)}',
       '.wtl-layout-num{width:28px;height:28px;border-radius:9px;background:linear-gradient(135deg,rgba(239,68,68,.32),rgba(127,29,29,.26));border:1px solid rgba(248,113,113,.38);color:#fecaca;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:950;flex-shrink:0}',
-
       '.wtl-layout-progress{margin-top:9px}',
       '.wtl-layout-progress-top{display:flex;justify-content:space-between;gap:8px;color:rgba(255,255,255,.62);font-size:10px;font-weight:900;margin-bottom:6px}',
       '.wtl-layout-progress-top strong{color:#fecaca}',
       '.wtl-layout-bar{height:7px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden}',
       '.wtl-layout-fill{height:100%;border-radius:99px;background:linear-gradient(135deg,#ef4444,#b91c1c)}',
-
       '.wtl-layout-back{border:1px solid rgba(248,113,113,.34);border-radius:11px;background:rgba(239,68,68,.12);color:#fecaca;padding:8px 10px;font-size:11px;font-weight:900;cursor:pointer}',
       '.wtl-layout-topbar{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}',
-
       '.wtl-layout-lesson{display:flex;gap:10px;text-decoration:none;color:inherit;border:1px solid rgba(255,255,255,.09);border-radius:13px;background:rgba(255,255,255,.045);padding:10px 11px;margin-top:8px}',
       '.wtl-layout-status{display:inline-flex;margin-top:6px;padding:4px 7px;border-radius:99px;font-size:10px;font-weight:950;border:1px solid rgba(255,255,255,.12)}',
       '.wtl-layout-status.done{color:#bbf7d0;background:rgba(34,197,94,.12);border-color:rgba(34,197,94,.28)}',
       '.wtl-layout-status.todo{color:#fecaca;background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.28)}',
-
       '.wtl-layout-widget{background:#070707;color:#fff;border:1px solid rgba(239,68,68,.32);border-radius:18px;box-shadow:0 18px 60px rgba(0,0,0,.42);overflow:hidden}',
-      '.wtl-layout-widget-head{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.08);font-size:12px;font-weight:950;color:#fecaca}',
+      '.wtl-layout-widget-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.08);font-size:12px;font-weight:950;color:#fecaca}',
       '.wtl-layout-widget-body{padding:10px}',
-      '.wtl-layout-ai-frame{height:270px;border:0;width:100%;display:block;border-radius:12px;background:#111827}',
+      '.wtl-layout-widget-desc{font-size:11.5px;color:rgba(255,255,255,.62);line-height:1.4;margin:0 0 10px}',
+      '.wtl-layout-ai-frame{height:310px;border:0;width:100%;display:block;border-radius:12px;background:#111827}',
       '.wtl-layout-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}',
       '.wtl-layout-thulium-btn{border:1px solid rgba(248,113,113,.5);border-radius:14px;background:linear-gradient(135deg,rgba(239,68,68,.28),rgba(127,29,29,.22));color:#fecaca;font-size:13px;font-weight:900;padding:13px 11px;cursor:pointer;text-align:center}',
-
-      '@media(max-width:480px){#wtl-mini{right:12px!important;bottom:16px!important;width:calc(100vw - 24px)!important}#wtl-layout-left{top:0;width:100vw;max-width:100vw}#wtl-layout-right{left:12px;right:12px;width:auto}}'
+      '@media(max-width:720px){#wtl-layout-topbar{height:auto;min-height:64px;flex-wrap:wrap}.wtl-layout-topbar-logo{width:145px}.wtl-layout-topbar-title-wrap{display:none}#wtl-layout-left{top:64px;width:100vw;max-width:100vw}.wtl-layout-panel-return,.wtl-layout-topbar-close,.wtl-layout-ai-toggle{height:34px;padding:0 10px;font-size:11px}#wtl-layout-right{left:12px;right:12px;width:auto;bottom:12px}}',
+      '@media(max-width:480px){#wtl-mini{right:12px!important;bottom:16px!important;width:calc(100vw - 24px)!important}#wtl-layout-left{top:64px;width:100vw;max-width:100vw}#wtl-layout-right{left:10px;right:10px;width:auto}.wtl-layout-topbar-sub{display:none}}'
     ].join('');
 
-    document.head.appendChild(s);
+    document.head.appendChild(style);
   }
 
   function findSubBox(doc) {
-    var boxes = doc.querySelectorAll('#abonament-display .abonament-box,.abonament-box,.content-box-wht,article,section');
+    var boxes = doc.querySelectorAll('#abonament-display .abonament-box,.abonament-box,.content-box-wht,article,section,div');
 
     for (var i = 0; i < boxes.length; i++) {
       var box = boxes[i];
-      var title = c((box.querySelector('h2') || {}).textContent || '');
-      var text = c(box.textContent || box.innerText || '');
+      var title = clean((box.querySelector('h2') || {}).textContent || '');
+      var text = clean(box.textContent || box.innerText || '');
       var button = box.querySelector('[data-atid="' + PATCH.subId + '"],#abonamentButton' + PATCH.subId);
 
       if (
         button ||
         title === PATCH.subTitle ||
-        k(title).indexOf('profitable trader ai') !== -1 ||
-        k(text).indexOf('pakiet profitable trader ai') !== -1
+        key(title).indexOf('profitable trader ai') !== -1 ||
+        key(text).indexOf('pakiet profitable trader ai') !== -1 ||
+        key(text).indexOf('abonament pl | profitable trader ai') !== -1
       ) {
         return box;
       }
@@ -3049,20 +3208,20 @@
     return null;
   }
 
-  function datePL(text) {
-    var m = c(text).match(/(\d{1,2})[.\-/](\d{1,2})[.\-/](\d{4})(?:,\s*|\s+)?(\d{1,2})?:?(\d{2})?/);
-    if (!m) return null;
+  function parseDatePL(text) {
+    var match = clean(text).match(/(\d{1,2})[.\-/](\d{1,2})[.\-/](\d{4})(?:,\s*|\s+)?(\d{1,2})?:?(\d{2})?/);
+    if (!match) return null;
 
-    var d = new Date(
-      parseInt(m[3], 10),
-      parseInt(m[2], 10) - 1,
-      parseInt(m[1], 10),
-      m[4] ? parseInt(m[4], 10) : 23,
-      m[5] ? parseInt(m[5], 10) : 59,
+    var date = new Date(
+      parseInt(match[3], 10),
+      parseInt(match[2], 10) - 1,
+      parseInt(match[1], 10),
+      match[4] ? parseInt(match[4], 10) : 23,
+      match[5] ? parseInt(match[5], 10) : 59,
       0
     );
 
-    return isNaN(d.getTime()) ? null : d;
+    return isNaN(date.getTime()) ? null : date;
   }
 
   function parseSub(doc) {
@@ -3070,50 +3229,32 @@
     if (!box) return 'unknown';
 
     var statusEl = box.querySelector('.cbw-abonament-status');
-    var statusTxt = k(
+    var statusTxt = key(
       (box.querySelector('.cbw-abonament-status-txt') || {}).textContent ||
       (statusEl || {}).textContent ||
       ''
     );
     var cls = statusEl ? String(statusEl.className || '').toLowerCase() : '';
-    var text = c(box.textContent || box.innerText || '');
-    var d = datePL(text);
+    var text = clean(box.textContent || box.innerText || '');
+    var lower = key(text);
+    var date = parseDatePL(text);
 
-    if (cls.indexOf('expires') !== -1 || statusTxt.indexOf('expires') !== -1) {
-      return d && d.getTime() < Date.now() ? 'inactive' : 'expires';
+    if (cls.indexOf('expires') !== -1 || statusTxt.indexOf('expires') !== -1 || lower.indexOf('ważny do') !== -1 || lower.indexOf('wazny do') !== -1 || lower.indexOf('valid until') !== -1) {
+      return date && date.getTime() < Date.now() ? 'inactive' : 'expires';
     }
 
-    if (cls.indexOf('active') !== -1 || statusTxt.indexOf('active') !== -1 || statusTxt.indexOf('aktywn') !== -1) {
-      return 'active';
-    }
+    if (cls.indexOf('active') !== -1 || statusTxt.indexOf('active') !== -1 || statusTxt.indexOf('aktywn') !== -1 || lower.indexOf('opłacony') !== -1 || lower.indexOf('oplacony') !== -1) return 'active';
 
-    if (
-      cls.indexOf('inactive') !== -1 ||
-      statusTxt.indexOf('inactive') !== -1 ||
-      statusTxt.indexOf('expired') !== -1 ||
-      statusTxt.indexOf('nieaktywn') !== -1
-    ) {
-      return 'inactive';
-    }
+    if (cls.indexOf('inactive') !== -1 || statusTxt.indexOf('inactive') !== -1 || statusTxt.indexOf('expired') !== -1 || statusTxt.indexOf('nieaktywn') !== -1 || lower.indexOf('wygas') !== -1) return 'inactive';
 
-    if (d && d.getTime() > Date.now()) return 'expires';
-
+    if (date && date.getTime() > Date.now()) return 'expires';
     return 'unknown';
   }
 
   function setSub(status) {
     status = status || 'unknown';
-
-    var label =
-      status === 'active' || status === 'expires'
-        ? 'aktywne'
-        : status === 'inactive'
-          ? 'nieaktywne'
-          : status === 'loading'
-            ? 'sprawdzam...'
-            : 'nieznane';
-
-    var html = '<span>' + e(PATCH.subLabel) + ':</span><strong>' + e(label) + '</strong>';
+    var label = status === 'active' || status === 'expires' ? 'aktywne' : status === 'inactive' ? 'nieaktywne' : status === 'loading' ? 'sprawdzam...' : 'nieznane';
+    var html = '<span>' + esc(PATCH.subLabel) + ':</span><strong>' + esc(label) + '</strong>';
 
     var badge = document.getElementById('wtl-subscription-badge');
     if (badge) {
@@ -3128,32 +3269,43 @@
       miniBadges[i].classList.add(status);
       miniBadges[i].innerHTML = html;
     }
+
+    var layoutBadges = document.querySelectorAll('.wtl-layout-sub-badge');
+    for (var j = 0; j < layoutBadges.length; j++) {
+      layoutBadges[j].textContent = label;
+    }
   }
 
   function fetchSub() {
-    setSub('loading');
+    var cached = read('subscription', null);
+    if (cached && cached.status && cached.savedAt && Date.now() - cached.savedAt < 120000) {
+      setSub(cached.status);
+      return;
+    }
 
-    var i = 0;
+    setSub('loading');
+    var index = 0;
+
+    function finish(status) {
+      save('subscription', { status: status || 'unknown', savedAt: Date.now() });
+      setSub(status || 'unknown');
+    }
 
     function next() {
-      if (i >= PATCH.subUrls.length) {
-        setSub('unknown');
+      if (index >= PATCH.subUrls.length) {
+        finish('unknown');
         return;
       }
 
-      fetch(PATCH.subUrls[i++], {
-        credentials: 'include',
-        cache: 'no-store'
-      })
-        .then(function (r) {
-          if (!r.ok) throw new Error('HTTP ' + r.status);
-          return r.text();
+      fetch(PATCH.subUrls[index++], { credentials: 'include', cache: 'no-store' })
+        .then(function (res) {
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          return res.text();
         })
         .then(function (html) {
           var doc = new DOMParser().parseFromString(html, 'text/html');
           var status = parseSub(doc);
-
-          if (status !== 'unknown') setSub(status);
+          if (status !== 'unknown') finish(status);
           else next();
         })
         .catch(next);
@@ -3162,46 +3314,46 @@
     next();
   }
 
-  function sectionTitle(box) {
-    var n = box && (box.querySelector('.lessons-box-header-top span') || box.querySelector('.lessons-box-header span'));
-    return c(n ? n.textContent || n.innerText || '' : '');
+  function readTitleNode(node) {
+    if (!node) return '';
+    return clean(node.getAttribute('title') || node.textContent || node.innerText || '');
   }
 
-  function done(item) {
+  function sectionTitleFromBox(box) {
+    if (!box) return '';
+    var node = box.querySelector('.lessons-box-header-top span') || box.querySelector('.lessons-box-header span') || box.querySelector('.lessons-box-header-top');
+    return readTitleNode(node);
+  }
+
+  function isDoneLessonItem(item) {
     if (!item) return false;
     if (item.querySelector('.fa-circle-check')) return true;
     if (item.querySelector('.wtl-color-green')) return true;
 
-    var text = k(item.textContent || item.innerText || '');
+    var text = key(item.textContent || item.innerText || '');
     return text.indexOf('completed') !== -1 || text.indexOf('ukończona') !== -1 || text.indexOf('ukonczona') !== -1;
   }
 
-  function extract(box) {
+  function extractLessonsFromBox(box) {
     var out = [];
     var seen = {};
-
     if (!box) return out;
 
     var items = box.querySelectorAll('.lesson-item');
-
     for (var i = 0; i < items.length; i++) {
-      var a = items[i].querySelector('a.lesson-item-title[href*="/lesson/"],a[href*="/next/public/lesson/"]');
-      if (!a) continue;
+      var item = items[i];
+      var link = item.querySelector('a.lesson-item-title[href*="/lesson/"],a[href*="/next/public/lesson/"]');
+      if (!link) continue;
 
-      var href = a.getAttribute('href') || '';
-      var id = lessonId(href);
-
+      var href = link.getAttribute('href') || '';
+      var id = lessonIdFromUrl(href);
       if (!id || seen[id]) continue;
       seen[id] = true;
 
       var url;
-      try {
-        url = new URL(href, location.origin).href;
-      } catch (err) {
-        url = lessonUrl(id);
-      }
+      try { url = new URL(href, location.origin).href; } catch (e) { url = lessonUrlById(id); }
 
-      var title = c(a.getAttribute('title') || a.textContent || a.innerText || '')
+      var title = clean(link.getAttribute('title') || link.textContent || link.innerText || '')
         .replace(/Completed/gi, '')
         .replace(/Ukończona/gi, '')
         .replace(/Ukonczona/gi, '')
@@ -3211,28 +3363,48 @@
 
       out.push({
         id: Number(id),
-        title: title || ('Lekcja #' + id),
+        title: title || ('Lekcja ' + id),
         url: url,
-        done: done(items[i])
+        done: isDoneLessonItem(item),
+        active: item.classList.contains('active')
       });
     }
 
     return out;
   }
 
-  function findBox(source) {
-    var boxes = document.querySelectorAll('.lessons-box');
-    var wanted = k(source);
+  function findLessonBox(doc, sourceTitle) {
+    var boxes = doc.querySelectorAll('.lessons-box');
+    var wanted = key(sourceTitle);
 
     for (var i = 0; i < boxes.length; i++) {
-      var t = k(sectionTitle(boxes[i]));
-      if (t === wanted || t.indexOf(wanted) !== -1) return boxes[i];
+      var title = key(sectionTitleFromBox(boxes[i]));
+      if (!title) continue;
+      if (title === wanted || title.indexOf(wanted) !== -1) return boxes[i];
     }
 
     return null;
   }
 
-  function uniq(items) {
+  function fallbackLessons(group) {
+    var lessons = group.fallback || [];
+    var out = [];
+
+    for (var i = 0; i < lessons.length; i++) {
+      out.push({
+        id: Number(lessons[i].id),
+        title: lessons[i].title || ('Lekcja ' + lessons[i].id),
+        url: lessonUrlById(lessons[i].id),
+        done: false,
+        active: false,
+        fallback: true
+      });
+    }
+
+    return out;
+  }
+
+  function uniqueLessons(items) {
     var seen = {};
     var out = [];
 
@@ -3245,73 +3417,180 @@
     return out;
   }
 
-  function groups() {
+  function scanGroupsFromDoc(doc) {
     var out = [];
 
     for (var i = 0; i < PATCH.groups.length; i++) {
-      var g = PATCH.groups[i];
+      var cfg = PATCH.groups[i];
       var lessons = [];
 
-      for (var j = 0; j < g.source.length; j++) {
-        lessons = lessons.concat(extract(findBox(g.source[j])));
+      for (var j = 0; j < cfg.source.length; j++) {
+        lessons = lessons.concat(extractLessonsFromBox(findLessonBox(doc, cfg.source[j])));
       }
 
+      lessons = uniqueLessons(lessons);
+      if (!lessons.length) lessons = fallbackLessons(cfg);
+
       out.push({
-        id: g.id,
-        title: g.title,
-        desc: g.desc,
-        sourceTitle: g.source.join(' + '),
-        lessons: uniq(lessons)
+        id: cfg.id,
+        title: cfg.title,
+        desc: cfg.desc,
+        sourceTitle: cfg.source.join(' + '),
+        lessons: lessons
       });
     }
 
     return out;
   }
 
-  function prog(items) {
-    var d = 0;
-
-    for (var i = 0; i < items.length; i++) {
-      if (items[i].done) d++;
+  function hasRealLessons(groups) {
+    for (var i = 0; i < groups.length; i++) {
+      var lessons = groups[i].lessons || [];
+      for (var j = 0; j < lessons.length; j++) {
+        if (!lessons[j].fallback) return true;
+      }
     }
-
-    return {
-      done: d,
-      total: items.length,
-      percent: items.length ? Math.round(d / items.length * 100) : 0
-    };
+    return false;
   }
 
-  function groupById(id) {
-    var gs = groups();
+  function getGroups() {
+    var cached = read('groups', null);
+    if (cached && cached.groups && cached.savedAt && Date.now() - cached.savedAt < 60000) return cached.groups;
 
-    for (var i = 0; i < gs.length; i++) {
-      if (gs[i].id === id) return gs[i];
-    }
-
-    return gs[0];
+    var groups = scanGroupsFromDoc(document);
+    save('groups', { savedAt: Date.now(), url: location.href, groups: groups });
+    return groups;
   }
 
-  function sectionsHtml() {
-    var gs = groups();
+  function refreshGroups(force, callback) {
+    if (!force) {
+      var cached = read('groups', null);
+      if (cached && cached.groups && cached.savedAt && Date.now() - cached.savedAt < 60000) {
+        callback(cached.groups);
+        return;
+      }
+    }
 
-    var html =
+    var groups = scanGroupsFromDoc(document);
+    if (hasRealLessons(groups)) {
+      save('groups', { savedAt: Date.now(), url: location.href, groups: groups });
+      callback(groups);
+      return;
+    }
+
+    fetch(location.href, { credentials: 'include', cache: 'no-store' })
+      .then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.text();
+      })
+      .then(function (html) {
+        var doc = new DOMParser().parseFromString(html, 'text/html');
+        var fetched = scanGroupsFromDoc(doc);
+        save('groups', { savedAt: Date.now(), url: location.href, groups: fetched });
+        callback(fetched);
+      })
+      .catch(function () {
+        save('groups', { savedAt: Date.now(), url: location.href, groups: groups });
+        callback(groups);
+      });
+  }
+
+  function groupById(id, groups) {
+    groups = groups || getGroups();
+    for (var i = 0; i < groups.length; i++) {
+      if (groups[i].id === id) return groups[i];
+    }
+    return groups[0] || null;
+  }
+
+  function progress(items) {
+    var done = 0;
+    for (var i = 0; i < items.length; i++) if (items[i].done) done++;
+    return { done: done, total: items.length, percent: items.length ? Math.round((done / items.length) * 100) : 0 };
+  }
+
+  function currentLessonTitle() {
+    return readTitleNode(document.querySelector('.lesson-content-item.title-nav > .title[title]')) ||
+      readTitleNode(document.querySelector('.lesson-content-item.title-nav .title[title]')) ||
+      readTitleNode(document.querySelector('.lesson-item.active .lesson-item-title[title]')) ||
+      readTitleNode(document.querySelector('.content-lesson-in .title[title]')) ||
+      readTitleNode(document.querySelector('div.title[title]')) ||
+      clean(document.title || '') ||
+      'Ostatnia lekcja PT';
+  }
+
+  function saveCurrentLesson() {
+    if (!/\/lesson\/|\/lekcja\/|\/next\/public\/lesson\//i.test(location.pathname)) return;
+
+    var id = lessonIdFromUrl(location.href);
+    var groups = getGroups();
+    var group = null;
+
+    for (var i = 0; i < groups.length; i++) {
+      var lessons = groups[i].lessons || [];
+      for (var j = 0; j < lessons.length; j++) {
+        if (String(lessons[j].id) === String(id)) group = groups[i];
+      }
+    }
+
+    save('last_lesson', {
+      url: location.href,
+      path: location.pathname,
+      id: id,
+      title: currentLessonTitle(),
+      section: group ? group.title : 'Nieprzypisana sekcja',
+      sectionId: group ? group.id : '',
+      savedAt: new Date().toISOString()
+    });
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '';
+    try {
+      var date = new Date(iso);
+      var diff = Date.now() - date.getTime();
+      var min = Math.floor(diff / 60000);
+      var h = Math.floor(min / 60);
+      var days = Math.floor(h / 24);
+      if (min < 1) return 'przed chwilą';
+      if (min < 60) return min + ' min temu';
+      if (h < 24) return h + ' godz. temu';
+      if (days === 1) return 'wczoraj';
+      if (days < 7) return days + ' dni temu';
+      return date.toLocaleDateString('pl-PL');
+    } catch (e) { return ''; }
+  }
+
+  function lastLessonHtml() {
+    var lesson = read('last_lesson', null);
+    if (!lesson) return '';
+
+    return '<div class="wtl-layout-card">' +
+      '<div class="wtl-layout-label">↩ Ostatnia lekcja</div>' +
+      '<div class="wtl-layout-title">' + esc(lesson.title || 'Ostatnia lekcja PT') + '</div>' +
+      '<div class="wtl-layout-muted">Sekcja: ' + esc(lesson.section || 'Nieprzypisana sekcja') + '</div>' +
+      '<div class="wtl-layout-muted">Zapisano: ' + esc(formatDate(lesson.savedAt)) + '</div>' +
+      '<a class="wtl-layout-back" style="margin-top:10px;text-decoration:none;display:inline-flex;" href="' + esc(lesson.url) + '">Wróć do lekcji</a>' +
+      '</div>';
+  }
+
+  function sectionsHtml(groups) {
+    var html = lastLessonHtml() +
       '<div class="wtl-layout-card">' +
       '<div class="wtl-layout-label">▶ Plan lekcji</div>' +
       '<div class="wtl-layout-title">Wybierz sekcję</div>' +
-      '<div class="wtl-layout-muted">Layout zczytuje lekcje bezpośrednio z listy lekcji na platformie.</div>';
+      '<div class="wtl-layout-muted">Layout zczytuje lekcje bezpośrednio z listy lekcji na platformie i używa tych samych fallbacków co panel.</div>';
 
-    for (var i = 0; i < gs.length; i++) {
-      var g = gs[i];
-      var p = prog(g.lessons || []);
+    for (var i = 0; i < groups.length; i++) {
+      var group = groups[i];
+      var p = progress(group.lessons || []);
 
-      html +=
-        '<button type="button" class="wtl-layout-section" data-layout-section="' + e(g.id) + '">' +
+      html += '<button type="button" class="wtl-layout-section" data-layout-section="' + esc(group.id) + '">' +
         '<div class="wtl-layout-num">' + (i + 1) + '</div>' +
         '<div style="flex:1;min-width:0;">' +
-        '<div class="wtl-layout-title">' + e(g.title) + '</div>' +
-        '<div class="wtl-layout-muted">' + e(g.desc) + '</div>' +
-        '<div class="wtl-layout-muted" style="opacity:.75;margin-top:3px;">Źródło: ' + e(g.sourceTitle) + '</div>' +
+        '<div class="wtl-layout-title">' + esc(group.title) + '</div>' +
+        '<div class="wtl-layout-muted">' + esc(group.desc) + '</div>' +
+        '<div class="wtl-layout-muted" style="opacity:.75;margin-top:3px;">Źródło: ' + esc(group.sourceTitle) + '</div>' +
         '<div class="wtl-layout-progress">' +
         '<div class="wtl-layout-progress-top"><span>Postęp</span><strong>' + p.done + '/' + p.total + ' — ' + p.percent + '%</strong></div>' +
         '<div class="wtl-layout-bar"><div class="wtl-layout-fill" style="width:' + p.percent + '%"></div></div>' +
@@ -3323,40 +3602,37 @@
     return html + '</div>';
   }
 
-  function lessonsHtml(id) {
-    var g = groupById(id);
-    var lessons = g && g.lessons ? g.lessons : [];
-    var p = prog(lessons);
+  function lessonsHtml(id, groups) {
+    var group = groupById(id, groups);
+    var lessons = group && group.lessons ? group.lessons : [];
+    var p = progress(lessons);
 
-    var html =
-      '<div class="wtl-layout-card">' +
+    var html = '<div class="wtl-layout-card">' +
       '<div class="wtl-layout-topbar">' +
       '<div>' +
       '<div class="wtl-layout-label">▶ Plan lekcji</div>' +
-      '<div class="wtl-layout-title">' + e(g ? g.title : 'Plan lekcji') + '</div>' +
+      '<div class="wtl-layout-title">' + esc(group ? group.title : 'Plan lekcji') + '</div>' +
       '</div>' +
       '<button type="button" class="wtl-layout-back" id="wtl-layout-plan-back">← Wróć</button>' +
       '</div>' +
-      '<div class="wtl-layout-muted">Źródło: ' + e(g ? g.sourceTitle : '') + '</div>' +
+      '<div class="wtl-layout-muted">Źródło: ' + esc(group ? group.sourceTitle : '') + '</div>' +
       '<div class="wtl-layout-progress">' +
       '<div class="wtl-layout-progress-top"><span>Postęp sekcji</span><strong>' + p.done + '/' + p.total + ' — ' + p.percent + '%</strong></div>' +
       '<div class="wtl-layout-bar"><div class="wtl-layout-fill" style="width:' + p.percent + '%"></div></div>' +
       '</div>';
 
     if (!lessons.length) {
-      html += '<div class="wtl-layout-muted" style="margin-top:12px;">Nie znaleziono lekcji w tej sekcji na aktualnie załadowanej stronie.</div>';
+      html += '<div class="wtl-layout-muted" style="margin-top:12px;">Nie znaleziono lekcji w tej sekcji.</div>';
     }
 
     for (var i = 0; i < lessons.length; i++) {
-      var l = lessons[i];
-
-      html +=
-        '<a class="wtl-layout-lesson" href="' + e(l.url) + '">' +
+      var lesson = lessons[i];
+      html += '<a class="wtl-layout-lesson" href="' + esc(lesson.url) + '">' +
         '<div class="wtl-layout-num">' + (i + 1) + '</div>' +
         '<div>' +
-        '<div class="wtl-layout-title">' + e(l.title) + '</div>' +
-        '<div class="wtl-layout-muted">Lekcja #' + e(l.id) + '</div>' +
-        '<span class="wtl-layout-status ' + (l.done ? 'done' : 'todo') + '">' + (l.done ? 'Ukończona' : 'Do obejrzenia') + '</span>' +
+        '<div class="wtl-layout-title">' + esc(lesson.title) + '</div>' +
+        '<div class="wtl-layout-muted">Lekcja #' + esc(lesson.id) + (lesson.fallback ? ' · fallback' : '') + '</div>' +
+        '<span class="wtl-layout-status ' + (lesson.done ? 'done' : 'todo') + '">' + (lesson.done ? 'Ukończona' : 'Do obejrzenia') + '</span>' +
         '</div>' +
         '</a>';
     }
@@ -3364,7 +3640,13 @@
     return html + '</div>';
   }
 
-  function ensureLayout() {
+  function ensureLayoutShell() {
+    if (!document.getElementById('wtl-layout-topbar')) {
+      var top = document.createElement('div');
+      top.id = 'wtl-layout-topbar';
+      document.body.appendChild(top);
+    }
+
     if (!document.getElementById('wtl-layout-left')) {
       var left = document.createElement('div');
       left.id = 'wtl-layout-left';
@@ -3378,30 +3660,36 @@
     }
   }
 
-  function renderLayout() {
-    ensureLayout();
+  function renderTopbar() {
+    var top = document.getElementById('wtl-layout-topbar');
+    if (!top) return;
 
-    var left = document.getElementById('wtl-layout-left');
-    var right = document.getElementById('wtl-layout-right');
-    var active = sessionStorage.getItem('wtl_layout_active_section') || '';
-
-    left.innerHTML =
-      '<div class="wtl-layout-head">' +
-      '<img src="' + e(PATCH.brand) + '" alt="Profitable Trader">' +
-      '<button type="button" class="wtl-layout-close" id="wtl-layout-close">×</button>' +
+    top.innerHTML = '<img class="wtl-layout-topbar-logo" src="' + esc(PATCH.brand) + '" alt="Profitable Trader">' +
+      '<div class="wtl-layout-topbar-title-wrap">' +
+      '<div class="wtl-layout-topbar-title">Layout Profitable Assistant</div>' +
+      '<div class="wtl-layout-topbar-sub">Topbar i sidebar są przejęte przez tryb Layout · Abonament: <span class="wtl-layout-sub-badge">sprawdzam...</span></div>' +
       '</div>' +
-      '<div class="wtl-layout-body">' + (active ? lessonsHtml(active) : sectionsHtml()) + '</div>';
+      '<div class="wtl-layout-topbar-spacer"></div>' +
+      '<button type="button" class="wtl-layout-panel-return" id="wtl-layout-return-panel">Wróć do panelu</button>' +
+      '<button type="button" class="wtl-layout-topbar-close" id="wtl-layout-close">Zamknij Layout</button>';
+  }
 
-    right.innerHTML =
-      '<div class="wtl-layout-widget">' +
-      '<div class="wtl-layout-widget-head">AI Agent</div>' +
+  function renderRightWidgets() {
+    var aiOpen = sessionStorage.getItem('wtl_layout_ai_open') === '1';
+    var aiButtonText = aiOpen ? 'Zwiń' : 'Otwórz';
+
+    return '<div class="wtl-layout-widget">' +
+      '<div class="wtl-layout-widget-head"><span>AI Agent</span><button type="button" class="wtl-layout-ai-toggle" id="wtl-layout-ai-toggle">' + aiButtonText + '</button></div>' +
       '<div class="wtl-layout-widget-body">' +
-      '<iframe class="wtl-layout-ai-frame" src="' + e(PATCH.ai) + '" allow="microphone" loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe>' +
+      (aiOpen
+        ? '<iframe class="wtl-layout-ai-frame" src="' + esc(PATCH.ai) + '" allow="microphone" loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe>'
+        : '<p class="wtl-layout-widget-desc">AI Agent jest zminimalizowany. Kliknij „Otwórz”, aby uruchomić iframe dopiero wtedy, gdy użytkownik go potrzebuje.</p>') +
       '</div>' +
       '</div>' +
       '<div class="wtl-layout-widget">' +
-      '<div class="wtl-layout-widget-head">Thulium</div>' +
+      '<div class="wtl-layout-widget-head"><span>Thulium</span></div>' +
       '<div class="wtl-layout-widget-body">' +
+      '<p class="wtl-layout-widget-desc">Przyciski używają tej samej ścieżki co panel: przełączają kartę Thulium i klikają natywne akcje w panelu.</p>' +
       '<div class="wtl-layout-actions">' +
       '<button type="button" class="wtl-layout-thulium-btn" data-layout-thulium="chat">Czat</button>' +
       '<button type="button" class="wtl-layout-thulium-btn" data-layout-thulium="email">E-mail</button>' +
@@ -3410,180 +3698,322 @@
       '</div>';
   }
 
+  function renderLayout(groups) {
+    ensureLayoutShell();
+    renderTopbar();
+
+    groups = groups || getGroups();
+
+    var active = sessionStorage.getItem('wtl_layout_active_section') || '';
+    var left = document.getElementById('wtl-layout-left');
+    var right = document.getElementById('wtl-layout-right');
+
+    if (left) {
+      left.innerHTML = '<div class="wtl-layout-head"><img src="' + esc(PATCH.brand) + '" alt="Profitable Trader"><div class="wtl-layout-muted">Plan lekcji</div></div>' +
+        '<div class="wtl-layout-body">' + (active ? lessonsHtml(active, groups) : sectionsHtml(groups)) + '</div>';
+    }
+
+    if (right) right.innerHTML = renderRightWidgets();
+
+    fetchSub();
+  }
+
   function closeBaseNav() {
     try {
-      var avatar = document.querySelector('.nav-menu-avatar');
-      if (avatar) avatar.style.display = 'none';
+      var selectors = [
+        '.nav-menu-avatar',
+        '.nav-menu-boxed-wrap',
+        '.nav-menu-search-popup-wrap',
+        '.sidebar',
+        '.sidebar-wrap',
+        '.sidebar-menu',
+        '[class*="sidebar-left"]',
+        '[class*="sidebar-menu"]',
+        '[class*="Sidebar"]'
+      ];
 
-      var boxed = document.querySelector('.nav-menu-boxed-wrap');
-      if (boxed) boxed.style.display = 'none';
-
-      var searches = document.querySelectorAll('.nav-menu-search-popup-wrap');
-      for (var i = 0; i < searches.length; i++) {
-        searches[i].style.display = 'none';
-      }
-
-      var visible = false;
-      var candidates = document.querySelectorAll('.sidebar,.sidebar-wrap,.sidebar-menu,[class*="sidebar"]');
-
-      for (var j = 0; j < candidates.length; j++) {
-        var el = candidates[j];
-        if (!el || (el.closest && el.closest('#wtl-assistant-panel'))) continue;
-
-        var cs = getComputedStyle(el);
-        var r = el.getBoundingClientRect();
-
-        if (cs.display !== 'none' && cs.visibility !== 'hidden' && r.width > 80 && r.height > 100) {
-          visible = true;
+      for (var s = 0; s < selectors.length; s++) {
+        var nodes = document.querySelectorAll(selectors[s]);
+        for (var i = 0; i < nodes.length; i++) {
+          var el = nodes[i];
+          if (!el || (el.closest && (el.closest('#wtl-layout-left') || el.closest('#wtl-layout-right') || el.closest('#wtl-layout-topbar') || el.closest('#wtl-assistant-panel')))) continue;
+          el.style.setProperty('display', 'none', 'important');
+          el.style.setProperty('visibility', 'hidden', 'important');
+          el.style.setProperty('pointer-events', 'none', 'important');
         }
       }
 
-      if (visible) {
-        var trigger = document.querySelector('.sidebar-trigger');
-        if (trigger) trigger.click();
+      var trigger = document.querySelector('.sidebar-trigger,[class*="sidebar-trigger"],[class*="SidebarTrigger"]');
+      if (trigger) {
+        var rect = trigger.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0) trigger.click();
       }
     } catch (err) {}
   }
 
-  function setLayoutMode(on) {
-    ensureLayout();
+  function restoreBaseNavInlineStyles() {
+    try {
+      var selectors = [
+        '.nav-menu-avatar',
+        '.nav-menu-boxed-wrap',
+        '.nav-menu-search-popup-wrap',
+        '.sidebar',
+        '.sidebar-wrap',
+        '.sidebar-menu',
+        '[class*="sidebar-left"]',
+        '[class*="sidebar-menu"]',
+        '[class*="Sidebar"]'
+      ];
 
+      for (var s = 0; s < selectors.length; s++) {
+        var nodes = document.querySelectorAll(selectors[s]);
+        for (var i = 0; i < nodes.length; i++) {
+          var el = nodes[i];
+          if (!el || (el.closest && (el.closest('#wtl-layout-left') || el.closest('#wtl-layout-right') || el.closest('#wtl-layout-topbar') || el.closest('#wtl-assistant-panel')))) continue;
+          el.style.removeProperty('display');
+          el.style.removeProperty('visibility');
+          el.style.removeProperty('pointer-events');
+        }
+      }
+    } catch (err) {}
+  }
+
+  function openPanelFromLayout() {
+    setLayoutMode(false, true);
+
+    try { localStorage.setItem('pt_assistant_v60_state', JSON.stringify('open')); } catch (e) {}
+
+    var panel = document.getElementById('wtl-assistant-panel');
+    var mini = document.getElementById('wtl-mini');
+    var bottom = document.getElementById('wtl-bottom-bar');
+
+    if (panel) panel.classList.remove('wtl-hidden');
+    if (mini) mini.classList.remove('wtl-visible');
+    if (bottom) bottom.classList.remove('wtl-visible');
+
+    var body = document.getElementById('wtl-body');
+    if (body) body.scrollTop = 0;
+  }
+
+  function setLayoutMode(on, returnPanel) {
+    ensureLayoutShell();
+
+    var top = document.getElementById('wtl-layout-topbar');
     var left = document.getElementById('wtl-layout-left');
     var right = document.getElementById('wtl-layout-right');
-    var mini = document.getElementById('wtl-mini');
     var panel = document.getElementById('wtl-assistant-panel');
+    var mini = document.getElementById('wtl-mini');
+    var bottom = document.getElementById('wtl-bottom-bar');
+    var sites = document.getElementById('wtl-site-switcher');
 
     if (on) {
+      saveCurrentLesson();
       closeBaseNav();
-      renderLayout();
+      refreshGroups(true, function (groups) {
+        renderLayout(groups);
 
-      document.documentElement.classList.add('wtl-layout-mode');
+        document.documentElement.classList.add('wtl-layout-mode');
+        if (top) top.classList.add('wtl-show');
+        if (left) left.classList.add('wtl-show');
+        if (right) right.classList.add('wtl-show');
 
-      if (left) left.classList.add('wtl-show');
-      if (right) right.classList.add('wtl-show');
+        if (panel) panel.classList.add('wtl-hidden');
+        if (mini) mini.classList.remove('wtl-visible');
+        if (bottom) bottom.classList.remove('wtl-visible');
+        if (sites) {
+          sites.classList.remove('wtl-visible');
+          sites.classList.remove('wtl-open');
+        }
 
-      if (panel) panel.classList.add('wtl-hidden');
-      if (mini) mini.classList.add('wtl-visible');
-
-      localStorage.setItem('pt_assistant_v60_layout_mode', '1');
+        localStorage.setItem('pt_assistant_v60_layout_mode', '1');
+      });
       return;
     }
 
     document.documentElement.classList.remove('wtl-layout-mode');
-
+    if (top) top.classList.remove('wtl-show');
     if (left) left.classList.remove('wtl-show');
     if (right) right.classList.remove('wtl-show');
 
-    if (panel) panel.classList.remove('wtl-hidden');
-    if (mini) mini.classList.remove('wtl-visible');
-
     localStorage.removeItem('pt_assistant_v60_layout_mode');
+    restoreBaseNavInlineStyles();
+
+    if (!returnPanel) {
+      if (panel) panel.classList.remove('wtl-hidden');
+      if (mini) mini.classList.remove('wtl-visible');
+      if (bottom) bottom.classList.remove('wtl-visible');
+    }
   }
 
   function updateMini() {
     var mini = document.getElementById('wtl-mini');
-
     if (!mini || mini.getAttribute('data-patched-mini') === '1') return;
 
     mini.setAttribute('data-patched-mini', '1');
-    mini.innerHTML =
-      '<img class="wtl-mini-logo" src="' + e(PATCH.brand) + '" alt="Profitable Trader">' +
-      '<div class="wtl-mini-sub loading"><span>' + e(PATCH.subLabel) + ':</span><strong>sprawdzam...</strong></div>' +
+    mini.innerHTML = '<img class="wtl-mini-logo" src="' + esc(PATCH.brand) + '" alt="Profitable Trader">' +
+      '<div class="wtl-mini-sub loading"><span>' + esc(PATCH.subLabel) + ':</span><strong>sprawdzam...</strong></div>' +
       '<div class="wtl-mini-arrow">↑</div>';
   }
 
-  function addLayoutBtn() {
+  function addLayoutButton() {
     if (document.getElementById('wtl-layout-enter')) return;
 
     var header = document.querySelector('#wtl-assistant-panel .wtl-header');
     var badge = document.getElementById('wtl-subscription-badge');
-
     if (!header || !badge) return;
 
     var btn = document.createElement('button');
     btn.id = 'wtl-layout-enter';
     btn.type = 'button';
     btn.textContent = 'Layout';
-    btn.title = 'Wejdź w tryb layoutu na stronie';
+    btn.title = 'Wejdź w tryb Layout: topbar + sidebar';
 
     header.insertBefore(btn, badge);
-
-    btn.addEventListener('click', function (ev) {
-      ev.preventDefault();
-      ev.stopPropagation();
+    btn.addEventListener('click', function (event) {
+      event.preventDefault();
+      event.stopPropagation();
       setLayoutMode(true);
     }, true);
   }
 
-  function bind() {
-    document.addEventListener('click', function (ev) {
-      var t = ev.target;
-      if (!t) return;
+  function openThuliumFromLayout(intent) {
+    if (intent !== 'email') intent = 'chat';
 
-      var sec = t.closest && t.closest('[data-layout-section]');
-      if (sec) {
-        ev.preventDefault();
-        sessionStorage.setItem('wtl_layout_active_section', sec.getAttribute('data-layout-section') || '');
+    setLayoutMode(false, true);
+
+    var panel = document.getElementById('wtl-assistant-panel');
+    if (panel) panel.classList.remove('wtl-hidden');
+
+    try { localStorage.setItem('pt_assistant_v60_state', JSON.stringify('open')); } catch (e) {}
+
+    setTimeout(function () {
+      var tab = document.querySelector('[data-wtl-tab="thulium"]');
+      if (tab) tab.click();
+
+      setTimeout(function () {
+        var btn = document.querySelector('[data-wtl-thulium-intent="' + cssEscape(intent) + '"]');
+        if (btn) btn.click();
+      }, 350);
+    }, 150);
+  }
+
+  function bind() {
+    document.addEventListener('click', function (event) {
+      var target = event.target;
+      if (!target) return;
+
+      var section = target.closest && target.closest('[data-layout-section]');
+      if (section) {
+        event.preventDefault();
+        sessionStorage.setItem('wtl_layout_active_section', section.getAttribute('data-layout-section') || '');
         renderLayout();
         return;
       }
 
-      if (t.id === 'wtl-layout-plan-back') {
-        ev.preventDefault();
+      if (target.id === 'wtl-layout-plan-back') {
+        event.preventDefault();
         sessionStorage.removeItem('wtl_layout_active_section');
         renderLayout();
         return;
       }
 
-      if (t.id === 'wtl-layout-close') {
-        ev.preventDefault();
+      if (target.id === 'wtl-layout-return-panel') {
+        event.preventDefault();
+        openPanelFromLayout();
+        return;
+      }
+
+      if (target.id === 'wtl-layout-close') {
+        event.preventDefault();
         setLayoutMode(false);
         return;
       }
 
-      var th = t.closest && t.closest('[data-layout-thulium]');
-      if (th) {
-        ev.preventDefault();
+      if (target.id === 'wtl-layout-ai-toggle') {
+        event.preventDefault();
+        if (sessionStorage.getItem('wtl_layout_ai_open') === '1') sessionStorage.removeItem('wtl_layout_ai_open');
+        else sessionStorage.setItem('wtl_layout_ai_open', '1');
+        renderLayout();
+        return;
+      }
 
-        var intent = th.getAttribute('data-layout-thulium') || 'chat';
+      var thulium = target.closest && target.closest('[data-layout-thulium]');
+      if (thulium) {
+        event.preventDefault();
+        openThuliumFromLayout(thulium.getAttribute('data-layout-thulium') || 'chat');
+      }
+    }, true);
 
-        setLayoutMode(false);
-
+    document.addEventListener('change', function (event) {
+      var target = event.target;
+      if (!target || !target.matches) return;
+      if (
+        target.matches('input[name="lesson_done_form[isLessonDone]"]') ||
+        target.matches('#lesson_done_form_isLessonDone') ||
+        target.matches('.lesson-toggle-status input[type="checkbox"]')
+      ) {
+        remove('groups');
         setTimeout(function () {
-          var tab = document.querySelector('[data-wtl-tab="thulium"]');
-          if (tab) tab.click();
-
-          setTimeout(function () {
-            var btn = document.querySelector('[data-wtl-thulium-intent="' + intent + '"]');
-            if (btn) btn.click();
-          }, 350);
-        }, 150);
+          if (document.documentElement.classList.contains('wtl-layout-mode')) renderLayout();
+        }, 350);
       }
     }, true);
   }
 
+  function observeUrlAndDom() {
+    setInterval(function () {
+      if (location.href !== lastUrl) {
+        lastUrl = location.href;
+        remove('groups');
+        saveCurrentLesson();
+        if (document.documentElement.classList.contains('wtl-layout-mode')) {
+          setTimeout(function () { setLayoutMode(true); }, 200);
+        }
+      }
+    }, 700);
+
+    if (!window.MutationObserver) return;
+    var observer = new MutationObserver(function () {
+      if (refreshTimer) clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(function () {
+        saveCurrentLesson();
+        if (document.documentElement.classList.contains('wtl-layout-mode')) {
+          closeBaseNav();
+        }
+      }, 450);
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
+
   function tick() {
-    css();
-    addLayoutBtn();
+    injectCss();
+    addLayoutButton();
     updateMini();
 
     if (document.documentElement.classList.contains('wtl-layout-mode')) {
       closeBaseNav();
+      var top = document.getElementById('wtl-layout-topbar');
+      var left = document.getElementById('wtl-layout-left');
+      var right = document.getElementById('wtl-layout-right');
+      if (top) top.classList.add('wtl-show');
+      if (left) left.classList.add('wtl-show');
+      if (right) right.classList.add('wtl-show');
     }
   }
 
   function init() {
-    css();
-    ensureLayout();
-    addLayoutBtn();
+    injectCss();
+    ensureLayoutShell();
+    addLayoutButton();
     updateMini();
     bind();
+    observeUrlAndDom();
+    saveCurrentLesson();
     fetchSub();
 
     if (localStorage.getItem('pt_assistant_v60_layout_mode') === '1') {
-      setTimeout(function () {
-        setLayoutMode(true);
-      }, 700);
+      setTimeout(function () { setLayoutMode(true); }, 700);
     }
 
     setInterval(tick, 1000);
@@ -3591,9 +4021,7 @@
   }
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function () {
-      setTimeout(init, 300);
-    });
+    document.addEventListener('DOMContentLoaded', function () { setTimeout(init, 300); });
   } else {
     setTimeout(init, 300);
   }

@@ -2898,33 +2898,26 @@
     init();
   }
 })();
-/* PT Assistant V60 layout patch 2026-05-07.
-   Wersja kompletna do dopisania na koniec bazowego pt-assistant.js.
-   Patch zachowuje funkcje V60 i nadpisuje tylko elementy UI: Layout na topbar + sidebar,
-   ukrywanie panelu w Layout, powrót do panelu z topbara, zminimalizowany AI Agent w Layout
-   oraz czytanie lekcji/statusu tak samo jak panel: z DOM, cache i fallbacków.
+/* PT Assistant Layout V7 stable patch.
+   Dopiszane do czystej wersji V60. Layout korzysta z dzialajacych mechanizmow panelu,
+   nie klika bazowego sidebaru WTL, utrzymuje natywne My Account, trwaly AI iframe
+   oraz otwiera Thulium przez oryginalne przyciski panelu.
 */
 (function () {
   'use strict';
 
-  if (window.__PT_ASSISTANT_V60_LAYOUT_FULL_TOPBAR_2026_05_07__) return;
-  window.__PT_ASSISTANT_V60_LAYOUT_FULL_TOPBAR_2026_05_07__ = true;
+  if (window.__PT_ASSISTANT_LAYOUT_V7_STABLE__) return;
+  window.__PT_ASSISTANT_LAYOUT_V7_STABLE__ = true;
 
-  var PATCH = {
-    brand: 'https://edu.profitabletrader.ai/uploads/media/12510/5/Group_361__1_.png?_t=1778149920',
-    ai: 'https://app.multitools.ai/chat-embed-host.html?assistantId=83ab6507-f2b6-402d-8ffd-4ab42aa1e9b2',
-    subId: '3',
-    subTitle: 'Abonament PL | Profitable Trader AI',
-    subLabel: 'Profitable Trader AI',
-    subUrls: ['/next/public/account/abonament', '/next/public/account/subscription'],
-    cachePrefix: 'pt_assistant_v60_layout_patch_',
+  var CFG = {
+    storagePrefix: 'pt_assistant_v60_',
+    brandImageSrc: 'https://edu.profitabletrader.ai/uploads/media/12510/5/Group_361__1_.png?_t=1778149920',
+    aiIframeSrc: 'https://app.multitools.ai/chat-embed-host.html?assistantId=83ab6507-f2b6-402d-8ffd-4ab42aa1e9b2',
     groups: [
       {
-        id: 'start',
-        title: 'Start / Wprowadzenie',
-        source: ['Preparing / Get ready'],
-        desc: 'Pierwsze lekcje, które klient powinien obejrzeć na start.',
-        fallback: [
+        id: 'start', title: 'Start / Wprowadzenie', sourceTitles: ['Preparing / Get ready'],
+        description: 'Pierwsze lekcje, ktore klient powinien obejrzec na start.',
+        fallbackLessons: [
           { id: 191, title: 'Witamy w Profitable Trader AI' },
           { id: 192, title: 'Przygotuj swoje stanowisko' },
           { id: 193, title: 'Model biznesowy w handlu' },
@@ -2935,11 +2928,9 @@
         ]
       },
       {
-        id: 'platformy',
-        title: 'Platformy handlowe',
-        source: ['Trading Platforms'],
-        desc: 'Lekcje dotyczące platform i środowiska tradingowego.',
-        fallback: [
+        id: 'platformy', title: 'Platformy handlowe', sourceTitles: ['Trading Platforms'],
+        description: 'Lekcje dotyczace platform i srodowiska tradingowego.',
+        fallbackLessons: [
           { id: 198, title: 'Platforma [darmowa] - MetaTrader 4' },
           { id: 199, title: 'Platforma [darmowa] - MetaTrader 5' },
           { id: 200, title: 'Platforma [płatna] - TradingView' },
@@ -2947,11 +2938,9 @@
         ]
       },
       {
-        id: 'podstawy',
-        title: 'Podstawy handlu',
-        source: ['ALLin for Beginner Trader'],
-        desc: 'Podstawowe materiały dla początkującego tradera.',
-        fallback: [
+        id: 'podstawy', title: 'Podstawy handlu', sourceTitles: ['ALLin for Beginner Trader'],
+        description: 'Podstawowe materialy dla poczatkujacego tradera.',
+        fallbackLessons: [
           { id: 212, title: 'Wprowadzenie do rynku Forex' },
           { id: 214, title: 'Wprowadzenie do rynku Futures' },
           { id: 215, title: "Typ Trader'a: Swing | Scalp | Day Trader" },
@@ -2972,11 +2961,9 @@
         ]
       },
       {
-        id: 'psnd',
-        title: 'Strategia PSND',
-        source: ['ALLin PSND'],
-        desc: 'Główna ścieżka nauki strategii PSND.',
-        fallback: [
+        id: 'psnd', title: 'Strategia PSND', sourceTitles: ['ALLin PSND'],
+        description: 'Glowna sciezka nauki strategii PSND.',
+        fallbackLessons: [
           { id: 232, title: 'PSND - Zaczynamy!' },
           { id: 233, title: 'Przygotowanie Wykresu' },
           { id: 234, title: 'Instrumenty' },
@@ -2995,11 +2982,9 @@
         ]
       },
       {
-        id: 'psnd-live',
-        title: 'PSND na żywo!',
-        source: ['ALLin Session - PSND'],
-        desc: 'Nagrania sesji live dla strategii PSND.',
-        fallback: [
+        id: 'psnd-live', title: 'PSND na żywo!', sourceTitles: ['ALLin Session - PSND'],
+        description: 'Nagrania sesji live dla strategii PSND.',
+        fallbackLessons: [
           { id: 247, title: 'LTS 13.02.2025 | Bartek' },
           { id: 248, title: 'LTS 31.01.2025 | Paweł' },
           { id: 249, title: 'LTS 07.02.2025 | Paweł' },
@@ -3007,11 +2992,9 @@
         ]
       },
       {
-        id: 'pac',
-        title: 'Strategia PAC',
-        source: ['Trading Workflow', 'Basics for Price Action', 'ALLin PAC', 'Price Action Setups'],
-        desc: 'Pełna ścieżka strategii PAC, workflow oraz setupy.',
-        fallback: [
+        id: 'pac', title: 'Strategia PAC', sourceTitles: ['Trading Workflow', 'Basics for Price Action', 'ALLin PAC', 'Price Action Setups'],
+        description: 'Pelna sciezka strategii PAC, workflow oraz setupy.',
+        fallbackLessons: [
           { id: 602, title: 'Workflow' },
           { id: 251, title: 'Assets' },
           { id: 252, title: 'Charts' },
@@ -3040,11 +3023,9 @@
         ]
       },
       {
-        id: 'pac-live',
-        title: 'PAC na żywo!',
-        source: ['ALLin Session - PAC'],
-        desc: 'Nagrania sesji live dla strategii PAC.',
-        fallback: [
+        id: 'pac-live', title: 'PAC na żywo!', sourceTitles: ['ALLin Session - PAC'],
+        description: 'Nagrania sesji live dla strategii PAC.',
+        fallbackLessons: [
           { id: 283, title: 'LTS 09.06.2025 | Paweł' },
           { id: 284, title: 'LTS 06.02.2025 | Paweł' },
           { id: 285, title: 'LTS 23.01.2025 | Paweł' },
@@ -3055,11 +3036,19 @@
     ]
   };
 
-  var refreshTimer = null;
-  var lastUrl = location.href;
+  var layoutRefreshTimer = null;
+  var thuliumProxyTimer = null;
+  var baseNavCloseTimer = null;
+  var layoutGroupsCache = null;
+  var layoutGroupsCacheAt = 0;
+  var activeSection = '';
+  var accountKeepTimer = null;
 
+  function sKey(key) { return CFG.storagePrefix + key; }
+  function save(key, value) { try { localStorage.setItem(sKey(key), JSON.stringify(value)); } catch (err) {} }
+  function read(key, fallback) { try { var value = localStorage.getItem(sKey(key)); return value ? JSON.parse(value) : fallback; } catch (err) { return fallback; } }
   function clean(value) { return String(value || '').replace(/\s+/g, ' ').trim(); }
-  function key(value) { return clean(value).toLowerCase(); }
+  function low(value) { return clean(value).toLowerCase(); }
   function esc(value) {
     return String(value || '')
       .replace(/&/g, '&amp;')
@@ -3068,3485 +3057,818 @@
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#039;');
   }
-  function storeKey(name) { return PATCH.cachePrefix + name; }
-  function save(name, value) {
-    try { localStorage.setItem(storeKey(name), JSON.stringify(value)); } catch (e) {}
-  }
-  function read(name, fallback) {
-    try {
-      var raw = localStorage.getItem(storeKey(name));
-      return raw ? JSON.parse(raw) : fallback;
-    } catch (e) {
-      return fallback;
-    }
-  }
-  function remove(name) {
-    try { localStorage.removeItem(storeKey(name)); } catch (e) {}
-  }
-
-  function lessonIdFromUrl(url) {
-    var match = String(url || '').match(/\/lesson\/([^/?#]+)/i);
-    return match && match[1] ? String(match[1]) : '';
-  }
+  function lessonIdFromUrl(url) { var m = String(url || '').match(/\/lesson\/([^/?#]+)/i); return m && m[1] ? String(m[1]) : ''; }
   function lessonUrlById(id) { return location.origin + '/next/public/lesson/' + id; }
-
-  function cssEscape(value) {
-    value = String(value || '');
-    if (window.CSS && typeof window.CSS.escape === 'function') return window.CSS.escape(value);
-    return value.replace(/["\\]/g, '\\$&');
-  }
-
-  function injectCss() {
-    var old = document.getElementById('pt-v60-safe-patch-style');
-    if (old && old.parentNode) old.parentNode.removeChild(old);
-
-    if (document.getElementById('pt-v60-layout-full-topbar-style')) return;
-
-    var style = document.createElement('style');
-    style.id = 'pt-v60-layout-full-topbar-style';
-    style.textContent = [
-      '#wtl-dock{display:none!important}',
-      '#wtl-subscription-badge{margin-left:auto!important;margin-right:8px!important;width:124px!important;min-height:44px!important;border-radius:12px!important;padding:6px 8px!important;text-align:left!important}',
-      '#wtl-subscription-badge span{font-size:8.5px!important;line-height:1.05!important}',
-      '#wtl-subscription-badge strong{font-size:10.5px!important;line-height:1.05!important}',
-
-      '#wtl-layout-enter{width:68px;height:30px;border:1px solid rgba(248,113,113,.48);border-radius:10px;background:rgba(239,68,68,.16);color:#fecaca;cursor:pointer;font-size:10.5px;font-weight:950;display:flex;align-items:center;justify-content:center;flex-shrink:0}',
-      '#wtl-layout-enter:hover{background:rgba(239,68,68,.30);border-color:rgba(248,113,113,.78)}',
-
-      '#wtl-mini{width:326px!important;max-width:calc(100vw - 24px)!important;height:60px!important;border-radius:18px!important;right:22px!important;bottom:22px!important;padding:8px 10px!important;gap:9px!important;justify-content:flex-start!important;background:radial-gradient(circle at 20% 0%,rgba(239,68,68,.24),transparent 36%),linear-gradient(135deg,#050505,#111 58%,#1a0505)!important}',
-      '#wtl-mini:after{display:none!important}',
-      '.wtl-mini-logo{width:132px;height:32px;object-fit:contain;object-position:left center;display:block;flex-shrink:0}',
-      '.wtl-mini-sub{margin-left:auto;width:96px;min-height:38px;border-radius:11px;padding:5px 7px;font-size:8px;font-weight:950;line-height:1.05;border:1px solid rgba(255,255,255,.14);text-align:left;display:flex;flex-direction:column;justify-content:center}',
-      '.wtl-mini-sub span{display:block;color:rgba(255,255,255,.74);font-size:8px;margin-bottom:3px}',
-      '.wtl-mini-sub strong{display:block;font-size:9.5px}',
-      '.wtl-mini-sub.active,.wtl-mini-sub.expires{color:#bbf7d0;background:rgba(34,197,94,.16);border-color:rgba(34,197,94,.42)}',
-      '.wtl-mini-sub.inactive{color:#fecaca;background:rgba(239,68,68,.16);border-color:rgba(239,68,68,.46)}',
-      '.wtl-mini-sub.loading{color:#fde68a;background:rgba(234,179,8,.14);border-color:rgba(234,179,8,.34)}',
-      '.wtl-mini-sub.unknown{color:rgba(255,255,255,.72);background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.16)}',
-      '.wtl-mini-arrow{width:32px;height:32px;border-radius:12px;background:linear-gradient(135deg,#ef4444,#b91c1c);color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:950;flex-shrink:0}',
-
-      'html.wtl-layout-mode body{overflow-x:hidden!important}',
-      'html.wtl-layout-mode #wtl-assistant-panel,html.wtl-layout-mode #wtl-mini,html.wtl-layout-mode #wtl-bottom-bar,html.wtl-layout-mode #wtl-site-switcher{display:none!important}',
-      'html.wtl-layout-mode .sidebar,html.wtl-layout-mode .sidebar-wrap,html.wtl-layout-mode .sidebar-menu,html.wtl-layout-mode [class*="sidebar-left"],html.wtl-layout-mode [class*="sidebar-menu"],html.wtl-layout-mode [class*="Sidebar"]{display:none!important;visibility:hidden!important;pointer-events:none!important}',
-      'html.wtl-layout-mode .nav-menu-avatar,html.wtl-layout-mode .nav-menu-boxed-wrap,html.wtl-layout-mode .nav-menu-search-popup-wrap{display:none!important;visibility:hidden!important;pointer-events:none!important}',
-
-      '#wtl-layout-topbar,#wtl-layout-left,#wtl-layout-right{box-sizing:border-box;font-family:Inter,Arial,Helvetica,sans-serif}',
-      '#wtl-layout-topbar{position:fixed;z-index:2147483502;left:0;right:0;top:0;height:64px;background:radial-gradient(circle at 18% 0%,rgba(239,68,68,.28),transparent 32%),linear-gradient(135deg,#050505,#111 58%,#1a0505);border-bottom:1px solid rgba(239,68,68,.36);box-shadow:0 14px 44px rgba(0,0,0,.36);color:#fff;display:none;align-items:center;gap:12px;padding:10px 14px}',
-      '#wtl-layout-topbar.wtl-show{display:flex}',
-      '.wtl-layout-topbar-logo{width:174px;height:38px;object-fit:contain;object-position:left center;display:block;flex-shrink:0}',
-      '.wtl-layout-topbar-title{font-size:13px;font-weight:950;color:#fecaca;line-height:1.15}',
-      '.wtl-layout-topbar-sub{font-size:11px;color:rgba(255,255,255,.62);font-weight:750;line-height:1.25}',
-      '.wtl-layout-topbar-spacer{flex:1;min-width:8px}',
-      '.wtl-layout-panel-return,.wtl-layout-topbar-close,.wtl-layout-ai-toggle{border:1px solid rgba(248,113,113,.42);border-radius:12px;background:rgba(239,68,68,.14);color:#fecaca;height:38px;padding:0 13px;font-size:12px;font-weight:950;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap}',
-      '.wtl-layout-panel-return:hover,.wtl-layout-topbar-close:hover,.wtl-layout-ai-toggle:hover{background:rgba(239,68,68,.28);border-color:rgba(248,113,113,.72)}',
-      '.wtl-layout-panel-return{background:linear-gradient(135deg,#ef4444,#b91c1c 58%,#7f1d1d);color:#fff;border-color:rgba(248,113,113,.65)}',
-
-      '#wtl-layout-left{position:fixed;z-index:2147483501;left:0;top:64px;bottom:0;width:324px;max-width:calc(100vw - 20px);background:#070707;color:#fff;border-right:1px solid rgba(239,68,68,.34);box-shadow:18px 0 55px rgba(0,0,0,.35);display:none;flex-direction:column}',
-      '#wtl-layout-left.wtl-show{display:flex}',
-      '#wtl-layout-right{position:fixed;z-index:2147483501;right:18px;bottom:18px;width:360px;max-width:calc(100vw - 36px);display:none;flex-direction:column;gap:10px}',
-      '#wtl-layout-right.wtl-show{display:flex}',
-
-      '.wtl-layout-head{height:58px;display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid rgba(239,68,68,.26);background:rgba(255,255,255,.025)}',
-      '.wtl-layout-head img{width:152px;height:34px;object-fit:contain;object-position:left center}',
-      '.wtl-layout-body{flex:1;min-height:0;overflow:auto;padding:10px}',
-      '.wtl-layout-body::-webkit-scrollbar{width:6px}',
-      '.wtl-layout-body::-webkit-scrollbar-thumb{background:rgba(239,68,68,.42);border-radius:99px}',
-
-      '.wtl-layout-card{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.09);border-radius:15px;padding:12px;color:#fff}',
-      '.wtl-layout-card+.wtl-layout-card{margin-top:9px}',
-      '.wtl-layout-label{display:inline-flex;color:#fca5a5;font-size:10.5px;font-weight:950;text-transform:uppercase;letter-spacing:.04em;margin-bottom:7px}',
-      '.wtl-layout-title{font-size:13px;font-weight:950;line-height:1.3;margin-bottom:5px;color:#fff}',
-      '.wtl-layout-muted{color:rgba(255,255,255,.62);font-size:11.5px;line-height:1.4}',
-      '.wtl-layout-section{display:flex;gap:10px;width:100%;border:1px solid rgba(255,255,255,.09);border-radius:14px;background:rgba(255,255,255,.045);color:inherit;text-align:left;padding:11px;cursor:pointer;margin-top:8px}',
-      '.wtl-layout-section:hover,.wtl-layout-lesson:hover{border-color:rgba(248,113,113,.44);background:rgba(239,68,68,.09)}',
-      '.wtl-layout-num{width:28px;height:28px;border-radius:9px;background:linear-gradient(135deg,rgba(239,68,68,.32),rgba(127,29,29,.26));border:1px solid rgba(248,113,113,.38);color:#fecaca;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:950;flex-shrink:0}',
-      '.wtl-layout-progress{margin-top:9px}',
-      '.wtl-layout-progress-top{display:flex;justify-content:space-between;gap:8px;color:rgba(255,255,255,.62);font-size:10px;font-weight:900;margin-bottom:6px}',
-      '.wtl-layout-progress-top strong{color:#fecaca}',
-      '.wtl-layout-bar{height:7px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden}',
-      '.wtl-layout-fill{height:100%;border-radius:99px;background:linear-gradient(135deg,#ef4444,#b91c1c)}',
-      '.wtl-layout-back{border:1px solid rgba(248,113,113,.34);border-radius:11px;background:rgba(239,68,68,.12);color:#fecaca;padding:8px 10px;font-size:11px;font-weight:900;cursor:pointer}',
-      '.wtl-layout-topbar{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}',
-      '.wtl-layout-lesson{display:flex;gap:10px;text-decoration:none;color:inherit;border:1px solid rgba(255,255,255,.09);border-radius:13px;background:rgba(255,255,255,.045);padding:10px 11px;margin-top:8px}',
-      '.wtl-layout-status{display:inline-flex;margin-top:6px;padding:4px 7px;border-radius:99px;font-size:10px;font-weight:950;border:1px solid rgba(255,255,255,.12)}',
-      '.wtl-layout-status.done{color:#bbf7d0;background:rgba(34,197,94,.12);border-color:rgba(34,197,94,.28)}',
-      '.wtl-layout-status.todo{color:#fecaca;background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.28)}',
-      '.wtl-layout-widget{background:#070707;color:#fff;border:1px solid rgba(239,68,68,.32);border-radius:18px;box-shadow:0 18px 60px rgba(0,0,0,.42);overflow:hidden}',
-      '.wtl-layout-widget-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.08);font-size:12px;font-weight:950;color:#fecaca}',
-      '.wtl-layout-widget-body{padding:10px}',
-      '.wtl-layout-widget-desc{font-size:11.5px;color:rgba(255,255,255,.62);line-height:1.4;margin:0 0 10px}',
-      '.wtl-layout-ai-frame{height:310px;border:0;width:100%;display:block;border-radius:12px;background:#111827}',
-      '.wtl-layout-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}',
-      '.wtl-layout-thulium-btn{border:1px solid rgba(248,113,113,.5);border-radius:14px;background:linear-gradient(135deg,rgba(239,68,68,.28),rgba(127,29,29,.22));color:#fecaca;font-size:13px;font-weight:900;padding:13px 11px;cursor:pointer;text-align:center}',
-      '@media(max-width:720px){#wtl-layout-topbar{height:auto;min-height:64px;flex-wrap:wrap}.wtl-layout-topbar-logo{width:145px}.wtl-layout-topbar-title-wrap{display:none}#wtl-layout-left{top:64px;width:100vw;max-width:100vw}.wtl-layout-panel-return,.wtl-layout-topbar-close,.wtl-layout-ai-toggle{height:34px;padding:0 10px;font-size:11px}#wtl-layout-right{left:12px;right:12px;width:auto;bottom:12px}}',
-      '@media(max-width:480px){#wtl-mini{right:12px!important;bottom:16px!important;width:calc(100vw - 24px)!important}#wtl-layout-left{top:64px;width:100vw;max-width:100vw}#wtl-layout-right{left:10px;right:10px;width:auto}.wtl-layout-topbar-sub{display:none}}'
-    ].join('');
-
-    document.head.appendChild(style);
-  }
-
-  function findSubBox(doc) {
-    var boxes = doc.querySelectorAll('#abonament-display .abonament-box,.abonament-box,.content-box-wht,article,section,div');
-
-    for (var i = 0; i < boxes.length; i++) {
-      var box = boxes[i];
-      var title = clean((box.querySelector('h2') || {}).textContent || '');
-      var text = clean(box.textContent || box.innerText || '');
-      var button = box.querySelector('[data-atid="' + PATCH.subId + '"],#abonamentButton' + PATCH.subId);
-
-      if (
-        button ||
-        title === PATCH.subTitle ||
-        key(title).indexOf('profitable trader ai') !== -1 ||
-        key(text).indexOf('pakiet profitable trader ai') !== -1 ||
-        key(text).indexOf('abonament pl | profitable trader ai') !== -1
-      ) {
-        return box;
-      }
-    }
-
-    return null;
-  }
-
-  function parseDatePL(text) {
-    var match = clean(text).match(/(\d{1,2})[.\-/](\d{1,2})[.\-/](\d{4})(?:,\s*|\s+)?(\d{1,2})?:?(\d{2})?/);
-    if (!match) return null;
-
-    var date = new Date(
-      parseInt(match[3], 10),
-      parseInt(match[2], 10) - 1,
-      parseInt(match[1], 10),
-      match[4] ? parseInt(match[4], 10) : 23,
-      match[5] ? parseInt(match[5], 10) : 59,
-      0
-    );
-
-    return isNaN(date.getTime()) ? null : date;
-  }
-
-  function parseSub(doc) {
-    var box = findSubBox(doc);
-    if (!box) return 'unknown';
-
-    var statusEl = box.querySelector('.cbw-abonament-status');
-    var statusTxt = key(
-      (box.querySelector('.cbw-abonament-status-txt') || {}).textContent ||
-      (statusEl || {}).textContent ||
-      ''
-    );
-    var cls = statusEl ? String(statusEl.className || '').toLowerCase() : '';
-    var text = clean(box.textContent || box.innerText || '');
-    var lower = key(text);
-    var date = parseDatePL(text);
-
-    if (cls.indexOf('expires') !== -1 || statusTxt.indexOf('expires') !== -1 || lower.indexOf('ważny do') !== -1 || lower.indexOf('wazny do') !== -1 || lower.indexOf('valid until') !== -1) {
-      return date && date.getTime() < Date.now() ? 'inactive' : 'expires';
-    }
-
-    if (cls.indexOf('active') !== -1 || statusTxt.indexOf('active') !== -1 || statusTxt.indexOf('aktywn') !== -1 || lower.indexOf('opłacony') !== -1 || lower.indexOf('oplacony') !== -1) return 'active';
-
-    if (cls.indexOf('inactive') !== -1 || statusTxt.indexOf('inactive') !== -1 || statusTxt.indexOf('expired') !== -1 || statusTxt.indexOf('nieaktywn') !== -1 || lower.indexOf('wygas') !== -1) return 'inactive';
-
-    if (date && date.getTime() > Date.now()) return 'expires';
-    return 'unknown';
-  }
-
-  function setSub(status) {
-    status = status || 'unknown';
-    var label = status === 'active' || status === 'expires' ? 'aktywne' : status === 'inactive' ? 'nieaktywne' : status === 'loading' ? 'sprawdzam...' : 'nieznane';
-    var html = '<span>' + esc(PATCH.subLabel) + ':</span><strong>' + esc(label) + '</strong>';
-
-    var badge = document.getElementById('wtl-subscription-badge');
-    if (badge) {
-      badge.classList.remove('active', 'inactive', 'unknown', 'loading', 'expires');
-      badge.classList.add(status);
-      badge.innerHTML = html;
-    }
-
-    var miniBadges = document.querySelectorAll('.wtl-mini-sub');
-    for (var i = 0; i < miniBadges.length; i++) {
-      miniBadges[i].classList.remove('active', 'inactive', 'unknown', 'loading', 'expires');
-      miniBadges[i].classList.add(status);
-      miniBadges[i].innerHTML = html;
-    }
-
-    var layoutBadges = document.querySelectorAll('.wtl-layout-sub-badge');
-    for (var j = 0; j < layoutBadges.length; j++) {
-      layoutBadges[j].textContent = label;
-    }
-  }
-
-  function fetchSub() {
-    var cached = read('subscription', null);
-    if (cached && cached.status && cached.savedAt && Date.now() - cached.savedAt < 120000) {
-      setSub(cached.status);
-      return;
-    }
-
-    setSub('loading');
-    var index = 0;
-
-    function finish(status) {
-      save('subscription', { status: status || 'unknown', savedAt: Date.now() });
-      setSub(status || 'unknown');
-    }
-
-    function next() {
-      if (index >= PATCH.subUrls.length) {
-        finish('unknown');
-        return;
-      }
-
-      fetch(PATCH.subUrls[index++], { credentials: 'include', cache: 'no-store' })
-        .then(function (res) {
-          if (!res.ok) throw new Error('HTTP ' + res.status);
-          return res.text();
-        })
-        .then(function (html) {
-          var doc = new DOMParser().parseFromString(html, 'text/html');
-          var status = parseSub(doc);
-          if (status !== 'unknown') finish(status);
-          else next();
-        })
-        .catch(next);
-    }
-
-    next();
-  }
-
-  function readTitleNode(node) {
-    if (!node) return '';
-    return clean(node.getAttribute('title') || node.textContent || node.innerText || '');
-  }
-
-  function sectionTitleFromBox(box) {
-    if (!box) return '';
-    var node = box.querySelector('.lessons-box-header-top span') || box.querySelector('.lessons-box-header span') || box.querySelector('.lessons-box-header-top');
-    return readTitleNode(node);
-  }
-
-  function isDoneLessonItem(item) {
-    if (!item) return false;
-    if (item.querySelector('.fa-circle-check')) return true;
-    if (item.querySelector('.wtl-color-green')) return true;
-
-    var text = key(item.textContent || item.innerText || '');
-    return text.indexOf('completed') !== -1 || text.indexOf('ukończona') !== -1 || text.indexOf('ukonczona') !== -1;
-  }
-
-  function extractLessonsFromBox(box) {
-    var out = [];
-    var seen = {};
-    if (!box) return out;
-
-    var items = box.querySelectorAll('.lesson-item');
-    for (var i = 0; i < items.length; i++) {
-      var item = items[i];
-      var link = item.querySelector('a.lesson-item-title[href*="/lesson/"],a[href*="/next/public/lesson/"]');
-      if (!link) continue;
-
-      var href = link.getAttribute('href') || '';
-      var id = lessonIdFromUrl(href);
-      if (!id || seen[id]) continue;
-      seen[id] = true;
-
-      var url;
-      try { url = new URL(href, location.origin).href; } catch (e) { url = lessonUrlById(id); }
-
-      var title = clean(link.getAttribute('title') || link.textContent || link.innerText || '')
-        .replace(/Completed/gi, '')
-        .replace(/Ukończona/gi, '')
-        .replace(/Ukonczona/gi, '')
-        .replace(/Do obejrzenia/gi, '')
-        .replace(/\s+/g, ' ')
-        .trim();
-
-      out.push({
-        id: Number(id),
-        title: title || ('Lekcja ' + id),
-        url: url,
-        done: isDoneLessonItem(item),
-        active: item.classList.contains('active')
-      });
-    }
-
-    return out;
-  }
-
-  function findLessonBox(doc, sourceTitle) {
-    var boxes = doc.querySelectorAll('.lessons-box');
-    var wanted = key(sourceTitle);
-
-    for (var i = 0; i < boxes.length; i++) {
-      var title = key(sectionTitleFromBox(boxes[i]));
-      if (!title) continue;
-      if (title === wanted || title.indexOf(wanted) !== -1) return boxes[i];
-    }
-
-    return null;
-  }
-
-  function fallbackLessons(group) {
-    var lessons = group.fallback || [];
-    var out = [];
-
-    for (var i = 0; i < lessons.length; i++) {
-      out.push({
-        id: Number(lessons[i].id),
-        title: lessons[i].title || ('Lekcja ' + lessons[i].id),
-        url: lessonUrlById(lessons[i].id),
-        done: false,
-        active: false,
-        fallback: true
-      });
-    }
-
-    return out;
-  }
-
-  function uniqueLessons(items) {
-    var seen = {};
-    var out = [];
-
-    for (var i = 0; i < items.length; i++) {
-      if (!items[i] || !items[i].id || seen[items[i].id]) continue;
-      seen[items[i].id] = true;
-      out.push(items[i]);
-    }
-
-    return out;
-  }
-
-  function scanGroupsFromDoc(doc) {
-    var out = [];
-
-    for (var i = 0; i < PATCH.groups.length; i++) {
-      var cfg = PATCH.groups[i];
-      var lessons = [];
-
-      for (var j = 0; j < cfg.source.length; j++) {
-        lessons = lessons.concat(extractLessonsFromBox(findLessonBox(doc, cfg.source[j])));
-      }
-
-      lessons = uniqueLessons(lessons);
-      if (!lessons.length) lessons = fallbackLessons(cfg);
-
-      out.push({
-        id: cfg.id,
-        title: cfg.title,
-        desc: cfg.desc,
-        sourceTitle: cfg.source.join(' + '),
-        lessons: lessons
-      });
-    }
-
-    return out;
-  }
-
-  function hasRealLessons(groups) {
-    for (var i = 0; i < groups.length; i++) {
-      var lessons = groups[i].lessons || [];
-      for (var j = 0; j < lessons.length; j++) {
-        if (!lessons[j].fallback) return true;
-      }
-    }
+  function isLessonPage() { return /\/lesson\/|\/lekcja\/|\/next\/public\/lesson\//i.test(location.pathname); }
+  function clickEl(el) {
+    if (!el) return false;
+    try { el.click(); return true; } catch (err) {}
+    try {
+      var evt = document.createEvent('MouseEvents');
+      evt.initMouseEvent('click', true, true, window, 1, 0, 0, 0, 0, false, false, false, false, 0, null);
+      el.dispatchEvent(evt);
+      return true;
+    } catch (err2) {}
     return false;
   }
 
-  function getGroups() {
-    var cached = read('groups', null);
-    if (cached && cached.groups && cached.savedAt && Date.now() - cached.savedAt < 60000) return cached.groups;
-
-    var groups = scanGroupsFromDoc(document);
-    save('groups', { savedAt: Date.now(), url: location.href, groups: groups });
-    return groups;
+  function injectCss() {
+    if (document.getElementById('pt-layout-v7-style')) return;
+    var css = ''
+      + '#wtl-layout-enter{width:58px;height:28px;border:1px solid rgba(248,113,113,.42);border-radius:10px;background:rgba(239,68,68,.13);color:#fecaca;cursor:pointer;font-size:10px;font-weight:950;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-right:4px;}'
+      + '#wtl-layout-enter:hover{background:rgba(239,68,68,.26);border-color:rgba(248,113,113,.72);}'
+      + 'html.wtl-layout-mode,html.wtl-layout-mode body{overflow-x:hidden!important;}'
+      + 'html.wtl-layout-mode .header.header-user .header-left,html.wtl-layout-mode .header.header-user .header-center,html.wtl-layout-mode .header.header-user .header-right{visibility:hidden!important;pointer-events:none!important;}'
+      + 'html.wtl-layout-mode .sidebar,html.wtl-layout-mode .sidebar-wrap,html.wtl-layout-mode .sidebar-menu,html.wtl-layout-mode [class*="sidebar-left"],html.wtl-layout-mode [class*="sidebar-menu"]{display:none!important;visibility:hidden!important;pointer-events:none!important;}'
+      + 'html.wtl-layout-mode #wtl-assistant-panel:not(.pt-layout-thulium-proxy),html.wtl-layout-mode #wtl-mini,html.wtl-layout-mode #wtl-bottom-bar,html.wtl-layout-mode #wtl-site-switcher{display:none!important;visibility:hidden!important;pointer-events:none!important;}'
+      + '#pt-layout-topbar,#pt-layout-left,#pt-layout-left-toggle,#pt-layout-bottom-actions,#pt-layout-ai-window{box-sizing:border-box;font-family:Inter,Arial,Helvetica,sans-serif;}'
+      + '#pt-layout-topbar{position:fixed;z-index:2147483540;left:0;right:0;top:0;height:66px;background:radial-gradient(circle at 12% 0%,rgba(239,68,68,.26),transparent 34%),linear-gradient(135deg,#050505,#111 58%,#1a0505);border-bottom:1px solid rgba(239,68,68,.34);box-shadow:0 14px 44px rgba(0,0,0,.28);display:none;align-items:center;padding:0 12px;gap:12px;color:#fff;}'
+      + 'html.wtl-layout-mode #pt-layout-topbar{display:flex;}'
+      + '.pt-layout-logo{width:142px;height:44px;object-fit:contain;object-position:left center;display:block;flex-shrink:0;}'
+      + '.pt-layout-nav{display:flex;align-items:center;gap:10px;margin-left:12px;}'
+      + '.pt-layout-link{height:38px;display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.12);border-radius:13px;background:rgba(255,255,255,.07);color:#fff;text-decoration:none;padding:0 18px;font-size:12px;font-weight:950;}'
+      + '.pt-layout-link:hover{background:rgba(239,68,68,.20);border-color:rgba(248,113,113,.46);}'
+      + '.pt-layout-top-actions{margin-left:auto;display:flex;align-items:center;gap:8px;}'
+      + '.pt-layout-restore{height:40px;border:0;border-radius:12px;background:linear-gradient(135deg,#ef4444,#b91c1c);color:#fff;padding:0 18px;font-size:12px;font-weight:950;cursor:pointer;box-shadow:0 10px 24px rgba(239,68,68,.22);}'
+      + '.pt-layout-icon{width:38px;height:38px;border:1px solid rgba(255,255,255,.11);border-radius:13px;background:rgba(255,255,255,.06);color:#fff;display:inline-flex;align-items:center;justify-content:center;text-decoration:none;cursor:pointer;font-size:13px;font-weight:950;}'
+      + '.pt-layout-icon:hover{background:rgba(239,68,68,.18);border-color:rgba(248,113,113,.42);}'
+      + '.pt-layout-avatar{width:38px;height:38px;border-radius:13px;overflow:hidden;padding:0;border:1px solid rgba(255,255,255,.13);background:rgba(255,255,255,.06);cursor:pointer;}'
+      + '.pt-layout-avatar img{width:100%;height:100%;object-fit:cover;display:block;}'
+      + '#pt-layout-left{position:fixed;z-index:2147483535;left:0;top:66px;bottom:0;width:324px;max-width:calc(100vw - 28px);background:#070707;color:#fff;border-right:1px solid rgba(239,68,68,.34);box-shadow:18px 0 55px rgba(0,0,0,.34);display:none;flex-direction:column;transition:transform .18s ease;}'
+      + 'html.wtl-layout-mode #pt-layout-left{display:flex;}'
+      + 'html.wtl-layout-nav-hidden #pt-layout-left{transform:translateX(-324px);}'
+      + '#pt-layout-left-toggle{position:fixed;z-index:2147483542;left:312px;top:76px;width:28px;height:42px;border:1px solid rgba(248,113,113,.45);border-radius:0 12px 12px 0;background:linear-gradient(135deg,#111,#3b0a0a);color:#fecaca;display:none;align-items:center;justify-content:center;cursor:pointer;font-weight:950;box-shadow:8px 8px 24px rgba(0,0,0,.28);}'
+      + 'html.wtl-layout-mode #pt-layout-left-toggle{display:flex;}'
+      + 'html.wtl-layout-nav-hidden #pt-layout-left-toggle{left:0;}'
+      + '#pt-layout-left-body{flex:1;min-height:0;overflow:auto;padding:12px;}'
+      + '#pt-layout-left-body::-webkit-scrollbar{width:6px;}#pt-layout-left-body::-webkit-scrollbar-thumb{background:rgba(239,68,68,.42);border-radius:99px;}'
+      + '.pt-card{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.09);border-radius:15px;padding:12px;color:#fff;}'
+      + '.pt-card+.pt-card{margin-top:10px;}'
+      + '.pt-label{display:inline-flex;color:#fca5a5;font-size:10.5px;font-weight:950;text-transform:uppercase;letter-spacing:.03em;margin-bottom:8px;}'
+      + '.pt-title{font-size:13px;font-weight:950;line-height:1.28;margin-bottom:5px;color:#fff;}'
+      + '.pt-muted{color:rgba(255,255,255,.62);font-size:11.5px;line-height:1.4;}'
+      + '.pt-cta{width:100%;margin-top:11px;border:0;border-radius:11px;background:linear-gradient(135deg,#ef4444,#b91c1c 58%,#7f1d1d);color:#fff;padding:10px 12px;font-weight:950;font-size:12px;cursor:pointer;text-decoration:none;display:flex;align-items:center;justify-content:center;text-align:center;}'
+      + '.pt-section,.pt-lesson{display:flex;gap:10px;width:100%;border:1px solid rgba(255,255,255,.09);border-radius:14px;background:rgba(255,255,255,.045);color:inherit;text-align:left;padding:11px;cursor:pointer;margin-top:8px;text-decoration:none;}'
+      + '.pt-section:hover,.pt-lesson:hover{border-color:rgba(248,113,113,.44);background:rgba(239,68,68,.09);}'
+      + '.pt-num{width:28px;height:28px;border-radius:9px;background:linear-gradient(135deg,rgba(239,68,68,.32),rgba(127,29,29,.26));border:1px solid rgba(248,113,113,.38);color:#fecaca;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:950;flex-shrink:0;}'
+      + '.pt-progress{margin-top:9px;}.pt-progress-top{display:flex;justify-content:space-between;gap:8px;color:rgba(255,255,255,.62);font-size:10px;font-weight:900;margin-bottom:6px;}.pt-progress-top strong{color:#fecaca;}.pt-bar{height:7px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden;}.pt-fill{height:100%;border-radius:99px;background:linear-gradient(135deg,#ef4444,#b91c1c);}'
+      + '.pt-status{display:inline-flex;margin-top:6px;padding:4px 7px;border-radius:99px;font-size:10px;font-weight:950;border:1px solid rgba(255,255,255,.12);}.pt-status.done{color:#bbf7d0;background:rgba(34,197,94,.12);border-color:rgba(34,197,94,.28);}.pt-status.todo{color:#fecaca;background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.28);}'
+      + '.pt-plan-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;}.pt-back{border:1px solid rgba(248,113,113,.34);border-radius:11px;background:rgba(239,68,68,.12);color:#fecaca;padding:8px 10px;font-size:11px;font-weight:900;cursor:pointer;}'
+      + '#pt-layout-bottom-actions{position:fixed;z-index:2147483538;right:14px;bottom:14px;display:none;align-items:center;gap:10px;}'
+      + 'html.wtl-layout-mode #pt-layout-bottom-actions{display:flex;}'
+      + '.pt-bottom-btn{height:44px;min-width:92px;border:1px solid rgba(248,113,113,.54);border-radius:14px;background:linear-gradient(135deg,rgba(239,68,68,.34),rgba(127,29,29,.72));color:#fecaca;font-size:12px;font-weight:950;cursor:pointer;padding:0 14px;box-shadow:0 12px 30px rgba(0,0,0,.24);}'
+      + '#pt-layout-ai-window{position:fixed;z-index:2147483545;right:14px;bottom:68px;width:390px;max-width:calc(100vw - 28px);height:560px;max-height:calc(100vh - 92px);display:none;background:#070707;border:1px solid rgba(239,68,68,.36);border-radius:18px;box-shadow:0 20px 62px rgba(0,0,0,.46);overflow:hidden;color:#fff;}'
+      + '#pt-layout-ai-window.pt-show{display:flex;flex-direction:column;}'
+      + '.pt-ai-head{height:46px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;border-bottom:1px solid rgba(255,255,255,.09);color:#fecaca;font-size:12px;font-weight:950;background:linear-gradient(135deg,#050505,#170707);}'
+      + '.pt-ai-close{width:30px;height:30px;border-radius:10px;border:1px solid rgba(248,113,113,.38);background:rgba(239,68,68,.12);color:#fecaca;cursor:pointer;font-weight:950;}'
+      + '#pt-layout-ai-frame{display:block!important;width:100%!important;height:100%!important;flex:1 1 auto;border:0!important;background:#111827!important;pointer-events:auto!important;z-index:1!important;}'
+      + 'html.wtl-layout-mode .nav-menu-avatar.active{display:block!important;visibility:visible!important;opacity:1!important;pointer-events:auto!important;position:fixed!important;right:12px!important;top:74px!important;z-index:2147483647!important;}'
+      + 'html.wtl-layout-mode .nav-menu-avatar.active *{visibility:visible!important;pointer-events:auto!important;}'
+      + 'html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy{display:block!important;visibility:visible!important;pointer-events:auto!important;position:fixed!important;left:auto!important;top:auto!important;right:14px!important;bottom:68px!important;width:420px!important;max-width:calc(100vw - 28px)!important;z-index:2147483646!important;}'
+      + 'html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy .wtl-header{cursor:default!important;}'
+      + 'html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy #wtl-thulium-native-mount{background:#070707!important;overflow:hidden!important;}'
+      + 'html.wtl-layout-mode .thulium-chat-wrapper:not(#wtl-thulium-native-mount .thulium-chat-wrapper),html.wtl-layout-mode .thulium-chat-frame-wrapper:not(#wtl-thulium-native-mount .thulium-chat-frame-wrapper){opacity:0!important;pointer-events:none!important;visibility:hidden!important;}'
+      + '@media(max-width:640px){.pt-layout-nav{display:none;}#pt-layout-left{width:304px;}html.wtl-layout-nav-hidden #pt-layout-left{transform:translateX(-304px);}#pt-layout-left-toggle{left:292px;}.pt-layout-logo{width:122px;}#pt-layout-ai-window{left:10px;right:10px;width:auto;}#pt-layout-bottom-actions{left:10px;right:10px;justify-content:flex-end;}.pt-bottom-btn{min-width:0;flex:1;}}';
+    var s = document.createElement('style');
+    s.id = 'pt-layout-v7-style';
+    s.type = 'text/css';
+    s.appendChild(document.createTextNode(css));
+    document.head.appendChild(s);
   }
 
-  function refreshGroups(force, callback) {
-    if (!force) {
-      var cached = read('groups', null);
-      if (cached && cached.groups && cached.savedAt && Date.now() - cached.savedAt < 60000) {
-        callback(cached.groups);
-        return;
-      }
-    }
-
-    var groups = scanGroupsFromDoc(document);
-    if (hasRealLessons(groups)) {
-      save('groups', { savedAt: Date.now(), url: location.href, groups: groups });
-      callback(groups);
-      return;
-    }
-
-    fetch(location.href, { credentials: 'include', cache: 'no-store' })
-      .then(function (res) {
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        return res.text();
-      })
-      .then(function (html) {
-        var doc = new DOMParser().parseFromString(html, 'text/html');
-        var fetched = scanGroupsFromDoc(doc);
-        save('groups', { savedAt: Date.now(), url: location.href, groups: fetched });
-        callback(fetched);
-      })
-      .catch(function () {
-        save('groups', { savedAt: Date.now(), url: location.href, groups: groups });
-        callback(groups);
-      });
-  }
-
-  function groupById(id, groups) {
-    groups = groups || getGroups();
-    for (var i = 0; i < groups.length; i++) {
-      if (groups[i].id === id) return groups[i];
-    }
-    return groups[0] || null;
-  }
-
-  function progress(items) {
-    var done = 0;
-    for (var i = 0; i < items.length; i++) if (items[i].done) done++;
-    return { done: done, total: items.length, percent: items.length ? Math.round((done / items.length) * 100) : 0 };
-  }
-
-  function currentLessonTitle() {
-    return readTitleNode(document.querySelector('.lesson-content-item.title-nav > .title[title]')) ||
-      readTitleNode(document.querySelector('.lesson-content-item.title-nav .title[title]')) ||
-      readTitleNode(document.querySelector('.lesson-item.active .lesson-item-title[title]')) ||
-      readTitleNode(document.querySelector('.content-lesson-in .title[title]')) ||
-      readTitleNode(document.querySelector('div.title[title]')) ||
-      clean(document.title || '') ||
-      'Ostatnia lekcja PT';
-  }
-
-  function saveCurrentLesson() {
-    if (!/\/lesson\/|\/lekcja\/|\/next\/public\/lesson\//i.test(location.pathname)) return;
-
-    var id = lessonIdFromUrl(location.href);
-    var groups = getGroups();
-    var group = null;
-
-    for (var i = 0; i < groups.length; i++) {
-      var lessons = groups[i].lessons || [];
-      for (var j = 0; j < lessons.length; j++) {
-        if (String(lessons[j].id) === String(id)) group = groups[i];
-      }
-    }
-
-    save('last_lesson', {
-      url: location.href,
-      path: location.pathname,
-      id: id,
-      title: currentLessonTitle(),
-      section: group ? group.title : 'Nieprzypisana sekcja',
-      sectionId: group ? group.id : '',
-      savedAt: new Date().toISOString()
-    });
-  }
-
-  function formatDate(iso) {
-    if (!iso) return '';
-    try {
-      var date = new Date(iso);
-      var diff = Date.now() - date.getTime();
-      var min = Math.floor(diff / 60000);
-      var h = Math.floor(min / 60);
-      var days = Math.floor(h / 24);
-      if (min < 1) return 'przed chwilą';
-      if (min < 60) return min + ' min temu';
-      if (h < 24) return h + ' godz. temu';
-      if (days === 1) return 'wczoraj';
-      if (days < 7) return days + ' dni temu';
-      return date.toLocaleDateString('pl-PL');
-    } catch (e) { return ''; }
-  }
-
-  function lastLessonHtml() {
-    var lesson = read('last_lesson', null);
-    if (!lesson) return '';
-
-    return '<div class="wtl-layout-card">' +
-      '<div class="wtl-layout-label">↩ Ostatnia lekcja</div>' +
-      '<div class="wtl-layout-title">' + esc(lesson.title || 'Ostatnia lekcja PT') + '</div>' +
-      '<div class="wtl-layout-muted">Sekcja: ' + esc(lesson.section || 'Nieprzypisana sekcja') + '</div>' +
-      '<div class="wtl-layout-muted">Zapisano: ' + esc(formatDate(lesson.savedAt)) + '</div>' +
-      '<a class="wtl-layout-back" style="margin-top:10px;text-decoration:none;display:inline-flex;" href="' + esc(lesson.url) + '">Wróć do lekcji</a>' +
-      '</div>';
-  }
-
-  function sectionsHtml(groups) {
-    var html = lastLessonHtml() +
-      '<div class="wtl-layout-card">' +
-      '<div class="wtl-layout-label">▶ Plan lekcji</div>' +
-      '<div class="wtl-layout-title">Wybierz sekcję</div>' +
-      '<div class="wtl-layout-muted">Layout zczytuje lekcje bezpośrednio z listy lekcji na platformie i używa tych samych fallbacków co panel.</div>';
-
-    for (var i = 0; i < groups.length; i++) {
-      var group = groups[i];
-      var p = progress(group.lessons || []);
-
-      html += '<button type="button" class="wtl-layout-section" data-layout-section="' + esc(group.id) + '">' +
-        '<div class="wtl-layout-num">' + (i + 1) + '</div>' +
-        '<div style="flex:1;min-width:0;">' +
-        '<div class="wtl-layout-title">' + esc(group.title) + '</div>' +
-        '<div class="wtl-layout-muted">' + esc(group.desc) + '</div>' +
-        '<div class="wtl-layout-muted" style="opacity:.75;margin-top:3px;">Źródło: ' + esc(group.sourceTitle) + '</div>' +
-        '<div class="wtl-layout-progress">' +
-        '<div class="wtl-layout-progress-top"><span>Postęp</span><strong>' + p.done + '/' + p.total + ' — ' + p.percent + '%</strong></div>' +
-        '<div class="wtl-layout-bar"><div class="wtl-layout-fill" style="width:' + p.percent + '%"></div></div>' +
-        '</div>' +
-        '</div>' +
-        '</button>';
-    }
-
-    return html + '</div>';
-  }
-
-  function lessonsHtml(id, groups) {
-    var group = groupById(id, groups);
-    var lessons = group && group.lessons ? group.lessons : [];
-    var p = progress(lessons);
-
-    var html = '<div class="wtl-layout-card">' +
-      '<div class="wtl-layout-topbar">' +
-      '<div>' +
-      '<div class="wtl-layout-label">▶ Plan lekcji</div>' +
-      '<div class="wtl-layout-title">' + esc(group ? group.title : 'Plan lekcji') + '</div>' +
-      '</div>' +
-      '<button type="button" class="wtl-layout-back" id="wtl-layout-plan-back">← Wróć</button>' +
-      '</div>' +
-      '<div class="wtl-layout-muted">Źródło: ' + esc(group ? group.sourceTitle : '') + '</div>' +
-      '<div class="wtl-layout-progress">' +
-      '<div class="wtl-layout-progress-top"><span>Postęp sekcji</span><strong>' + p.done + '/' + p.total + ' — ' + p.percent + '%</strong></div>' +
-      '<div class="wtl-layout-bar"><div class="wtl-layout-fill" style="width:' + p.percent + '%"></div></div>' +
-      '</div>';
-
-    if (!lessons.length) {
-      html += '<div class="wtl-layout-muted" style="margin-top:12px;">Nie znaleziono lekcji w tej sekcji.</div>';
-    }
-
-    for (var i = 0; i < lessons.length; i++) {
-      var lesson = lessons[i];
-      html += '<a class="wtl-layout-lesson" href="' + esc(lesson.url) + '">' +
-        '<div class="wtl-layout-num">' + (i + 1) + '</div>' +
-        '<div>' +
-        '<div class="wtl-layout-title">' + esc(lesson.title) + '</div>' +
-        '<div class="wtl-layout-muted">Lekcja #' + esc(lesson.id) + (lesson.fallback ? ' · fallback' : '') + '</div>' +
-        '<span class="wtl-layout-status ' + (lesson.done ? 'done' : 'todo') + '">' + (lesson.done ? 'Ukończona' : 'Do obejrzenia') + '</span>' +
-        '</div>' +
-        '</a>';
-    }
-
-    return html + '</div>';
-  }
-
-  function ensureLayoutShell() {
-    if (!document.getElementById('wtl-layout-topbar')) {
-      var top = document.createElement('div');
-      top.id = 'wtl-layout-topbar';
-      document.body.appendChild(top);
-    }
-
-    if (!document.getElementById('wtl-layout-left')) {
-      var left = document.createElement('div');
-      left.id = 'wtl-layout-left';
-      document.body.appendChild(left);
-    }
-
-    if (!document.getElementById('wtl-layout-right')) {
-      var right = document.createElement('div');
-      right.id = 'wtl-layout-right';
-      document.body.appendChild(right);
-    }
-  }
-
-  function renderTopbar() {
-    var top = document.getElementById('wtl-layout-topbar');
-    if (!top) return;
-
-    top.innerHTML = '<img class="wtl-layout-topbar-logo" src="' + esc(PATCH.brand) + '" alt="Profitable Trader">' +
-      '<div class="wtl-layout-topbar-title-wrap">' +
-      '<div class="wtl-layout-topbar-title">Layout Profitable Assistant</div>' +
-      '<div class="wtl-layout-topbar-sub">Topbar i sidebar są przejęte przez tryb Layout · Abonament: <span class="wtl-layout-sub-badge">sprawdzam...</span></div>' +
-      '</div>' +
-      '<div class="wtl-layout-topbar-spacer"></div>' +
-      '<button type="button" class="wtl-layout-panel-return" id="wtl-layout-return-panel">Wróć do panelu</button>' +
-      '<button type="button" class="wtl-layout-topbar-close" id="wtl-layout-close">Zamknij Layout</button>';
-  }
-
-  function renderRightWidgets() {
-    var aiOpen = sessionStorage.getItem('wtl_layout_ai_open') === '1';
-    var aiButtonText = aiOpen ? 'Zwiń' : 'Otwórz';
-
-    return '<div class="wtl-layout-widget">' +
-      '<div class="wtl-layout-widget-head"><span>AI Agent</span><button type="button" class="wtl-layout-ai-toggle" id="wtl-layout-ai-toggle">' + aiButtonText + '</button></div>' +
-      '<div class="wtl-layout-widget-body">' +
-      (aiOpen
-        ? '<iframe class="wtl-layout-ai-frame" src="' + esc(PATCH.ai) + '" allow="microphone" loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe>'
-        : '<p class="wtl-layout-widget-desc">AI Agent jest zminimalizowany. Kliknij „Otwórz”, aby uruchomić iframe dopiero wtedy, gdy użytkownik go potrzebuje.</p>') +
-      '</div>' +
-      '</div>' +
-      '<div class="wtl-layout-widget">' +
-      '<div class="wtl-layout-widget-head"><span>Thulium</span></div>' +
-      '<div class="wtl-layout-widget-body">' +
-      '<p class="wtl-layout-widget-desc">Przyciski używają tej samej ścieżki co panel: przełączają kartę Thulium i klikają natywne akcje w panelu.</p>' +
-      '<div class="wtl-layout-actions">' +
-      '<button type="button" class="wtl-layout-thulium-btn" data-layout-thulium="chat">Czat</button>' +
-      '<button type="button" class="wtl-layout-thulium-btn" data-layout-thulium="email">E-mail</button>' +
-      '</div>' +
-      '</div>' +
-      '</div>';
-  }
-
-  function renderLayout(groups) {
-    ensureLayoutShell();
-    renderTopbar();
-
-    groups = groups || getGroups();
-
-    var active = sessionStorage.getItem('wtl_layout_active_section') || '';
-    var left = document.getElementById('wtl-layout-left');
-    var right = document.getElementById('wtl-layout-right');
-
-    if (left) {
-      left.innerHTML = '<div class="wtl-layout-head"><img src="' + esc(PATCH.brand) + '" alt="Profitable Trader"><div class="wtl-layout-muted">Plan lekcji</div></div>' +
-        '<div class="wtl-layout-body">' + (active ? lessonsHtml(active, groups) : sectionsHtml(groups)) + '</div>';
-    }
-
-    if (right) right.innerHTML = renderRightWidgets();
-
-    fetchSub();
-  }
-
-  function closeBaseNav() {
-    try {
-      var selectors = [
-        '.nav-menu-avatar',
-        '.nav-menu-boxed-wrap',
-        '.nav-menu-search-popup-wrap',
-        '.sidebar',
-        '.sidebar-wrap',
-        '.sidebar-menu',
-        '[class*="sidebar-left"]',
-        '[class*="sidebar-menu"]',
-        '[class*="Sidebar"]'
-      ];
-
-      for (var s = 0; s < selectors.length; s++) {
-        var nodes = document.querySelectorAll(selectors[s]);
-        for (var i = 0; i < nodes.length; i++) {
-          var el = nodes[i];
-          if (!el || (el.closest && (el.closest('#wtl-layout-left') || el.closest('#wtl-layout-right') || el.closest('#wtl-layout-topbar') || el.closest('#wtl-assistant-panel')))) continue;
-          el.style.setProperty('display', 'none', 'important');
-          el.style.setProperty('visibility', 'hidden', 'important');
-          el.style.setProperty('pointer-events', 'none', 'important');
-        }
-      }
-
-      /* V4: nie klikamy .sidebar-trigger, bo gdy bazowy nawigator jest zamknięty,
-         kliknięcie otwiera go i przesuwa całą stronę. Layout tylko chowa otwarte
-         elementy nawigacji przez klasy/style, bez wymuszania kliknięcia. */
-    } catch (err) {}
-  }
-
-  function restoreBaseNavInlineStyles() {
-    try {
-      var selectors = [
-        '.nav-menu-avatar',
-        '.nav-menu-boxed-wrap',
-        '.nav-menu-search-popup-wrap',
-        '.sidebar',
-        '.sidebar-wrap',
-        '.sidebar-menu',
-        '[class*="sidebar-left"]',
-        '[class*="sidebar-menu"]',
-        '[class*="Sidebar"]'
-      ];
-
-      for (var s = 0; s < selectors.length; s++) {
-        var nodes = document.querySelectorAll(selectors[s]);
-        for (var i = 0; i < nodes.length; i++) {
-          var el = nodes[i];
-          if (!el || (el.closest && (el.closest('#wtl-layout-left') || el.closest('#wtl-layout-right') || el.closest('#wtl-layout-topbar') || el.closest('#wtl-assistant-panel')))) continue;
-          el.style.removeProperty('display');
-          el.style.removeProperty('visibility');
-          el.style.removeProperty('pointer-events');
-        }
-      }
-    } catch (err) {}
-  }
-
-  function openPanelFromLayout() {
-    setLayoutMode(false, true);
-
-    try { localStorage.setItem('pt_assistant_v60_state', JSON.stringify('open')); } catch (e) {}
-
-    var panel = document.getElementById('wtl-assistant-panel');
-    var mini = document.getElementById('wtl-mini');
-    var bottom = document.getElementById('wtl-bottom-bar');
-
-    if (panel) panel.classList.remove('wtl-hidden');
-    if (mini) mini.classList.remove('wtl-visible');
-    if (bottom) bottom.classList.remove('wtl-visible');
-
-    var body = document.getElementById('wtl-body');
-    if (body) body.scrollTop = 0;
-  }
-
-  function setLayoutMode(on, returnPanel) {
-    ensureLayoutShell();
-
-    var top = document.getElementById('wtl-layout-topbar');
-    var left = document.getElementById('wtl-layout-left');
-    var right = document.getElementById('wtl-layout-right');
-    var panel = document.getElementById('wtl-assistant-panel');
-    var mini = document.getElementById('wtl-mini');
-    var bottom = document.getElementById('wtl-bottom-bar');
-    var sites = document.getElementById('wtl-site-switcher');
-
-    if (on) {
-      saveCurrentLesson();
-      closeBaseNav();
-      refreshGroups(true, function (groups) {
-        renderLayout(groups);
-
-        document.documentElement.classList.add('wtl-layout-mode');
-        if (top) top.classList.add('wtl-show');
-        if (left) left.classList.add('wtl-show');
-        if (right) right.classList.add('wtl-show');
-
-        if (panel) panel.classList.add('wtl-hidden');
-        if (mini) mini.classList.remove('wtl-visible');
-        if (bottom) bottom.classList.remove('wtl-visible');
-        if (sites) {
-          sites.classList.remove('wtl-visible');
-          sites.classList.remove('wtl-open');
-        }
-
-        localStorage.setItem('pt_assistant_v60_layout_mode', '1');
-      });
-      return;
-    }
-
-    document.documentElement.classList.remove('wtl-layout-mode');
-    if (top) top.classList.remove('wtl-show');
-    if (left) left.classList.remove('wtl-show');
-    if (right) right.classList.remove('wtl-show');
-
-    localStorage.removeItem('pt_assistant_v60_layout_mode');
-    restoreBaseNavInlineStyles();
-
-    if (!returnPanel) {
-      if (panel) panel.classList.remove('wtl-hidden');
-      if (mini) mini.classList.remove('wtl-visible');
-      if (bottom) bottom.classList.remove('wtl-visible');
-    }
-  }
-
-  function updateMini() {
-    var mini = document.getElementById('wtl-mini');
-    if (!mini || mini.getAttribute('data-patched-mini') === '1') return;
-
-    mini.setAttribute('data-patched-mini', '1');
-    mini.innerHTML = '<img class="wtl-mini-logo" src="' + esc(PATCH.brand) + '" alt="Profitable Trader">' +
-      '<div class="wtl-mini-sub loading"><span>' + esc(PATCH.subLabel) + ':</span><strong>sprawdzam...</strong></div>' +
-      '<div class="wtl-mini-arrow">↑</div>';
-  }
-
-  function addLayoutButton() {
+  function addLayoutButtonToPanel() {
     if (document.getElementById('wtl-layout-enter')) return;
-
-    var header = document.querySelector('#wtl-assistant-panel .wtl-header');
-    var badge = document.getElementById('wtl-subscription-badge');
-    if (!header || !badge) return;
-
+    var actions = document.querySelector('#wtl-assistant-panel .wtl-actions');
+    if (!actions) return;
     var btn = document.createElement('button');
     btn.id = 'wtl-layout-enter';
     btn.type = 'button';
     btn.textContent = 'Layout';
-    btn.title = 'Wejdź w tryb Layout: topbar + sidebar';
-
-    header.insertBefore(btn, badge);
-    btn.addEventListener('click', function (event) {
-      event.preventDefault();
-      event.stopPropagation();
-      setLayoutMode(true);
+    btn.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      enterLayout();
     }, true);
+    actions.insertBefore(btn, actions.firstChild);
   }
 
-  function openThuliumFromLayout(intent) {
-    if (intent !== 'email') intent = 'chat';
-
-    setLayoutMode(false, true);
-
-    var panel = document.getElementById('wtl-assistant-panel');
-    if (panel) panel.classList.remove('wtl-hidden');
-
-    try { localStorage.setItem('pt_assistant_v60_state', JSON.stringify('open')); } catch (e) {}
-
-    setTimeout(function () {
-      var tab = document.querySelector('[data-wtl-tab="thulium"]');
-      if (tab) tab.click();
-
-      setTimeout(function () {
-        var btn = document.querySelector('[data-wtl-thulium-intent="' + cssEscape(intent) + '"]');
-        if (btn) btn.click();
-      }, 350);
-    }, 150);
+  function avatarSrc() {
+    var img = document.querySelector('.header.header-user .nav-menu-avatar-trigger img') || document.querySelector('.nav-menu-list-user img') || document.querySelector('[class*="avatar"] img');
+    return img ? img.getAttribute('src') || img.src || '' : '';
   }
 
-  function bind() {
-    document.addEventListener('click', function (event) {
-      var target = event.target;
-      if (!target) return;
+  function createLayoutDom() {
+    if (!document.getElementById('pt-layout-topbar')) {
+      var top = document.createElement('div');
+      top.id = 'pt-layout-topbar';
+      top.innerHTML = ''
+        + '<img class="pt-layout-logo" src="' + esc(CFG.brandImageSrc) + '" alt="Profitable Trader Assistant">'
+        + '<div class="pt-layout-nav">'
+        + '<a class="pt-layout-link" href="/next/public/category">Products</a>'
+        + '<a class="pt-layout-link" href="https://edu.profitabletrader.ai/next/public/community/">Community</a>'
+        + '</div>'
+        + '<div class="pt-layout-top-actions">'
+        + '<button type="button" class="pt-layout-restore" id="pt-layout-restore">Wróć do panelu</button>'
+        + '<button type="button" class="pt-layout-icon" id="pt-layout-search" title="Search">⌕</button>'
+        + '<a class="pt-layout-icon" href="/next/public/admin/panel/ai" title="AI">✦</a>'
+        + '<a class="pt-layout-icon" href="/next/public/account/notifications" title="Notifications">•</a>'
+        + '<button type="button" class="pt-layout-avatar" id="pt-layout-account" title="My account"><img src="' + esc(avatarSrc()) + '" alt=""></button>'
+        + '</div>';
+      document.body.appendChild(top);
+    }
 
-      var section = target.closest && target.closest('[data-layout-section]');
-      if (section) {
-        event.preventDefault();
-        sessionStorage.setItem('wtl_layout_active_section', section.getAttribute('data-layout-section') || '');
-        renderLayout();
-        return;
-      }
+    if (!document.getElementById('pt-layout-left')) {
+      var left = document.createElement('div');
+      left.id = 'pt-layout-left';
+      left.innerHTML = '<div id="pt-layout-left-body"></div>';
+      document.body.appendChild(left);
+    }
 
-      if (target.id === 'wtl-layout-plan-back') {
-        event.preventDefault();
-        sessionStorage.removeItem('wtl_layout_active_section');
-        renderLayout();
-        return;
-      }
+    if (!document.getElementById('pt-layout-left-toggle')) {
+      var toggle = document.createElement('button');
+      toggle.id = 'pt-layout-left-toggle';
+      toggle.type = 'button';
+      toggle.textContent = '‹';
+      document.body.appendChild(toggle);
+    }
 
-      if (target.id === 'wtl-layout-return-panel') {
-        event.preventDefault();
-        openPanelFromLayout();
-        return;
-      }
+    if (!document.getElementById('pt-layout-bottom-actions')) {
+      var actions = document.createElement('div');
+      actions.id = 'pt-layout-bottom-actions';
+      actions.innerHTML = ''
+        + '<button type="button" class="pt-bottom-btn" id="pt-layout-ai-open">AI Agent</button>'
+        + '<button type="button" class="pt-bottom-btn" data-pt-layout-thulium="chat">Thulium: Czat</button>'
+        + '<button type="button" class="pt-bottom-btn" data-pt-layout-thulium="email">Thulium: E-mail</button>';
+      document.body.appendChild(actions);
+    }
 
-      if (target.id === 'wtl-layout-close') {
-        event.preventDefault();
-        setLayoutMode(false);
-        return;
-      }
+    if (!document.getElementById('pt-layout-ai-window')) {
+      var ai = document.createElement('div');
+      ai.id = 'pt-layout-ai-window';
+      ai.innerHTML = ''
+        + '<div class="pt-ai-head"><span>AI Agent</span><button type="button" class="pt-ai-close" id="pt-layout-ai-close">×</button></div>'
+        + '<iframe id="pt-layout-ai-frame" src="' + esc(CFG.aiIframeSrc) + '" allow="microphone" loading="eager" referrerpolicy="strict-origin-when-cross-origin"></iframe>';
+      document.body.appendChild(ai);
+    }
 
-      if (target.id === 'wtl-layout-ai-toggle') {
-        event.preventDefault();
-        if (sessionStorage.getItem('wtl_layout_ai_open') === '1') sessionStorage.removeItem('wtl_layout_ai_open');
-        else sessionStorage.setItem('wtl_layout_ai_open', '1');
-        renderLayout();
-        return;
-      }
-
-      var thulium = target.closest && target.closest('[data-layout-thulium]');
-      if (thulium) {
-        event.preventDefault();
-        openThuliumFromLayout(thulium.getAttribute('data-layout-thulium') || 'chat');
-      }
-    }, true);
-
-    document.addEventListener('change', function (event) {
-      var target = event.target;
-      if (!target || !target.matches) return;
-      if (
-        target.matches('input[name="lesson_done_form[isLessonDone]"]') ||
-        target.matches('#lesson_done_form_isLessonDone') ||
-        target.matches('.lesson-toggle-status input[type="checkbox"]')
-      ) {
-        remove('groups');
-        setTimeout(function () {
-          if (document.documentElement.classList.contains('wtl-layout-mode')) renderLayout();
-        }, 350);
-      }
-    }, true);
+    bindLayoutDom();
   }
 
-  function observeUrlAndDom() {
-    setInterval(function () {
-      if (location.href !== lastUrl) {
-        lastUrl = location.href;
-        remove('groups');
-        saveCurrentLesson();
-        if (document.documentElement.classList.contains('wtl-layout-mode')) {
-          setTimeout(function () { setLayoutMode(true); }, 200);
+  function bindLayoutDom() {
+    var restore = document.getElementById('pt-layout-restore');
+    if (restore && !restore.__ptBound) {
+      restore.__ptBound = true;
+      restore.addEventListener('click', function (ev) { ev.preventDefault(); ev.stopPropagation(); exitLayoutToPanel(); }, true);
+    }
+
+    var toggle = document.getElementById('pt-layout-left-toggle');
+    if (toggle && !toggle.__ptBound) {
+      toggle.__ptBound = true;
+      toggle.addEventListener('click', function (ev) {
+        ev.preventDefault(); ev.stopPropagation();
+        document.documentElement.classList.toggle('wtl-layout-nav-hidden');
+        toggle.textContent = document.documentElement.classList.contains('wtl-layout-nav-hidden') ? '›' : '‹';
+      }, true);
+    }
+
+    var aiOpen = document.getElementById('pt-layout-ai-open');
+    if (aiOpen && !aiOpen.__ptBound) {
+      aiOpen.__ptBound = true;
+      aiOpen.addEventListener('click', function (ev) { ev.preventDefault(); ev.stopPropagation(); openLayoutAi(); }, true);
+    }
+
+    var aiClose = document.getElementById('pt-layout-ai-close');
+    if (aiClose && !aiClose.__ptBound) {
+      aiClose.__ptBound = true;
+      aiClose.addEventListener('click', function (ev) { ev.preventDefault(); ev.stopPropagation(); closeLayoutAi(); }, true);
+    }
+
+    var thButtons = document.querySelectorAll('[data-pt-layout-thulium]');
+    for (var i = 0; i < thButtons.length; i++) {
+      if (thButtons[i].__ptBound) continue;
+      thButtons[i].__ptBound = true;
+      thButtons[i].addEventListener('click', function (ev) {
+        ev.preventDefault(); ev.stopPropagation();
+        openLayoutThulium(this.getAttribute('data-pt-layout-thulium') || 'chat');
+      }, true);
+    }
+
+    var search = document.getElementById('pt-layout-search');
+    if (search && !search.__ptBound) {
+      search.__ptBound = true;
+      search.addEventListener('click', function (ev) {
+        ev.preventDefault(); ev.stopPropagation();
+        var trigger = document.querySelector('.header-search-trigger');
+        if (trigger) clickEl(trigger);
+      }, true);
+    }
+
+    var account = document.getElementById('pt-layout-account');
+    if (account && !account.__ptBound) {
+      account.__ptBound = true;
+      account.addEventListener('click', function (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        ev.stopImmediatePropagation();
+        openNativeAccountMenu();
+      }, true);
+    }
+
+    var leftBody = document.getElementById('pt-layout-left-body');
+    if (leftBody && !leftBody.__ptBound) {
+      leftBody.__ptBound = true;
+      leftBody.addEventListener('click', function (ev) {
+        var target = ev.target;
+        if (!target) return;
+        var sec = target.closest && target.closest('[data-pt-section]');
+        if (sec) {
+          ev.preventDefault(); ev.stopPropagation(); ev.stopImmediatePropagation();
+          activeSection = sec.getAttribute('data-pt-section') || '';
+          save('layout_active_section', activeSection);
+          renderLayoutLeft();
+          refreshLayoutStatus(true);
+          return;
         }
-      }
-    }, 700);
-
-    if (!window.MutationObserver) return;
-    var observer = new MutationObserver(function () {
-      if (refreshTimer) clearTimeout(refreshTimer);
-      refreshTimer = setTimeout(function () {
-        saveCurrentLesson();
-        if (document.documentElement.classList.contains('wtl-layout-mode')) {
-          closeBaseNav();
+        if (target.id === 'pt-plan-back' || (target.closest && target.closest('#pt-plan-back'))) {
+          ev.preventDefault(); ev.stopPropagation(); ev.stopImmediatePropagation();
+          activeSection = '';
+          save('layout_active_section', '');
+          renderLayoutLeft();
+          refreshLayoutStatus(true);
+          return;
         }
-      }, 450);
-    });
-
-    observer.observe(document.body, { childList: true, subtree: true });
-  }
-
-  function tick() {
-    injectCss();
-    addLayoutButton();
-    updateMini();
-
-    if (document.documentElement.classList.contains('wtl-layout-mode')) {
-      closeBaseNav();
-      var top = document.getElementById('wtl-layout-topbar');
-      var left = document.getElementById('wtl-layout-left');
-      var right = document.getElementById('wtl-layout-right');
-      if (top) top.classList.add('wtl-show');
-      if (left) left.classList.add('wtl-show');
-      if (right) right.classList.add('wtl-show');
+      }, true);
     }
   }
 
-  function init() {
-    injectCss();
-    ensureLayoutShell();
-    addLayoutButton();
-    updateMini();
-    bind();
-    observeUrlAndDom();
-    saveCurrentLesson();
-    fetchSub();
-
-    if (localStorage.getItem('pt_assistant_v60_layout_mode') === '1') {
-      setTimeout(function () { setLayoutMode(true); }, 700);
-    }
-
-    setInterval(tick, 1000);
-    setInterval(fetchSub, 120000);
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function () { setTimeout(init, 300); });
-  } else {
-    setTimeout(init, 300);
-  }
-})();
-
-/* PT Assistant V60 Layout correction patch 2026-05-07 v2.
-   Korekta Layoutu: stabilizacja pozycji strony, usunięcie przycisku Zamknij Layout,
-   usunięcie podwójnego logo w sidebarze Layout, ostatnia lekcja jak w panelu,
-   kompaktowe widgety AI/Thulium w prawym dolnym rogu bez dodatkowych boxów.
-*/
-(function () {
-  'use strict';
-
-  if (window.__PT_ASSISTANT_V60_LAYOUT_CORRECTION_V2_2026_05_07__) return;
-  window.__PT_ASSISTANT_V60_LAYOUT_CORRECTION_V2_2026_05_07__ = true;
-
-  var BRAND = 'https://edu.profitabletrader.ai/uploads/media/12510/5/Group_361__1_.png?_t=1778149920';
-  var AI_SRC = 'https://app.multitools.ai/chat-embed-host.html?assistantId=83ab6507-f2b6-402d-8ffd-4ab42aa1e9b2';
-  var SHIFT_CLASS = 'wtl-layout-page-shifted-v2';
-  var AI_OPEN_KEY = 'wtl_layout_ai_native_open_v2';
-
-  function clean(value) {
-    return String(value || '').replace(/\s+/g, ' ').trim();
-  }
-
-  function esc(value) {
-    return String(value || '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
-  }
-
-  function shortText(value, max) {
-    value = clean(value);
-    return value.length > max ? value.slice(0, max - 1) + '…' : value;
-  }
-
-  function lessonIdFromUrl(url) {
-    var match = String(url || '').match(/\/lesson\/([^/?#]+)/i);
-    return match && match[1] ? String(match[1]) : '';
-  }
-
-  function readJsonKey(key, fallback) {
+  function closeBaseNavigatorNoClick() {
     try {
-      var raw = localStorage.getItem(key);
-      return raw ? JSON.parse(raw) : fallback;
-    } catch (e) {
-      return fallback;
+      var selectors = [
+        '.sidebar', '.sidebar-wrap', '.sidebar-menu', '[class*="sidebar-left"]', '[class*="sidebar-menu"]',
+        '.nav-menu-boxed-wrap', '.nav-menu-search-popup-wrap'
+      ];
+      for (var s = 0; s < selectors.length; s++) {
+        var nodes = document.querySelectorAll(selectors[s]);
+        for (var i = 0; i < nodes.length; i++) {
+          nodes[i].classList.remove('active', 'open', 'opened', 'show', 'visible', 'expanded');
+          if (nodes[i].matches && (nodes[i].matches('.nav-menu-boxed-wrap') || nodes[i].matches('.nav-menu-search-popup-wrap'))) {
+            nodes[i].style.display = 'none';
+          }
+        }
+      }
+      var clsTargets = [document.body, document.documentElement];
+      for (var t = 0; t < clsTargets.length; t++) {
+        if (!clsTargets[t] || !clsTargets[t].classList) continue;
+        var removeList = [];
+        for (var c = 0; c < clsTargets[t].classList.length; c++) {
+          var name = clsTargets[t].classList[c];
+          if (/sidebar|menu-open|nav-open/i.test(name)) removeList.push(name);
+        }
+        for (var r = 0; r < removeList.length; r++) clsTargets[t].classList.remove(removeList[r]);
+      }
+    } catch (err) {}
+  }
+
+  function startBaseNavGuard() {
+    stopBaseNavGuard();
+    closeBaseNavigatorNoClick();
+    baseNavCloseTimer = setInterval(function () {
+      if (!document.documentElement.classList.contains('wtl-layout-mode')) return;
+      closeBaseNavigatorNoClick();
+    }, 900);
+  }
+
+  function stopBaseNavGuard() {
+    if (baseNavCloseTimer) {
+      clearInterval(baseNavCloseTimer);
+      baseNavCloseTimer = null;
     }
   }
 
-  function readLastLesson() {
-    return readJsonKey('pt_assistant_v60_layout_patch_last_lesson', null) ||
-      readJsonKey('pt_assistant_v60_last_lesson', null) ||
-      null;
+  function fallbackGroup(cfg) {
+    var lessons = (cfg.fallbackLessons || []).map(function (lesson) {
+      var id = Number(lesson.id);
+      return { id: id, url: lessonUrlById(id), title: lesson.title || ('Lekcja ' + id), done: false, active: false, fallback: true };
+    });
+    return { id: cfg.id, title: cfg.title, sourceTitles: cfg.sourceTitles, sourceTitle: (cfg.sourceTitles || []).join(' + '), description: cfg.description, lessons: lessons };
+  }
+
+  function readTitleNode(node) { return clean(node ? (node.getAttribute('title') || node.textContent || node.innerText || '') : ''); }
+
+  function isDoneFromItem(item) {
+    if (!item) return false;
+    if (item.querySelector('.fa-circle-check,.fa-check-circle,.fa-check,[class*="completed"],[class*="done"],.wtl-color-green')) return true;
+    var text = low(item.textContent || item.innerText || '');
+    return text.indexOf('completed') !== -1 || text.indexOf('ukończona') !== -1 || text.indexOf('ukonczona') !== -1;
+  }
+
+  function extractLessonsFromNode(node) {
+    var out = [];
+    var seen = {};
+    if (!node) return out;
+    var links = node.querySelectorAll('a[href*="/lesson/"],a[href*="/next/public/lesson/"]');
+    for (var i = 0; i < links.length; i++) {
+      var a = links[i];
+      var href = a.getAttribute('href') || '';
+      var id = lessonIdFromUrl(href);
+      if (!id || seen[id]) continue;
+      seen[id] = true;
+      var url = '';
+      try { url = new URL(href, location.origin).href; } catch (err) { url = lessonUrlById(id); }
+      var row = a.closest('.lesson-item,li,.accordion-item,.search-additional-item,.list-item,[class*="lesson"],[class*="Lesson"]') || a;
+      var title = readTitleNode(a) || readTitleNode(row) || ('Lekcja ' + id);
+      title = title.replace(/Completed/gi, '').replace(/Ukończona/gi, '').replace(/Ukonczona/gi, '').replace(/Do obejrzenia/gi, '').replace(/\s+/g, ' ').trim();
+      out.push({ id: Number(id), url: url, title: title || ('Lekcja ' + id), done: isDoneFromItem(row), active: row && row.classList ? row.classList.contains('active') : false });
+    }
+    return out;
+  }
+
+  function nearestLessonContainer(node) {
+    var cur = node;
+    var limit = 0;
+    while (cur && cur !== document.body && limit < 8) {
+      limit++;
+      if (cur.querySelectorAll && cur.querySelectorAll('a[href*="/lesson/"]').length) return cur;
+      cur = cur.parentElement;
+    }
+    return node;
+  }
+
+  function scanGroupFromDocument(doc, cfg) {
+    var lessons = [];
+    var seen = {};
+    var titles = cfg.sourceTitles || [];
+
+    function add(list) {
+      for (var i = 0; i < list.length; i++) {
+        if (!list[i] || !list[i].id || seen[list[i].id]) continue;
+        seen[list[i].id] = true;
+        lessons.push(list[i]);
+      }
+    }
+
+    for (var t = 0; t < titles.length; t++) {
+      var wanted = low(titles[t]);
+      var boxes = doc.querySelectorAll('.lessons-box,.accordion-item,.category-lessons-item,.module-item,.training-module,[class*="lesson-box"],[class*="LessonBox"],[class*="accordion"],section,article');
+      for (var i = 0; i < boxes.length; i++) {
+        var txt = low(boxes[i].textContent || boxes[i].innerText || '');
+        if (!txt || txt.indexOf(wanted) === -1) continue;
+        add(extractLessonsFromNode(boxes[i]));
+      }
+    }
+
+    if (!lessons.length) {
+      var all = doc.querySelectorAll('a[href*="/lesson/"],a[href*="/next/public/lesson/"]');
+      for (var a = 0; a < all.length; a++) {
+        var ancestor = nearestLessonContainer(all[a]);
+        var text = low(ancestor.textContent || ancestor.innerText || '');
+        for (var st = 0; st < titles.length; st++) {
+          if (text.indexOf(low(titles[st])) !== -1) add(extractLessonsFromNode(ancestor));
+        }
+      }
+    }
+
+    if (!lessons.length) return fallbackGroup(cfg);
+    return { id: cfg.id, title: cfg.title, sourceTitles: cfg.sourceTitles, sourceTitle: (cfg.sourceTitles || []).join(' + '), description: cfg.description, lessons: lessons };
+  }
+
+  function scanGroups() {
+    if (layoutGroupsCache && Date.now() - layoutGroupsCacheAt < 45000) return layoutGroupsCache;
+    var groups = [];
+    for (var i = 0; i < CFG.groups.length; i++) groups.push(scanGroupFromDocument(document, CFG.groups[i]));
+    layoutGroupsCache = groups;
+    layoutGroupsCacheAt = Date.now();
+    return groups;
+  }
+
+  function statusCache() { return read('layout_lesson_status_cache', {}); }
+  function saveStatusCache(cache) { save('layout_lesson_status_cache', cache || {}); }
+
+  function parseLessonTitleFromDoc(doc, id) {
+    var title = readTitleNode(doc.querySelector('.lesson-content-item.title-nav > .title[title]'))
+      || readTitleNode(doc.querySelector('.lesson-content-item.title-nav .title[title]'))
+      || readTitleNode(doc.querySelector('.lesson-item.active .lesson-item-title[title]'))
+      || readTitleNode(doc.querySelector('.content-lesson-in .title[title]'))
+      || readTitleNode(doc.querySelector('h1'))
+      || readTitleNode(doc.querySelector('.title[title]'))
+      || clean(doc.title || '');
+    title = title.replace(/\s*-\s*Profitable.*$/i, '').replace(/\s*\|\s*Profitable.*$/i, '').trim();
+    return title || ('Lekcja ' + id);
+  }
+
+  function parseLessonDoneFromDoc(doc) {
+    var input = doc.querySelector('input[name="lesson_done_form[isLessonDone]"]') || doc.querySelector('#lesson_done_form_isLessonDone') || doc.querySelector('.lesson-toggle-status input[type="checkbox"]');
+    if (input) return !!input.checked || input.getAttribute('checked') !== null;
+    var activeItem = doc.querySelector('.lesson-item.active');
+    if (activeItem) return isDoneFromItem(activeItem);
+    var text = low(doc.body ? doc.body.textContent || doc.body.innerText || '' : '');
+    if (text.indexOf('completed') !== -1 || text.indexOf('ukończona') !== -1 || text.indexOf('ukonczona') !== -1) return true;
+    return false;
+  }
+
+  function enrichLesson(lesson) {
+    var cache = statusCache();
+    var key = String(lesson.id);
+    var cached = cache[key];
+    if (cached && cached.savedAt && Date.now() - cached.savedAt < 120000) {
+      return Promise.resolve(Object.assign({}, lesson, { title: cached.title || lesson.title, done: !!cached.done, fallback: false }));
+    }
+    return fetch(lesson.url || lessonUrlById(lesson.id), { method: 'GET', credentials: 'include', cache: 'no-store' })
+      .then(function (res) { if (!res.ok) throw new Error('HTTP ' + res.status); return res.text(); })
+      .then(function (html) {
+        var doc = new DOMParser().parseFromString(html, 'text/html');
+        var title = parseLessonTitleFromDoc(doc, lesson.id) || lesson.title;
+        var done = parseLessonDoneFromDoc(doc);
+        var c = statusCache();
+        c[String(lesson.id)] = { title: title, done: done, savedAt: Date.now() };
+        saveStatusCache(c);
+        return Object.assign({}, lesson, { title: title, done: done, fallback: false });
+      })
+      .catch(function () { return lesson; });
+  }
+
+  function refreshLayoutStatus(force) {
+    if (!document.documentElement.classList.contains('wtl-layout-mode')) return;
+    if (force) {
+      saveStatusCache({});
+      layoutGroupsCacheAt = 0;
+    }
+    var groups = scanGroups();
+    var promises = [];
+    for (var i = 0; i < groups.length; i++) {
+      (function (group) {
+        var list = group.lessons || [];
+        var p = Promise.all(list.map(enrichLesson)).then(function (items) { group.lessons = items; });
+        promises.push(p);
+      })(groups[i]);
+    }
+    Promise.all(promises).then(function () {
+      layoutGroupsCache = groups;
+      layoutGroupsCacheAt = Date.now();
+      if (document.documentElement.classList.contains('wtl-layout-mode')) renderLayoutLeft();
+    });
+  }
+
+  function progress(lessons) {
+    var done = 0;
+    lessons = lessons || [];
+    for (var i = 0; i < lessons.length; i++) if (lessons[i].done) done++;
+    return { done: done, total: lessons.length, percent: lessons.length ? Math.round(done / lessons.length * 100) : 0 };
+  }
+
+  function currentLesson() {
+    var base = read('last_lesson', null);
+    if (!base && isLessonPage()) {
+      var id = lessonIdFromUrl(location.href);
+      base = { id: id, url: location.href, title: document.title || ('Lekcja ' + id), section: '', savedAt: new Date().toISOString() };
+    }
+    return base;
   }
 
   function formatDate(iso) {
     if (!iso) return '';
-
     try {
       var date = new Date(iso);
       var diff = Date.now() - date.getTime();
       var min = Math.floor(diff / 60000);
       var h = Math.floor(min / 60);
       var days = Math.floor(h / 24);
-
       if (min < 1) return 'przed chwilą';
       if (min < 60) return min + ' min temu';
       if (h < 24) return h + ' godz. temu';
       if (days === 1) return 'wczoraj';
       if (days < 7) return days + ' dni temu';
       return date.toLocaleDateString('pl-PL');
-    } catch (e) {
-      return '';
+    } catch (err) { return ''; }
+  }
+
+  function lastLessonHtml() {
+    var l = currentLesson();
+    if (!l) {
+      return '<div class="pt-card"><div class="pt-label">↩ Wróć do ostatniej lekcji</div><div class="pt-title">Brak zapisanej ostatniej lekcji</div><div class="pt-muted">Wejdź na dowolną lekcję, a Layout automatycznie pokaże ostatni materiał.</div></div>';
     }
-  }
-
-  function isLayoutMode() {
-    return document.documentElement.classList.contains('wtl-layout-mode');
-  }
-
-  function injectCss() {
-    if (document.getElementById('pt-v60-layout-correction-v2-style')) return;
-
-    var style = document.createElement('style');
-    style.id = 'pt-v60-layout-correction-v2-style';
-    style.textContent = [
-      'html.wtl-layout-mode,html.wtl-layout-mode body{overflow-x:hidden!important;scrollbar-gutter:stable!important}',
-      'html.wtl-layout-mode body{min-width:0!important;max-width:100vw!important}',
-      'html.wtl-layout-mode *{scrollbar-gutter:auto}',
-      '.wtl-layout-page-shifted-v2{box-sizing:border-box!important;margin-left:324px!important;width:calc(100vw - 324px)!important;max-width:calc(100vw - 324px)!important;min-width:0!important;transform:none!important;transition:none!important}',
-      '.wtl-layout-page-shifted-v2 [style*="margin-left"],.wtl-layout-page-shifted-v2 [style*="left"]{transition:none!important}',
-      '#wtl-layout-close,.wtl-layout-topbar-close{display:none!important}',
-      '#wtl-layout-topbar{z-index:2147483600!important}',
-      '#wtl-layout-left{z-index:2147483598!important;width:324px!important;top:64px!important}',
-      '#wtl-layout-right{z-index:2147483599!important}',
-      '#wtl-layout-left .wtl-layout-head{display:none!important}',
-      '#wtl-layout-left .wtl-layout-body{padding-top:12px!important}',
-      '#wtl-layout-left .wtl-layout-card:first-child .wtl-layout-label{color:#fca5a5!important}',
-      '.wtl-layout-last-card .wtl-layout-back{margin-top:11px!important;text-decoration:none!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;border:0!important;border-radius:11px!important;background:linear-gradient(135deg,#ef4444,#b91c1c 58%,#7f1d1d)!important;color:#fff!important;padding:10px 12px!important;font-size:12px!important;font-weight:950!important;cursor:pointer!important}',
-      '.wtl-layout-last-card .wtl-layout-back[aria-disabled="true"]{opacity:.9!important;cursor:default!important;pointer-events:none!important}',
-      '#wtl-layout-right{right:18px!important;bottom:18px!important;width:auto!important;max-width:calc(100vw - 360px)!important;display:none!important;align-items:flex-end!important;gap:10px!important;pointer-events:none!important}',
-      '#wtl-layout-right.wtl-show{display:flex!important}',
-      '#wtl-layout-right .wtl-layout-widget{display:none!important}',
-      '.wtl-layout-native-dock{display:flex!important;align-items:flex-end!important;justify-content:flex-end!important;gap:10px!important;pointer-events:auto!important}',
-      '.wtl-layout-native-btn{height:46px;border:1px solid rgba(248,113,113,.56);border-radius:16px;background:linear-gradient(135deg,rgba(7,7,7,.96),rgba(70,8,8,.94));color:#fecaca;box-shadow:0 16px 46px rgba(0,0,0,.36),0 0 22px rgba(239,68,68,.12);padding:0 16px;font-size:12px;font-weight:950;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap}',
-      '.wtl-layout-native-btn:hover{background:linear-gradient(135deg,rgba(35,8,8,.98),rgba(110,12,12,.94));border-color:rgba(248,113,113,.82)}',
-      '.wtl-layout-native-ai-pop{position:fixed;right:18px;bottom:76px;width:390px;max-width:calc(100vw - 36px);height:520px;max-height:calc(100vh - 108px);border:1px solid rgba(239,68,68,.42);border-radius:18px;background:#070707;box-shadow:0 20px 70px rgba(0,0,0,.5);overflow:hidden;display:none;pointer-events:auto}',
-      '.wtl-layout-native-ai-pop.wtl-open{display:block}',
-      '.wtl-layout-native-ai-pop iframe{width:100%!important;height:100%!important;border:0!important;display:block!important;background:#111827!important}',
-      '#wtl-layout-thulium-native-mount{position:fixed;right:150px;bottom:76px;width:360px;max-width:calc(100vw - 36px);height:520px;max-height:calc(100vh - 108px);z-index:2147483599;display:none;pointer-events:auto}',
-      'html.wtl-layout-mode #wtl-layout-thulium-native-mount.wtl-open{display:block}',
-      '@media(max-width:720px){.wtl-layout-page-shifted-v2{margin-left:0!important;width:100vw!important;max-width:100vw!important}#wtl-layout-left{width:100vw!important;max-width:100vw!important}.wtl-layout-native-dock{flex-wrap:wrap}.wtl-layout-native-ai-pop,#wtl-layout-thulium-native-mount{left:10px!important;right:10px!important;width:auto!important;bottom:126px!important}#wtl-layout-right{left:10px!important;right:10px!important;max-width:none!important}}'
-    ].join('');
-
-    document.head.appendChild(style);
-  }
-
-  function isAssistantNode(node) {
-    if (!node || node.nodeType !== 1) return true;
-    if (node.id && /^wtl-|^pt-/.test(node.id)) return true;
-    if (node.tagName === 'SCRIPT' || node.tagName === 'STYLE' || node.tagName === 'LINK') return true;
-    if (node.closest && (node.closest('#wtl-layout-topbar') || node.closest('#wtl-layout-left') || node.closest('#wtl-layout-right') || node.closest('#wtl-assistant-panel'))) return true;
-    return false;
-  }
-
-  function applyStablePageShift() {
-    if (!isLayoutMode()) return;
-
-    var children = document.body ? document.body.children : [];
-    for (var i = 0; i < children.length; i++) {
-      var el = children[i];
-      if (isAssistantNode(el)) continue;
-
-      try {
-        var style = window.getComputedStyle(el);
-        if (!style || style.position === 'fixed') continue;
-
-        var rect = el.getBoundingClientRect();
-        if (rect.width < 300 || rect.height < 100) continue;
-
-        el.classList.add(SHIFT_CLASS);
-      } catch (e) {}
-    }
-  }
-
-  function removeStablePageShift() {
-    var nodes = document.querySelectorAll('.' + SHIFT_CLASS);
-    for (var i = 0; i < nodes.length; i++) nodes[i].classList.remove(SHIFT_CLASS);
-  }
-
-  function renderLastLessonLikePanel() {
-    if (!isLayoutMode()) return;
-
-    var left = document.getElementById('wtl-layout-left');
-    if (!left) return;
-
-    var lesson = readLastLesson();
-    if (!lesson || !lesson.url) return;
-
-    var cards = left.querySelectorAll('.wtl-layout-card');
-    var target = null;
-
-    for (var i = 0; i < cards.length; i++) {
-      var txt = clean(cards[i].textContent || cards[i].innerText || '').toLowerCase();
-      if (txt.indexOf('ostatnia lekcja') !== -1 || txt.indexOf('wróć do ostatniej lekcji') !== -1) {
-        target = cards[i];
-        break;
-      }
-    }
-
-    if (!target) {
-      var body = left.querySelector('.wtl-layout-body');
-      if (!body) return;
-      target = document.createElement('div');
-      body.insertBefore(target, body.firstChild);
-    }
-
     var currentId = lessonIdFromUrl(location.href);
-    var savedId = String(lesson.id || lessonIdFromUrl(lesson.url) || '');
-    var isCurrent = currentId && savedId && currentId === savedId;
-    var title = lesson.title || 'Ostatnia lekcja PT';
-    var section = lesson.section || 'Nieprzypisana sekcja';
-
-    target.className = 'wtl-layout-card wtl-layout-last-card';
-    target.innerHTML = '' +
-      '<div class="wtl-layout-label">↩ Wróć do ostatniej lekcji</div>' +
-      '<div class="wtl-layout-muted">Ostatnio oglądana lekcja:</div>' +
-      '<div class="wtl-layout-title">' + esc(title) + '</div>' +
-      '<div class="wtl-layout-muted">Sekcja: ' + esc(section) + '</div>' +
-      '<div class="wtl-layout-muted">Zapisano: ' + esc(formatDate(lesson.savedAt)) + '</div>' +
-      (isCurrent
-        ? '<a class="wtl-layout-back" href="#" aria-disabled="true">Aktualnie oglądasz tę lekcję</a>'
-        : '<a class="wtl-layout-back" data-wtl-layout-last-lesson="1" href="' + esc(lesson.url) + '">Wróć do: ' + esc(shortText(title, 42)) + '</a>');
+    var savedId = l.id || lessonIdFromUrl(l.url);
+    var same = currentId && savedId && String(currentId) === String(savedId);
+    return ''
+      + '<div class="pt-card">'
+      + '<div class="pt-label">↩ Wróć do ostatniej lekcji</div>'
+      + '<div class="pt-muted">Ostatnio oglądana lekcja:</div>'
+      + '<div class="pt-title">' + esc(l.title || 'Ostatnia lekcja PT') + '</div>'
+      + '<div class="pt-muted">Sekcja: ' + esc(l.section || '') + '</div>'
+      + '<div class="pt-muted">Zapisano: ' + esc(formatDate(l.savedAt)) + '</div>'
+      + (same ? '<button type="button" class="pt-cta" disabled>Aktualnie oglądasz tę lekcję</button>' : '<a class="pt-cta" href="' + esc(l.url || '#') + '">Wróć do: ' + esc(l.title || 'lekcji') + '</a>')
+      + '</div>';
   }
 
-  function ensureNativeDock() {
-    if (!isLayoutMode()) return;
+  function groupById(id) {
+    var groups = scanGroups();
+    for (var i = 0; i < groups.length; i++) if (groups[i].id === id) return groups[i];
+    return null;
+  }
 
-    var right = document.getElementById('wtl-layout-right');
-    if (!right) return;
-
-    var dock = right.querySelector('.wtl-layout-native-dock');
-    if (!dock) {
-      dock = document.createElement('div');
-      dock.className = 'wtl-layout-native-dock';
-      dock.innerHTML = '' +
-        '<button type="button" class="wtl-layout-native-btn" id="wtl-layout-native-ai-btn">AI Agent</button>' +
-        '<button type="button" class="wtl-layout-native-btn" id="wtl-layout-native-thulium-chat">Thulium: Czat</button>' +
-        '<button type="button" class="wtl-layout-native-btn" id="wtl-layout-native-thulium-email">Thulium: E-mail</button>';
-      right.appendChild(dock);
+  function sectionsHtml() {
+    var groups = scanGroups();
+    var html = lastLessonHtml()
+      + '<div class="pt-card">'
+      + '<div class="pt-label">▶ Plan lekcji</div>'
+      + '<div class="pt-title">Wybierz sekcję</div>'
+      + '<div class="pt-muted">Layout czyta lekcje i statusy tak jak panel: z listy platformy, a brakujące statusy dociąga z lekcji.</div>';
+    for (var i = 0; i < groups.length; i++) {
+      var g = groups[i];
+      var p = progress(g.lessons || []);
+      html += ''
+        + '<button type="button" class="pt-section" data-pt-section="' + esc(g.id) + '">'
+        + '<div class="pt-num">' + (i + 1) + '</div>'
+        + '<div style="flex:1;min-width:0;">'
+        + '<div class="pt-title">' + esc(g.title) + '</div>'
+        + '<div class="pt-muted">' + esc(g.description) + '</div>'
+        + '<div class="pt-muted" style="opacity:.72;margin-top:3px;">Źródło: ' + esc(g.sourceTitle) + '</div>'
+        + '<div class="pt-progress"><div class="pt-progress-top"><span>Postęp</span><strong>' + p.done + '/' + p.total + ' — ' + p.percent + '%</strong></div><div class="pt-bar"><div class="pt-fill" style="width:' + p.percent + '%"></div></div></div>'
+        + '</div>'
+        + '</button>';
     }
+    return html + '</div>';
+  }
 
-    var pop = document.getElementById('wtl-layout-native-ai-pop');
-    if (!pop) {
-      pop = document.createElement('div');
-      pop.id = 'wtl-layout-native-ai-pop';
-      pop.className = 'wtl-layout-native-ai-pop';
-      document.body.appendChild(pop);
+  function lessonsHtml(sectionId) {
+    var g = groupById(sectionId) || scanGroups()[0];
+    var lessons = g && g.lessons ? g.lessons : [];
+    var p = progress(lessons);
+    var html = lastLessonHtml()
+      + '<div class="pt-card">'
+      + '<div class="pt-plan-top"><div><div class="pt-label">▶ Plan lekcji</div><div class="pt-title">' + esc(g ? g.title : 'Plan lekcji') + '</div></div><button type="button" class="pt-back" id="pt-plan-back">← Wróć</button></div>'
+      + '<div class="pt-muted">Źródło: ' + esc(g ? g.sourceTitle : '') + '</div>'
+      + '<div class="pt-progress"><div class="pt-progress-top"><span>Postęp sekcji</span><strong>' + p.done + '/' + p.total + ' — ' + p.percent + '%</strong></div><div class="pt-bar"><div class="pt-fill" style="width:' + p.percent + '%"></div></div></div>';
+    for (var i = 0; i < lessons.length; i++) {
+      var l = lessons[i];
+      html += ''
+        + '<a class="pt-lesson" href="' + esc(l.url || lessonUrlById(l.id)) + '">'
+        + '<div class="pt-num">' + (i + 1) + '</div>'
+        + '<div style="min-width:0;">'
+        + '<div class="pt-title">' + esc(l.title) + '</div>'
+        + '<div class="pt-muted">Lekcja #' + esc(l.id) + (l.fallback ? ' · fallback' : '') + '</div>'
+        + '<span class="pt-status ' + (l.done ? 'done' : 'todo') + '">' + (l.done ? 'Ukończona' : 'Do obejrzenia') + '</span>'
+        + '</div>'
+        + '</a>';
     }
+    return html + '</div>';
+  }
 
-    if (sessionStorage.getItem(AI_OPEN_KEY) === '1') {
-      pop.classList.add('wtl-open');
-      if (!pop.querySelector('iframe')) {
-        pop.innerHTML = '<iframe src="' + esc(AI_SRC) + '" allow="microphone" loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe>';
-      }
-    } else {
-      pop.classList.remove('wtl-open');
-      pop.innerHTML = '';
-    }
+  function renderLayoutLeft() {
+    var body = document.getElementById('pt-layout-left-body');
+    if (!body) return;
+    activeSection = activeSection || read('layout_active_section', '');
+    body.innerHTML = activeSection ? lessonsHtml(activeSection) : sectionsHtml();
+  }
 
-    if (!document.getElementById('wtl-layout-thulium-native-mount')) {
-      var mount = document.createElement('div');
-      mount.id = 'wtl-layout-thulium-native-mount';
-      document.body.appendChild(mount);
+  function enterLayout() {
+    createLayoutDom();
+    injectCss();
+    closeNativeAccountMenu();
+    closeLayoutAi();
+    closeBaseNavigatorNoClick();
+    document.documentElement.classList.add('wtl-layout-mode');
+    document.documentElement.classList.remove('wtl-layout-nav-hidden');
+    var toggle = document.getElementById('pt-layout-left-toggle');
+    if (toggle) toggle.textContent = '‹';
+    activeSection = read('layout_active_section', '');
+    renderLayoutLeft();
+    startBaseNavGuard();
+    startLayoutRefresh();
+    refreshLayoutStatus(false);
+    setTimeout(function () { closeBaseNavigatorNoClick(); }, 80);
+  }
+
+  function exitLayoutToPanel() {
+    closeLayoutAi();
+    closeLayoutThuliumProxy();
+    closeNativeAccountMenu();
+    document.documentElement.classList.remove('wtl-layout-mode');
+    document.documentElement.classList.remove('wtl-layout-nav-hidden');
+    stopBaseNavGuard();
+    stopLayoutRefresh();
+    closeBaseNavigatorNoClick();
+    var panel = document.getElementById('wtl-assistant-panel');
+    var mini = document.getElementById('wtl-mini');
+    var bottom = document.getElementById('wtl-bottom-bar');
+    if (panel) panel.classList.remove('wtl-hidden');
+    if (mini) mini.classList.remove('wtl-visible');
+    if (bottom) bottom.classList.remove('wtl-visible');
+    save('state', 'open');
+    setTimeout(function () { closeBaseNavigatorNoClick(); }, 120);
+  }
+
+  function startLayoutRefresh() {
+    stopLayoutRefresh();
+    layoutRefreshTimer = setInterval(function () {
+      if (!document.documentElement.classList.contains('wtl-layout-mode')) return;
+      layoutGroupsCacheAt = 0;
+      renderLayoutLeft();
+      refreshLayoutStatus(false);
+    }, 25000);
+  }
+
+  function stopLayoutRefresh() {
+    if (layoutRefreshTimer) {
+      clearInterval(layoutRefreshTimer);
+      layoutRefreshTimer = null;
     }
   }
 
-  function showNativeAi() {
-    if (sessionStorage.getItem(AI_OPEN_KEY) === '1') sessionStorage.removeItem(AI_OPEN_KEY);
-    else sessionStorage.setItem(AI_OPEN_KEY, '1');
-    ensureNativeDock();
+  function openLayoutAi() {
+    var box = document.getElementById('pt-layout-ai-window');
+    var frame = document.getElementById('pt-layout-ai-frame');
+    if (frame && !frame.getAttribute('src')) frame.setAttribute('src', CFG.aiIframeSrc);
+    if (box) box.classList.add('pt-show');
   }
 
-  function callThulium(method) {
-    try {
-      if (window._tc && typeof window._tc[method] === 'function') {
-        window._tc[method]();
-        return true;
-      }
-    } catch (e) {}
-
-    try {
-      if (typeof window._tc === 'function') {
-        window._tc(method);
-        return true;
-      }
-    } catch (e2) {}
-
-    return false;
+  function closeLayoutAi() {
+    var box = document.getElementById('pt-layout-ai-window');
+    if (box) box.classList.remove('pt-show');
   }
 
-  function setThuliumLayoutContainer() {
-    var mount = document.getElementById('wtl-layout-thulium-native-mount');
-    if (!mount) return;
+  function closeNativeAccountMenu() {
+    var menu = document.querySelector('.nav-menu-avatar');
+    if (menu) menu.classList.remove('active');
+    if (accountKeepTimer) {
+      clearInterval(accountKeepTimer);
+      accountKeepTimer = null;
+    }
+  }
 
-    mount.classList.add('wtl-open');
+  function openNativeAccountMenu() {
+    var menu = document.querySelector('.nav-menu-avatar');
+    if (!menu) {
+      var trigger = document.querySelector('.nav-menu-avatar-trigger');
+      if (trigger) clickEl(trigger);
+      menu = document.querySelector('.nav-menu-avatar');
+    }
+    if (!menu) return;
 
-    try {
-      if (window._tc && typeof window._tc.set_container === 'function') {
-        window._tc.set_container('wtl-layout-thulium-native-mount');
+    var lists = menu.querySelectorAll('.nav-menu-list');
+    for (var i = 0; i < lists.length; i++) lists[i].classList.remove('active');
+    var main = menu.querySelector('.nav-menu-list[menu="main"]') || lists[0];
+    if (main) main.classList.add('active');
+    menu.classList.add('active');
+    menu.style.display = '';
+
+    if (accountKeepTimer) clearInterval(accountKeepTimer);
+    var ticks = 0;
+    accountKeepTimer = setInterval(function () {
+      ticks++;
+      if (!document.documentElement.classList.contains('wtl-layout-mode') || ticks > 20) {
+        clearInterval(accountKeepTimer);
+        accountKeepTimer = null;
         return;
       }
-    } catch (e) {}
-
-    try {
-      if (typeof window._tc === 'function') window._tc('set_container', 'wtl-layout-thulium-native-mount');
-    } catch (e2) {}
+      if (menu && menu.classList) menu.classList.add('active');
+    }, 100);
   }
 
-  function openNativeThulium(intent) {
-    setThuliumLayoutContainer();
+  document.addEventListener('click', function (ev) {
+    if (!document.documentElement.classList.contains('wtl-layout-mode')) return;
+    var t = ev.target;
+    if (t && t.closest && (t.closest('.nav-menu-avatar') || t.closest('#pt-layout-account'))) return;
+    closeNativeAccountMenu();
+  }, false);
 
-    var methods = intent === 'email'
-      ? ['open_email', 'open_email_form', 'open_message', 'open_message_form', 'open_contact_form', 'open_contact', 'send_message']
-      : ['open_chat', 'open_chat_form', 'chat'];
+  function closeLayoutThuliumProxy() {
+    if (thuliumProxyTimer) {
+      clearInterval(thuliumProxyTimer);
+      thuliumProxyTimer = null;
+    }
+    var panel = document.getElementById('wtl-assistant-panel');
+    if (panel) panel.classList.remove('pt-layout-thulium-proxy');
+  }
+
+  function openLayoutThulium(intent) {
+    if (intent !== 'email') intent = 'chat';
+    closeLayoutAi();
+    closeNativeAccountMenu();
+
+    var panel = document.getElementById('wtl-assistant-panel');
+    if (!panel) return;
+
+    panel.classList.remove('wtl-hidden');
+    panel.classList.add('pt-layout-thulium-proxy');
+
+    var tab = panel.querySelector('[data-wtl-tab="thulium"]');
+    clickEl(tab);
 
     var attempts = 0;
-    var timer = setInterval(function () {
+    if (thuliumProxyTimer) clearInterval(thuliumProxyTimer);
+    thuliumProxyTimer = setInterval(function () {
       attempts++;
-      setThuliumLayoutContainer();
+      if (!document.documentElement.classList.contains('wtl-layout-mode')) {
+        closeLayoutThuliumProxy();
+        return;
+      }
+      panel.classList.remove('wtl-hidden');
+      panel.classList.add('pt-layout-thulium-proxy');
 
-      for (var i = 0; i < methods.length; i++) callThulium(methods[i]);
+      var btn = panel.querySelector('[data-wtl-thulium-intent="' + intent + '"]');
+      if (attempts === 1 || attempts === 3 || attempts === 7) clickEl(btn);
+      fitPanelThuliumForLayout();
+      hideLooseThuliumWidgets();
 
-      if (attempts >= 20) clearInterval(timer);
+      if (attempts >= 36) {
+        clearInterval(thuliumProxyTimer);
+        thuliumProxyTimer = null;
+      }
     }, 160);
   }
 
-  function cleanLayoutShell() {
-    if (!isLayoutMode()) {
-      removeStablePageShift();
-      var aiPop = document.getElementById('wtl-layout-native-ai-pop');
-      if (aiPop) aiPop.classList.remove('wtl-open');
-      var mount = document.getElementById('wtl-layout-thulium-native-mount');
-      if (mount) mount.classList.remove('wtl-open');
-    }
-  }
-
-  function runFixes() {
-    injectCss();
-
-    if (isLayoutMode()) {
-      applyStablePageShift();
-      renderLastLessonLikePanel();
-      ensureNativeDock();
-    } else {
-      cleanLayoutShell();
-    }
-  }
-
-  document.addEventListener('click', function (event) {
-    var target = event.target;
-    if (!target) return;
-
-    if (target.closest && target.closest('.sidebar-trigger,[class*="sidebar-trigger"],[class*="SidebarTrigger"]') && isLayoutMode()) {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      return;
-    }
-
-    if (target.id === 'wtl-layout-close') {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      var back = document.getElementById('wtl-layout-return-panel');
-      if (back) back.click();
-      return;
-    }
-
-    if (target.id === 'wtl-layout-native-ai-btn') {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      showNativeAi();
-      return;
-    }
-
-    if (target.id === 'wtl-layout-native-thulium-chat') {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      openNativeThulium('chat');
-      return;
-    }
-
-    if (target.id === 'wtl-layout-native-thulium-email') {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      openNativeThulium('email');
-      return;
-    }
-
-    if (target.getAttribute && target.getAttribute('data-wtl-layout-last-lesson') === '1') {
-      var href = target.getAttribute('href');
-      if (href) {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        location.href = href;
-      }
-    }
-  }, true);
-
-  if (window.MutationObserver) {
-    var moTimer = null;
-    var observer = new MutationObserver(function () {
-      if (moTimer) clearTimeout(moTimer);
-      moTimer = setTimeout(runFixes, 120);
-    });
-
-    if (document.body) observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style'] });
-  }
-
-  window.addEventListener('resize', runFixes);
-  setInterval(runFixes, 700);
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function () { setTimeout(runFixes, 250); });
-  } else {
-    setTimeout(runFixes, 250);
-  }
-})();
-
-/* PT Assistant V60 Layout correction patch 2026-05-07 v3.
-   Korekta Layoutu: interaktywny iframe AI, natywne obudzenie Thulium jak w panelu,
-   topbar z odnośnikami z headera platformy, tylko przycisk „Wróć do panelu”.
-*/
-(function () {
-  'use strict';
-
-  if (window.__PT_ASSISTANT_V60_LAYOUT_CORRECTION_V3_2026_05_07__) return;
-  window.__PT_ASSISTANT_V60_LAYOUT_CORRECTION_V3_2026_05_07__ = true;
-
-  var BRAND = 'https://edu.profitabletrader.ai/uploads/media/12510/5/Group_361__1_.png?_t=1778149920';
-  var PLATFORM_LOGO = '/uploads/site/12510/077073216e661bd7d090ef25396a0361.png';
-  var AI_SRC = 'https://app.multitools.ai/chat-embed-host.html?assistantId=83ab6507-f2b6-402d-8ffd-4ab42aa1e9b2';
-  var THULIUM_SRC = 'https://cdn.thulium.com/apps/chat-widget/chat-loader.js?hash=eliteexpertclub-4cb69311-31a0-4960-9608-ef51bf61693b';
-  var AI_OPEN_KEY = 'wtl_layout_ai_native_open_v2';
-
-  var thuliumLoading = false;
-  var thuliumLoaded = false;
-  var thuliumTimer = null;
-  var thuliumFitTimer = null;
-
-  function esc(value) {
-    return String(value || '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
-  }
-
-  function isLayoutMode() {
-    return document.documentElement.classList.contains('wtl-layout-mode');
-  }
-
-  function injectCss() {
-    if (document.getElementById('pt-v60-layout-correction-v3-style')) return;
-
-    var style = document.createElement('style');
-    style.id = 'pt-v60-layout-correction-v3-style';
-    style.textContent = [
-      '#wtl-layout-close,.wtl-layout-topbar-close{display:none!important}',
-      '#wtl-layout-topbar{height:64px!important;padding:0!important;display:none!important;align-items:stretch!important;background:radial-gradient(circle at 18% 0%,rgba(239,68,68,.28),transparent 32%),linear-gradient(135deg,#050505,#111 58%,#1a0505)!important;border-bottom:1px solid rgba(239,68,68,.36)!important;box-shadow:0 14px 44px rgba(0,0,0,.36)!important;overflow:hidden!important}',
-      '#wtl-layout-topbar.wtl-show{display:flex!important}',
-      '#wtl-layout-topbar .wtl-layout-native-header{width:100%;height:64px;display:grid;grid-template-columns:324px minmax(260px,1fr) auto;align-items:center;color:#fff;font-family:Inter,Arial,Helvetica,sans-serif}',
-      '#wtl-layout-topbar .wtl-layout-header-left{height:64px;display:flex;align-items:center;gap:14px;padding:0 14px;border-right:1px solid rgba(239,68,68,.24);min-width:0}',
-      '#wtl-layout-topbar .wtl-layout-sidebar-ico{width:30px;height:30px;border:1px solid rgba(248,113,113,.34);border-radius:11px;background:rgba(239,68,68,.12);color:#fecaca;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:950;line-height:1;flex-shrink:0}',
-      '#wtl-layout-topbar .wtl-layout-header-logo{display:flex;align-items:center;text-decoration:none;min-width:0}',
-      '#wtl-layout-topbar .wtl-layout-header-logo img{width:156px;height:38px;object-fit:contain;object-position:left center;display:block;filter:drop-shadow(0 0 8px rgba(255,255,255,.08))}',
-      '#wtl-layout-topbar .wtl-layout-header-center{height:64px;display:flex;align-items:center;gap:10px;padding:0 18px;justify-content:flex-start;min-width:0}',
-      '#wtl-layout-topbar .wtl-layout-header-link{height:38px;display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.08);border-radius:13px;background:rgba(255,255,255,.055);color:rgba(255,255,255,.88);text-decoration:none;font-size:12px;font-weight:900;padding:0 16px;white-space:nowrap}',
-      '#wtl-layout-topbar .wtl-layout-header-link:hover{background:rgba(239,68,68,.18);border-color:rgba(248,113,113,.42);color:#fecaca}',
-      '#wtl-layout-topbar .wtl-layout-header-right{height:64px;display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:0 14px;min-width:0}',
-      '#wtl-layout-topbar .wtl-layout-header-ico{width:38px;height:38px;border:1px solid rgba(255,255,255,.09);border-radius:13px;background:rgba(255,255,255,.055);color:#fecaca;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;font-size:15px;font-weight:950;cursor:pointer;flex-shrink:0}',
-      '#wtl-layout-topbar .wtl-layout-header-ico:hover{background:rgba(239,68,68,.18);border-color:rgba(248,113,113,.42)}',
-      '#wtl-layout-topbar .wtl-layout-header-avatar{width:38px;height:38px;border-radius:13px;overflow:hidden;border:1px solid rgba(248,113,113,.34);background:rgba(255,255,255,.055);display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}',
-      '#wtl-layout-topbar .wtl-layout-header-avatar img{width:100%;height:100%;object-fit:cover;display:block}',
-      '#wtl-layout-topbar .wtl-layout-return-only{height:38px;border:1px solid rgba(248,113,113,.65);border-radius:12px;background:linear-gradient(135deg,#ef4444,#b91c1c 58%,#7f1d1d);color:#fff;padding:0 15px;font-size:12px;font-weight:950;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;box-shadow:0 8px 22px rgba(239,68,68,.18);flex-shrink:0}',
-      '#wtl-layout-topbar .wtl-layout-return-only:hover{filter:brightness(1.08)}',
-      '#wtl-layout-left{top:64px!important;width:324px!important}',
-      '#wtl-layout-left .wtl-layout-head{display:none!important}',
-      '#wtl-layout-right{z-index:2147483642!important;right:18px!important;bottom:18px!important;width:auto!important;max-width:none!important;pointer-events:none!important;align-items:flex-end!important}',
-      '#wtl-layout-right.wtl-show{display:flex!important}',
-      '#wtl-layout-right .wtl-layout-widget{display:none!important}',
-      '.wtl-layout-native-dock{position:relative!important;z-index:2147483643!important;display:flex!important;align-items:center!important;justify-content:flex-end!important;gap:10px!important;pointer-events:auto!important}',
-      '.wtl-layout-native-btn{height:46px;border:1px solid rgba(248,113,113,.56);border-radius:16px;background:linear-gradient(135deg,rgba(7,7,7,.96),rgba(70,8,8,.94));color:#fecaca;box-shadow:0 16px 46px rgba(0,0,0,.36),0 0 22px rgba(239,68,68,.12);padding:0 16px;font-size:12px;font-weight:950;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap;pointer-events:auto!important}',
-      '.wtl-layout-native-btn:hover{background:linear-gradient(135deg,rgba(35,8,8,.98),rgba(110,12,12,.94));border-color:rgba(248,113,113,.82)}',
-      '.wtl-layout-native-ai-pop{position:fixed!important;right:18px!important;bottom:76px!important;width:430px!important;max-width:calc(100vw - 36px)!important;height:620px!important;max-height:calc(100vh - 108px)!important;border:1px solid rgba(239,68,68,.42)!important;border-radius:18px!important;background:#070707!important;box-shadow:0 20px 70px rgba(0,0,0,.5)!important;overflow:hidden!important;display:none!important;pointer-events:auto!important;z-index:2147483645!important;isolation:isolate!important}',
-      '.wtl-layout-native-ai-pop.wtl-open{display:block!important}',
-      '.wtl-layout-native-ai-pop iframe{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;border:0!important;display:block!important;background:#111827!important;pointer-events:auto!important;z-index:1!important}',
-      '#wtl-layout-thulium-native-mount{position:fixed!important;right:150px!important;bottom:76px!important;width:390px!important;max-width:calc(100vw - 36px)!important;height:560px!important;max-height:calc(100vh - 108px)!important;z-index:2147483645!important;display:none!important;pointer-events:auto!important;border:1px solid rgba(239,68,68,.42)!important;border-radius:18px!important;background:#070707!important;box-shadow:0 20px 70px rgba(0,0,0,.5)!important;overflow:hidden!important;isolation:isolate!important}',
-      'html.wtl-layout-mode #wtl-layout-thulium-native-mount.wtl-open{display:block!important}',
-      '#wtl-layout-thulium-native-mount .wtl-layout-thulium-loading{position:absolute!important;inset:0!important;display:flex!important;align-items:center!important;justify-content:center!important;padding:20px!important;color:rgba(255,255,255,.72)!important;background:#070707!important;font-size:13px!important;text-align:center!important;z-index:2!important}',
-      '#wtl-layout-thulium-native-mount iframe[title="Thulium Click2Contact"],#wtl-layout-thulium-native-mount .thulium-chat-wrapper,#wtl-layout-thulium-native-mount .thulium-chat-frame-wrapper{position:absolute!important;left:0!important;top:0!important;right:auto!important;bottom:auto!important;width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;min-width:0!important;min-height:0!important;visibility:visible!important;opacity:1!important;display:block!important;pointer-events:auto!important;z-index:10!important;transform:none!important;border:0!important;overflow:hidden!important}',
-      '@media(max-width:900px){#wtl-layout-topbar .wtl-layout-native-header{grid-template-columns:260px 1fr auto}#wtl-layout-topbar .wtl-layout-header-logo img{width:132px}#wtl-layout-topbar .wtl-layout-header-link{padding:0 11px}.wtl-layout-header-ico[data-hide-mobile="1"]{display:none!important}}',
-      '@media(max-width:720px){#wtl-layout-topbar{height:auto!important;min-height:64px!important}#wtl-layout-topbar .wtl-layout-native-header{height:auto;min-height:64px;grid-template-columns:1fr auto;grid-template-areas:"left right" "center center"}#wtl-layout-topbar .wtl-layout-header-left{grid-area:left;border-right:0}#wtl-layout-topbar .wtl-layout-header-center{grid-area:center;height:46px;padding:0 12px 10px}#wtl-layout-topbar .wtl-layout-header-right{grid-area:right}.wtl-layout-native-ai-pop,#wtl-layout-thulium-native-mount{left:10px!important;right:10px!important;width:auto!important;bottom:126px!important}.wtl-layout-native-dock{flex-wrap:wrap!important}#wtl-layout-right{left:10px!important;right:10px!important}}'
-    ].join('');
-
-    document.head.appendChild(style);
-  }
-
-  function currentAvatarSrc() {
-    var img = document.querySelector('.header .nav-menu-avatar-trigger img,.nav-menu-list-user img,.header-right img');
-    return img ? (img.getAttribute('src') || img.src || '') : '';
-  }
-
-  function renderNativeTopbar() {
-    if (!isLayoutMode()) return;
-    var top = document.getElementById('wtl-layout-topbar');
-    if (!top) return;
-    if (top.getAttribute('data-layout-v3-topbar') === '1') return;
-
-    var avatar = currentAvatarSrc();
-    top.setAttribute('data-layout-v3-topbar', '1');
-    top.innerHTML = '' +
-      '<div class="wtl-layout-native-header">' +
-        '<div class="wtl-layout-header-left">' +
-          '<span class="wtl-layout-sidebar-ico" title="Layout">☰</span>' +
-          '<a class="wtl-layout-header-logo" href="/next/public/" title="User Panel"><img src="' + esc(BRAND || PLATFORM_LOGO) + '" alt="Profitable Trader Assistant"></a>' +
-        '</div>' +
-        '<div class="wtl-layout-header-center">' +
-          '<a class="wtl-layout-header-link" href="/next/public/category">Products</a>' +
-          '<a class="wtl-layout-header-link" href="https://edu.profitabletrader.ai/next/public/community/">Community</a>' +
-        '</div>' +
-        '<div class="wtl-layout-header-right">' +
-          '<button type="button" class="wtl-layout-header-ico" id="wtl-layout-search" title="Search">⌕</button>' +
-          '<a class="wtl-layout-header-ico" data-hide-mobile="1" href="/next/public/" title="User Panel">▦</a>' +
-          '<a class="wtl-layout-header-ico" data-hide-mobile="1" href="/next/public/admin/panel/ai" title="AI">✦</a>' +
-          '<a class="wtl-layout-header-ico" href="/next/public/account/notifications" title="Powiadomienia">●</a>' +
-          '<a class="wtl-layout-header-avatar" href="https://edu.profitabletrader.ai/next/public/account/profile" title="My account">' + (avatar ? '<img src="' + esc(avatar) + '" alt="User Avatar">' : '<span style="color:#fecaca;font-size:12px;font-weight:950;">ME</span>') + '</a>' +
-          '<button type="button" class="wtl-layout-return-only" id="wtl-layout-return-panel">Wróć do panelu</button>' +
-        '</div>' +
-      '</div>';
-  }
-
-  function resetTopbarMarkerWhenRebuilt() {
-    var top = document.getElementById('wtl-layout-topbar');
-    if (!top) return;
-    var native = top.querySelector('.wtl-layout-native-header');
-    if (!native && top.getAttribute('data-layout-v3-topbar') === '1') top.removeAttribute('data-layout-v3-topbar');
-  }
-
-  function ensureNativeDock() {
-    if (!isLayoutMode()) return;
-    var right = document.getElementById('wtl-layout-right');
-    if (!right) return;
-
-    var dock = right.querySelector('.wtl-layout-native-dock');
-    if (!dock) {
-      dock = document.createElement('div');
-      dock.className = 'wtl-layout-native-dock';
-      dock.innerHTML = '' +
-        '<button type="button" class="wtl-layout-native-btn" id="wtl-layout-native-ai-btn">AI Agent</button>' +
-        '<button type="button" class="wtl-layout-native-btn" id="wtl-layout-native-thulium-chat">Thulium: Czat</button>' +
-        '<button type="button" class="wtl-layout-native-btn" id="wtl-layout-native-thulium-email">Thulium: E-mail</button>';
-      right.appendChild(dock);
-    }
-
-    ensureAiPop();
-    ensureThuliumMount();
-  }
-
-  function ensureAiPop() {
-    var pop = document.getElementById('wtl-layout-native-ai-pop');
-    if (!pop) {
-      pop = document.createElement('div');
-      pop.id = 'wtl-layout-native-ai-pop';
-      pop.className = 'wtl-layout-native-ai-pop';
-      document.body.appendChild(pop);
-    }
-
-    if (sessionStorage.getItem(AI_OPEN_KEY) === '1' && isLayoutMode()) {
-      pop.classList.add('wtl-open');
-      if (!pop.querySelector('iframe')) {
-        pop.innerHTML = '<iframe src="' + esc(AI_SRC) + '" allow="microphone; clipboard-read; clipboard-write" loading="eager" referrerpolicy="strict-origin-when-cross-origin"></iframe>';
-      }
-    } else {
-      pop.classList.remove('wtl-open');
-      pop.innerHTML = '';
-    }
-  }
-
-  function toggleAi() {
-    if (sessionStorage.getItem(AI_OPEN_KEY) === '1') sessionStorage.removeItem(AI_OPEN_KEY);
-    else sessionStorage.setItem(AI_OPEN_KEY, '1');
-    ensureAiPop();
-  }
-
-  function ensureThuliumMount() {
-    var mount = document.getElementById('wtl-layout-thulium-native-mount');
-    if (!mount) {
-      mount = document.createElement('div');
-      mount.id = 'wtl-layout-thulium-native-mount';
-      mount.innerHTML = '<div class="wtl-layout-thulium-loading">Thulium gotowe do uruchomienia.</div>';
-      document.body.appendChild(mount);
-    }
-    return mount;
-  }
-
-  function ensureTcQueue() {
-    if (!window._tc || typeof window._tc !== 'function') {
-      window._tc = function () {
-        (window._tc.q = window._tc.q || []).push(arguments);
-      };
-    }
-  }
-
-  function getThuliumScript() {
-    return document.querySelector('script[src*="cdn.thulium.com/apps/chat-widget/chat-loader.js"]');
-  }
-
-  function getThuliumFrame() {
-    return document.querySelector('#wtl-layout-thulium-native-mount iframe[title="Thulium Click2Contact"]') ||
-      document.querySelector('iframe[title="Thulium Click2Contact"]');
-  }
-
-  function hasRealThulium() {
+  function fitPanelThuliumForLayout() {
+    var mount = document.getElementById('wtl-thulium-native-mount');
+    var panel = document.getElementById('wtl-assistant-panel');
+    var frame = mount ? mount.querySelector('iframe[title="Thulium Click2Contact"]') : null;
+    if (!panel || !mount) return;
     try {
-      if (getThuliumFrame()) return true;
-      if (window._tc && typeof window._tc.open_chat === 'function') return true;
-      if (window._tc && typeof window._tc.open_email === 'function') return true;
-      if (window._tc && typeof window._tc.set_container === 'function') return true;
-    } catch (e) {}
-    return false;
-  }
-
-  function setThuliumContainer() {
-    ensureTcQueue();
-    ensureThuliumMount();
-    try {
-      if (window._tc && typeof window._tc.set_container === 'function') {
-        window._tc.set_container('wtl-layout-thulium-native-mount');
-        return;
+      panel.style.setProperty('right', '14px', 'important');
+      panel.style.setProperty('bottom', '68px', 'important');
+      panel.style.setProperty('left', 'auto', 'important');
+      panel.style.setProperty('top', 'auto', 'important');
+      panel.style.setProperty('width', '420px', 'important');
+      mount.style.setProperty('overflow', 'hidden', 'important');
+      mount.style.setProperty('background', '#070707', 'important');
+      if (frame) {
+        frame.style.setProperty('position', 'absolute', 'important');
+        frame.style.setProperty('left', '-4px', 'important');
+        frame.style.setProperty('top', '-72px', 'important');
+        frame.style.setProperty('width', 'calc(100% + 8px)', 'important');
+        frame.style.setProperty('height', '750px', 'important');
+        frame.style.setProperty('min-height', '750px', 'important');
+        frame.style.setProperty('max-height', 'none', 'important');
+        frame.style.setProperty('opacity', '1', 'important');
+        frame.style.setProperty('visibility', 'visible', 'important');
+        frame.style.setProperty('display', 'block', 'important');
+        frame.style.setProperty('pointer-events', 'auto', 'important');
       }
-    } catch (e) {}
-    try { window._tc('set_container', 'wtl-layout-thulium-native-mount'); } catch (e2) {}
-  }
-
-  function injectThulium(callback) {
-    thuliumLoading = true;
-    var script = document.createElement('script');
-    script.async = true;
-    script.id = 'pt-thulium-layout-loader-v3';
-    script.src = THULIUM_SRC + '&ptLayoutReload=' + Date.now();
-    script.onload = function () {
-      thuliumLoaded = true;
-      thuliumLoading = false;
-      setTimeout(function () {
-        setThuliumContainer();
-        if (callback) callback();
-      }, 550);
-    };
-    script.onerror = function () {
-      thuliumLoading = false;
-      var mount = ensureThuliumMount();
-      var loading = mount.querySelector('.wtl-layout-thulium-loading');
-      if (loading) loading.innerHTML = 'Nie udało się załadować Thulium.';
-    };
-    document.head.appendChild(script);
-  }
-
-  function loadThulium(callback) {
-    ensureTcQueue();
-    setThuliumContainer();
-
-    if (thuliumLoaded && hasRealThulium()) {
-      if (callback) callback();
-      return;
-    }
-
-    if (thuliumLoading) {
-      setTimeout(function () { loadThulium(callback); }, 120);
-      return;
-    }
-
-    if (getThuliumScript()) {
-      setTimeout(function () {
-        thuliumLoaded = hasRealThulium();
-        setThuliumContainer();
-        if (callback) callback();
-      }, 450);
-      return;
-    }
-
-    injectThulium(callback);
-  }
-
-  function clickElement(el) {
-    if (!el) return false;
-    try { el.click(); return true; } catch (e) {}
-    try {
-      var evt = document.createEvent('MouseEvents');
-      evt.initMouseEvent('click', true, true, window, 1, 0, 0, 0, 0, false, false, false, false, 0, null);
-      el.dispatchEvent(evt);
-      return true;
     } catch (err) {}
-    return false;
   }
 
-  function wakeUpThuliumLauncher() {
-    var clicked = false;
-    try {
-      var frame = document.querySelector('iframe[title="Thulium Click2Contact"]');
-      var wrapper = document.querySelector('.thulium-chat-wrapper') ||
-        document.querySelector('.thulium-chat-frame-wrapper') ||
-        document.querySelector('[class*="thulium-chat"]');
-      clicked = clickElement(wrapper) || clicked;
-      clicked = clickElement(frame) || clicked;
-    } catch (e) {}
-    return clicked;
-  }
-
-  function callTc(methodName) {
-    try {
-      if (window._tc && typeof window._tc[methodName] === 'function') {
-        window._tc[methodName]();
-        return true;
-      }
-    } catch (e) {}
-    try {
-      if (typeof window._tc === 'function') {
-        window._tc(methodName);
-        return true;
-      }
-    } catch (e2) {}
-    return false;
-  }
-
-  function fitThuliumFrame() {
-    var frame = getThuliumFrame();
-    if (!frame) return;
-    try {
-      frame.style.setProperty('position', 'absolute', 'important');
-      frame.style.setProperty('left', '0', 'important');
-      frame.style.setProperty('top', '0', 'important');
-      frame.style.setProperty('right', 'auto', 'important');
-      frame.style.setProperty('bottom', 'auto', 'important');
-      frame.style.setProperty('width', '100%', 'important');
-      frame.style.setProperty('height', '100%', 'important');
-      frame.style.setProperty('min-width', '0', 'important');
-      frame.style.setProperty('min-height', '0', 'important');
-      frame.style.setProperty('max-width', 'none', 'important');
-      frame.style.setProperty('max-height', 'none', 'important');
-      frame.style.setProperty('visibility', 'visible', 'important');
-      frame.style.setProperty('opacity', '1', 'important');
-      frame.style.setProperty('display', 'block', 'important');
-      frame.style.setProperty('pointer-events', 'auto', 'important');
-      frame.style.setProperty('z-index', '10', 'important');
-      frame.style.setProperty('transform', 'none', 'important');
-      frame.style.setProperty('border', '0', 'important');
-    } catch (e) {}
-  }
-
-  function openThulium(intent) {
-    if (intent !== 'email') intent = 'chat';
-
-    var mount = ensureThuliumMount();
-    mount.classList.add('wtl-open');
-    var loading = mount.querySelector('.wtl-layout-thulium-loading');
-    if (loading) {
-      loading.style.display = 'flex';
-      loading.innerHTML = 'Otwieranie Thulium...';
-    }
-
-    setThuliumContainer();
-
-    loadThulium(function () {
-      setThuliumContainer();
-      wakeUpThuliumLauncher();
-      fitThuliumFrame();
-
-      var methods = intent === 'email'
-        ? ['open_email', 'open_email_form', 'open_message', 'open_message_form', 'open_contact_form', 'open_contact', 'send_message']
-        : ['open_chat', 'open_chat_form', 'chat'];
-
-      var attempts = 0;
-      if (thuliumTimer) clearInterval(thuliumTimer);
-      if (thuliumFitTimer) clearInterval(thuliumFitTimer);
-
-      thuliumFitTimer = setInterval(function () {
-        fitThuliumFrame();
-      }, 160);
-
-      thuliumTimer = setInterval(function () {
-        attempts++;
-        setThuliumContainer();
-        fitThuliumFrame();
-
-        if (attempts === 1 || attempts === 2 || attempts === 3 || attempts === 6 || attempts === 10) {
-          wakeUpThuliumLauncher();
-        }
-
-        for (var i = 0; i < methods.length; i++) callTc(methods[i]);
-
-        if (loading && attempts >= 5) loading.style.display = 'none';
-
-        if (attempts >= 34) {
-          clearInterval(thuliumTimer);
-          thuliumTimer = null;
-          clearInterval(thuliumFitTimer);
-          thuliumFitTimer = null;
-        }
-      }, 170);
-    });
-  }
-
-  function hideLayoutPopupsWhenOff() {
-    if (isLayoutMode()) return;
-    var ai = document.getElementById('wtl-layout-native-ai-pop');
-    if (ai) {
-      ai.classList.remove('wtl-open');
-      ai.innerHTML = '';
-    }
-    var mount = document.getElementById('wtl-layout-thulium-native-mount');
-    if (mount) mount.classList.remove('wtl-open');
-  }
-
-  function openSearchFromLayout() {
-    var trigger = document.querySelector('.header-search-trigger');
-    if (trigger) {
-      clickElement(trigger);
-      return;
-    }
-    location.href = '/next/public/category';
-  }
-
-  function run() {
-    injectCss();
-    resetTopbarMarkerWhenRebuilt();
-    if (isLayoutMode()) {
-      renderNativeTopbar();
-      ensureNativeDock();
-      ensureAiPop();
-    } else {
-      hideLayoutPopupsWhenOff();
-    }
-  }
-
-  document.addEventListener('click', function (event) {
-    var target = event.target;
-    if (!target) return;
-
-    if (target.id === 'wtl-layout-native-ai-btn') {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      toggleAi();
-      return;
-    }
-
-    if (target.id === 'wtl-layout-native-thulium-chat') {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      openThulium('chat');
-      return;
-    }
-
-    if (target.id === 'wtl-layout-native-thulium-email') {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      openThulium('email');
-      return;
-    }
-
-    if (target.id === 'wtl-layout-search') {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      openSearchFromLayout();
-      return;
-    }
-  }, true);
-
-  if (window.MutationObserver) {
-    var timer = null;
-    var observer = new MutationObserver(function () {
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(run, 120);
-    });
-    if (document.body) observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style'] });
-  }
-
-  window.addEventListener('resize', run);
-  setInterval(run, 700);
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function () { setTimeout(run, 250); });
-  } else {
-    setTimeout(run, 250);
-  }
-})();
-
-
-/* PT Assistant V60 Layout correction patch 2026-05-07 v4.
-   Poprawki:
-   - Layout nie klika już bazowego sidebar-trigger, więc nie otwiera zamkniętego nawigatora platformy.
-   - Topbar Layoutu: bez przycisku menu/grid, przycisk "Wróć do panelu" przed ikonami, ikony maksymalnie po prawej.
-   - Avatar otwiera własne menu konta Layout z odnośnikami jak standardowa lista platformy.
-   - Thulium w Layout nie tworzy czarnego okna/mountu; przyciski wywołują natywne API/queue Thulium jak panel, bez blokowania widgetu.
-   - AI Agent zostaje na działającej ścieżce z poprzedniej wersji.
-*/
-(function () {
-  'use strict';
-
-  if (window.__PT_ASSISTANT_V60_LAYOUT_CORRECTION_V4_2026_05_07__) return;
-  window.__PT_ASSISTANT_V60_LAYOUT_CORRECTION_V4_2026_05_07__ = true;
-
-  var BRAND = 'https://edu.profitabletrader.ai/uploads/media/12510/5/Group_361__1_.png?_t=1778149920';
-  var THULIUM_SRC = 'https://cdn.thulium.com/apps/chat-widget/chat-loader.js?hash=eliteexpertclub-4cb69311-31a0-4960-9608-ef51bf61693b';
-  var thuliumLoading = false;
-  var thuliumLoaded = false;
-  var thuliumTimer = null;
-
-  function esc(value) {
-    return String(value || '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
-  }
-
-  function clean(value) {
-    return String(value || '').replace(/\s+/g, ' ').trim();
-  }
-
-  function isLayoutMode() {
-    return document.documentElement.classList.contains('wtl-layout-mode');
-  }
-
-  function clickElement(el) {
-    if (!el) return false;
-
-    try {
-      el.click();
-      return true;
-    } catch (e) {
+  function hideLooseThuliumWidgets() {
+    var mount = document.getElementById('wtl-thulium-native-mount');
+    var nodes = document.querySelectorAll('.thulium-chat-wrapper,.thulium-chat-frame-wrapper,iframe[title="Thulium Click2Contact"]');
+    for (var i = 0; i < nodes.length; i++) {
+      if (mount && mount.contains(nodes[i])) continue;
       try {
-        var evt = document.createEvent('MouseEvents');
-        evt.initMouseEvent('click', true, true, window, 1, 0, 0, 0, 0, false, false, false, false, 0, null);
-        el.dispatchEvent(evt);
-        return true;
+        nodes[i].style.setProperty('opacity', '0', 'important');
+        nodes[i].style.setProperty('visibility', 'hidden', 'important');
+        nodes[i].style.setProperty('pointer-events', 'none', 'important');
       } catch (err) {}
     }
-
-    return false;
   }
 
-  function injectCss() {
-    if (document.getElementById('pt-v60-layout-correction-v4-style')) return;
-
-    var style = document.createElement('style');
-    style.id = 'pt-v60-layout-correction-v4-style';
-    style.textContent = [
-      'html.wtl-layout-mode{overflow-x:hidden!important}',
-      'html.wtl-layout-mode body{overflow-x:hidden!important}',
-      'html.wtl-layout-mode .sidebar-trigger{pointer-events:none!important}',
-      '#wtl-layout-topbar .wtl-layout-native-header{grid-template-columns:324px minmax(260px,1fr) auto!important}',
-      '#wtl-layout-topbar .wtl-layout-sidebar-ico{display:none!important}',
-      '#wtl-layout-topbar .wtl-layout-header-left{gap:0!important}',
-      '#wtl-layout-topbar .wtl-layout-header-right{justify-content:flex-end!important;margin-left:auto!important}',
-      '#wtl-layout-topbar .wtl-layout-header-ico[href="/next/public/"]{display:none!important}',
-      '#wtl-layout-topbar .wtl-layout-return-only{order:1!important;margin-right:8px!important}',
-      '#wtl-layout-topbar .wtl-layout-header-ico{order:2!important}',
-      '#wtl-layout-topbar .wtl-layout-header-avatar{order:3!important;cursor:pointer!important}',
-      '#wtl-layout-thulium-native-mount{display:none!important;visibility:hidden!important;pointer-events:none!important}',
-      'html.wtl-layout-mode #wtl-layout-thulium-native-mount.wtl-open{display:none!important;visibility:hidden!important;pointer-events:none!important}',
-      '.wtl-layout-native-dock{gap:10px!important}',
-      '.wtl-layout-v4-thulium-btn{height:46px;border:1px solid rgba(248,113,113,.56);border-radius:16px;background:linear-gradient(135deg,rgba(7,7,7,.96),rgba(70,8,8,.94));color:#fecaca;box-shadow:0 16px 46px rgba(0,0,0,.36),0 0 22px rgba(239,68,68,.12);padding:0 16px;font-size:12px;font-weight:950;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap;pointer-events:auto!important}',
-      '.wtl-layout-v4-thulium-btn:hover{background:linear-gradient(135deg,rgba(35,8,8,.98),rgba(110,12,12,.94));border-color:rgba(248,113,113,.82)}',
-
-      '#wtl-layout-account-menu{position:fixed;z-index:2147483647;right:8px;top:72px;width:336px;max-width:calc(100vw - 16px);background:#fff;color:#2b2b2b;border:1px solid rgba(0,0,0,.08);border-radius:22px;box-shadow:0 22px 70px rgba(0,0,0,.28);display:none;overflow:hidden;font-family:Inter,Arial,Helvetica,sans-serif}',
-      '#wtl-layout-account-menu.wtl-open{display:block}',
-      '.wtl-layout-account-panel{padding:16px 24px 18px 24px}',
-      '.wtl-layout-account-user{display:flex;align-items:center;gap:14px;padding:2px 0 16px 0;border-bottom:1px solid rgba(0,0,0,.10);margin-bottom:10px}',
-      '.wtl-layout-account-user img{width:44px;height:44px;border-radius:999px;object-fit:cover;display:block;background:#07111e}',
-      '.wtl-layout-account-user span{display:block;font-size:17px;font-weight:500;line-height:1.24;color:#2d2d2d}',
-      '.wtl-layout-account-list{display:none}',
-      '.wtl-layout-account-list.wtl-active{display:block}',
-      '.wtl-layout-account-item{height:46px;display:flex;align-items:center;gap:16px;color:#333;text-decoration:none;border:0;background:transparent;width:100%;padding:0 4px;font-size:16px;font-weight:400;cursor:pointer;text-align:left;border-radius:10px}',
-      '.wtl-layout-account-item:hover{background:rgba(0,0,0,.045)}',
-      '.wtl-layout-account-item i,.wtl-layout-account-symbol{width:24px;display:inline-flex;align-items:center;justify-content:center;color:#303030;font-size:18px;position:relative;flex-shrink:0}',
-      '.wtl-layout-account-dot{position:absolute;right:0;top:2px;width:10px;height:10px;border-radius:999px;background:#ff3b7a;border:2px solid #fff}',
-      '.wtl-layout-account-chevron{margin-left:auto;color:#555;font-size:20px}',
-      '.wtl-layout-account-sep{height:1px;background:rgba(0,0,0,.10);margin:10px 0}',
-      '.wtl-layout-theme-row{height:46px;display:flex;align-items:center;gap:16px;padding:0 4px;font-size:16px;color:#333}',
-      '.wtl-layout-theme-row .wtl-layout-theme-label{flex:1}',
-      '.wtl-layout-theme-toggle{width:34px;height:20px;border-radius:999px;background:#e7e7e7;position:relative;display:inline-block;flex-shrink:0}',
-      '.wtl-layout-theme-toggle:after{content:"";position:absolute;width:16px;height:16px;left:2px;top:2px;border-radius:999px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.22)}',
-      '.wtl-layout-account-back{font-weight:600}',
-      '@media(max-width:720px){#wtl-layout-topbar .wtl-layout-native-header{grid-template-columns:1fr auto!important}.wtl-layout-account-menu{right:8px!important;left:8px!important;width:auto!important}}'
-    ].join('');
-
-    document.head.appendChild(style);
-  }
-
-  function avatarSrc() {
-    var img = document.querySelector('.header .nav-menu-avatar-trigger img,.nav-menu-list-user img,.header-right img,img[src*="/avatars/"]');
-    return img ? (img.getAttribute('src') || img.src || '') : '';
-  }
-
-  function userParts() {
-    var spans = document.querySelectorAll('.nav-menu-list-user-info span');
-    var first = spans[0] ? clean(spans[0].textContent || spans[0].innerText || '') : '';
-    var second = spans[1] ? clean(spans[1].textContent || spans[1].innerText || '') : '';
-
-    if (!first) first = 'ALLin Wojciech';
-    if (!second) second = 'Mathea';
-
-    return { first: first, second: second };
-  }
-
-  function renderTopbarV4() {
-    if (!isLayoutMode()) return;
-
-    var top = document.getElementById('wtl-layout-topbar');
-    if (!top) return;
-
-    var avatar = avatarSrc();
-    top.setAttribute('data-layout-v3-topbar', '1');
-    top.setAttribute('data-layout-v4-topbar', '1');
-
-    top.innerHTML = '' +
-      '<div class="wtl-layout-native-header">' +
-        '<div class="wtl-layout-header-left">' +
-          '<a class="wtl-layout-header-logo" href="/next/public/" title="User Panel"><img src="' + esc(BRAND) + '" alt="Profitable Trader Assistant"></a>' +
-        '</div>' +
-        '<div class="wtl-layout-header-center">' +
-          '<a class="wtl-layout-header-link" href="/next/public/category">Products</a>' +
-          '<a class="wtl-layout-header-link" href="https://edu.profitabletrader.ai/next/public/community/">Community</a>' +
-        '</div>' +
-        '<div class="wtl-layout-header-right">' +
-          '<button type="button" class="wtl-layout-return-only" id="wtl-layout-return-panel">Wróć do panelu</button>' +
-          '<button type="button" class="wtl-layout-header-ico" id="wtl-layout-search" title="Search">⌕</button>' +
-          '<a class="wtl-layout-header-ico" data-hide-mobile="1" href="/next/public/admin/panel/ai" title="AI">✦</a>' +
-          '<a class="wtl-layout-header-ico" href="/next/public/account/notifications" title="Powiadomienia">●</a>' +
-          '<button type="button" class="wtl-layout-header-avatar" id="wtl-layout-account-trigger" title="My account">' + (avatar ? '<img src="' + esc(avatar) + '" alt="User Avatar">' : '<span style="color:#fecaca;font-size:12px;font-weight:950;">ME</span>') + '</button>' +
-        '</div>' +
-      '</div>';
-  }
-
-  function ensureDockV4() {
-    if (!isLayoutMode()) return;
-
-    var right = document.getElementById('wtl-layout-right');
-    if (!right) return;
-
-    var dock = right.querySelector('.wtl-layout-native-dock');
-
-    if (!dock) {
-      dock = document.createElement('div');
-      dock.className = 'wtl-layout-native-dock';
-      right.appendChild(dock);
-    }
-
-    if (dock.getAttribute('data-layout-v4-dock') !== '1') {
-      dock.setAttribute('data-layout-v4-dock', '1');
-      dock.innerHTML = '' +
-        '<button type="button" class="wtl-layout-native-btn" id="wtl-layout-native-ai-btn">AI Agent</button>' +
-        '<button type="button" class="wtl-layout-v4-thulium-btn" id="wtl-layout-v4-thulium-chat">Thulium: Czat</button>' +
-        '<button type="button" class="wtl-layout-v4-thulium-btn" id="wtl-layout-v4-thulium-email">Thulium: E-mail</button>';
-    }
-
-    var oldMount = document.getElementById('wtl-layout-thulium-native-mount');
-    if (oldMount) {
-      oldMount.classList.remove('wtl-open');
-      oldMount.style.setProperty('display', 'none', 'important');
-      oldMount.style.setProperty('visibility', 'hidden', 'important');
-      oldMount.style.setProperty('pointer-events', 'none', 'important');
-    }
-  }
-
-  function ensureAccountMenu() {
-    var menu = document.getElementById('wtl-layout-account-menu');
-
-    if (!menu) {
-      menu = document.createElement('div');
-      menu.id = 'wtl-layout-account-menu';
-      document.body.appendChild(menu);
-    }
-
-    var user = userParts();
-    var avatar = avatarSrc();
-
-    menu.innerHTML = '' +
-      '<div class="wtl-layout-account-panel">' +
-        '<div class="wtl-layout-account-list wtl-active" data-layout-account-list="main">' +
-          '<div class="wtl-layout-account-user">' +
-            (avatar ? '<img src="' + esc(avatar) + '" alt="User Avatar">' : '<img src="/uploads/site/12510/077073216e661bd7d090ef25396a0361.png" alt="User Avatar">') +
-            '<div><span>' + esc(user.first) + '</span><span>' + esc(user.second) + '</span></div>' +
-          '</div>' +
-          '<a href="https://edu.profitabletrader.ai/next/public/account/profile" class="wtl-layout-account-item"><span class="wtl-layout-account-symbol">♙</span><span>My account</span></a>' +
-          '<a href="/admin.html?modul=nowosciwtl" class="wtl-layout-account-item"><span class="wtl-layout-account-symbol">🛠</span><span>Admin Dashboard</span></a>' +
-          '<a href="/next/public/account/notifications" class="wtl-layout-account-item"><span class="wtl-layout-account-symbol">♧<span class="wtl-layout-account-dot"></span></span><span>Powiadomienia</span></a>' +
-          '<a href="https://edu.profitabletrader.ai/next/public/account/profile" class="wtl-layout-account-item"><span class="wtl-layout-account-symbol">▯</span><span>Mobile application</span></a>' +
-          '<div class="wtl-layout-account-sep"></div>' +
-          '<div class="wtl-layout-theme-row"><span class="wtl-layout-account-symbol">☼</span><span class="wtl-layout-theme-label">Dark theme</span><span class="wtl-layout-theme-toggle"></span></div>' +
-          '<button type="button" class="wtl-layout-account-item" data-layout-account-open="languages"><span class="wtl-layout-account-symbol">◎</span><span>Language: English</span><span class="wtl-layout-account-chevron">›</span></button>' +
-          '<div class="wtl-layout-account-sep"></div>' +
-          '<button type="button" class="wtl-layout-account-item" data-layout-account-open="settings"><span class="wtl-layout-account-symbol">⚙</span><span>Settings</span><span class="wtl-layout-account-chevron">›</span></button>' +
-          '<div class="wtl-layout-account-sep"></div>' +
-          '<a href="https://edu.profitabletrader.ai/next/public/logout" class="wtl-layout-account-item"><span class="wtl-layout-account-symbol">⇱</span><span>Log out</span></a>' +
-        '</div>' +
-        '<div class="wtl-layout-account-list" data-layout-account-list="languages">' +
-          '<button type="button" class="wtl-layout-account-item wtl-layout-account-back" data-layout-account-open="main"><span class="wtl-layout-account-symbol">←</span><span>Language</span></button>' +
-          '<a class="wtl-layout-account-item" href="?locale=pl"><img src="/next/public/images/flag-pl.png" loading="lazy" style="width:24px;height:16px;object-fit:cover;"><span>Polski</span></a>' +
-          '<a class="wtl-layout-account-item" href="?locale=de"><img src="/next/public/images/flag-de.png" loading="lazy" style="width:24px;height:16px;object-fit:cover;"><span>Deutsch</span></a>' +
-          '<a class="wtl-layout-account-item" href="?locale=es"><img src="/next/public/images/flag-es.png" loading="lazy" style="width:24px;height:16px;object-fit:cover;"><span>Español</span></a>' +
-          '<a class="wtl-layout-account-item" href="?locale=ua"><img src="/next/public/images/flag-ua.png" loading="lazy" style="width:24px;height:16px;object-fit:cover;"><span>українська</span></a>' +
-        '</div>' +
-        '<div class="wtl-layout-account-list" data-layout-account-list="settings">' +
-          '<button type="button" class="wtl-layout-account-item wtl-layout-account-back" data-layout-account-open="main"><span class="wtl-layout-account-symbol">←</span><span>Settings</span></button>' +
-          '<a href="https://edu.profitabletrader.ai/next/public/settings/profile" class="wtl-layout-account-item"><span class="wtl-layout-account-symbol">♙</span><span>Edit your profile</span></a>' +
-          '<a href="https://edu.profitabletrader.ai/next/public/settings/profile/notifications" class="wtl-layout-account-item"><span class="wtl-layout-account-symbol">♧</span><span>Notification settings</span></a>' +
-          '<a href="https://edu.profitabletrader.ai/next/public/settings/profile/security" class="wtl-layout-account-item"><span class="wtl-layout-account-symbol">▣</span><span>Security</span></a>' +
-          '<a href="https://edu.profitabletrader.ai/next/public/settings/profile/pay" class="wtl-layout-account-item"><span class="wtl-layout-account-symbol">▤</span><span>Payments</span></a>' +
-          '<a href="/next/public/account/abonament" class="wtl-layout-account-item"><span class="wtl-layout-account-symbol">$</span><span>My subscriptions</span></a>' +
-          '<a href="/next/public/account/subscription" class="wtl-layout-account-item"><span class="wtl-layout-account-symbol">▥</span><span>Subscriptions</span></a>' +
-        '</div>' +
-      '</div>';
-
-    return menu;
-  }
-
-  function showAccountList(name) {
-    var menu = ensureAccountMenu();
-    var lists = menu.querySelectorAll('[data-layout-account-list]');
-    for (var i = 0; i < lists.length; i++) {
-      lists[i].classList.toggle('wtl-active', lists[i].getAttribute('data-layout-account-list') === name);
-    }
-  }
-
-  function toggleAccountMenu(force) {
-    var menu = ensureAccountMenu();
-
-    if (typeof force === 'boolean') {
-      menu.classList.toggle('wtl-open', force);
-    } else {
-      menu.classList.toggle('wtl-open');
-    }
-
-    if (menu.classList.contains('wtl-open')) showAccountList('main');
-  }
-
-  function closeBaseNavOnly() {
-    if (!isLayoutMode()) return;
-
-    try {
-      var activeSelectors = [
-        '.nav-menu-avatar.active',
-        '.nav-menu-boxed-wrap.active',
-        '.nav-menu-search-popup-wrap.active',
-        '.nav-menu-avatar[style*="display: block"]',
-        '.nav-menu-boxed-wrap[style*="display: block"]',
-        '.nav-menu-search-popup-wrap[style*="display: block"]'
-      ];
-
-      for (var a = 0; a < activeSelectors.length; a++) {
-        var nodes = document.querySelectorAll(activeSelectors[a]);
-        for (var i = 0; i < nodes.length; i++) {
-          var el = nodes[i];
-          if (!el || (el.closest && (el.closest('#wtl-layout-account-menu') || el.closest('#wtl-layout-topbar') || el.closest('#wtl-layout-left') || el.closest('#wtl-layout-right')))) continue;
-          el.classList.remove('active');
-          el.style.setProperty('display', 'none', 'important');
-          el.style.setProperty('visibility', 'hidden', 'important');
-          el.style.setProperty('pointer-events', 'none', 'important');
-        }
-      }
-    } catch (err) {}
-  }
-
-  function ensureTcQueue() {
-    if (!window._tc || typeof window._tc !== 'function') {
-      window._tc = function () {
-        (window._tc.q = window._tc.q || []).push(arguments);
-      };
-    }
-  }
-
-  function callTc(name, arg) {
-    try {
-      if (window._tc && typeof window._tc[name] === 'function') {
-        if (typeof arg !== 'undefined') window._tc[name](arg);
-        else window._tc[name]();
-        return true;
-      }
-    } catch (e) {}
-
-    try {
-      if (typeof window._tc === 'function') {
-        if (typeof arg !== 'undefined') window._tc(name, arg);
-        else window._tc(name);
-        return true;
-      }
-    } catch (e2) {}
-
-    return false;
-  }
-
-  function thuliumScript() {
-    return document.querySelector('script[src*="cdn.thulium.com/apps/chat-widget/chat-loader.js"]');
-  }
-
-  function loadThulium(callback) {
-    ensureTcQueue();
-
-    if (thuliumLoaded || thuliumScript()) {
-      setTimeout(function () {
-        thuliumLoaded = true;
-        if (callback) callback();
-      }, thuliumLoaded ? 40 : 500);
-      return;
-    }
-
-    if (thuliumLoading) {
-      setTimeout(function () { loadThulium(callback); }, 120);
-      return;
-    }
-
-    thuliumLoading = true;
-
-    var script = document.createElement('script');
-    script.async = true;
-    script.id = 'pt-thulium-layout-loader-v4';
-    script.src = THULIUM_SRC + '&ptLayoutV4=' + Date.now();
-
-    script.onload = function () {
-      thuliumLoaded = true;
-      thuliumLoading = false;
-      setTimeout(function () {
-        if (callback) callback();
-      }, 650);
-    };
-
-    script.onerror = function () {
-      thuliumLoading = false;
-    };
-
-    document.head.appendChild(script);
-  }
-
-  function wakeUpThuliumLauncher() {
-    var clicked = false;
-
-    try {
-      var selectors = [
-        '.thulium-chat-wrapper',
-        '.thulium-chat-frame-wrapper',
-        '[class*="thulium-chat"]',
-        '[class*="click2contact"]',
-        'iframe[title="Thulium Click2Contact"]'
-      ];
-
-      for (var i = 0; i < selectors.length; i++) {
-        var node = document.querySelector(selectors[i]);
-        if (node && !(node.closest && node.closest('#wtl-layout-thulium-native-mount'))) clicked = clickElement(node) || clicked;
-      }
-    } catch (e) {}
-
-    return clicked;
-  }
-
-  function openThuliumV4(intent) {
-    if (intent !== 'email') intent = 'chat';
-
-    var oldMount = document.getElementById('wtl-layout-thulium-native-mount');
-    if (oldMount) {
-      oldMount.classList.remove('wtl-open');
-      oldMount.style.setProperty('display', 'none', 'important');
-      oldMount.style.setProperty('visibility', 'hidden', 'important');
-      oldMount.style.setProperty('pointer-events', 'none', 'important');
-    }
-
-    loadThulium(function () {
-      var methods = intent === 'email'
-        ? ['open_email', 'open_email_form', 'open_message', 'open_message_form', 'open_contact_form', 'open_contact', 'send_message']
-        : ['open_chat', 'open_chat_form', 'chat'];
-
-      if (thuliumTimer) clearInterval(thuliumTimer);
-
-      var attempts = 0;
-
-      thuliumTimer = setInterval(function () {
-        attempts++;
-
-        if (attempts === 1 || attempts === 2 || attempts === 3 || attempts === 6 || attempts === 10) {
-          wakeUpThuliumLauncher();
-        }
-
-        for (var i = 0; i < methods.length; i++) callTc(methods[i]);
-
-        if (attempts >= 28) {
-          clearInterval(thuliumTimer);
-          thuliumTimer = null;
-        }
-      }, 160);
-    });
-  }
-
-  function runV4() {
-    injectCss();
-
-    if (isLayoutMode()) {
-      renderTopbarV4();
-      ensureDockV4();
-      ensureAccountMenu();
-      closeBaseNavOnly();
-    } else {
-      toggleAccountMenu(false);
-    }
-  }
-
-  document.addEventListener('click', function (event) {
-    var target = event.target;
-    if (!target) return;
-
-    var accountTrigger = target.closest && target.closest('#wtl-layout-account-trigger');
-    if (accountTrigger) {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      toggleAccountMenu();
-      return;
-    }
-
-    var menuOpen = target.closest && target.closest('[data-layout-account-open]');
-    if (menuOpen) {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      showAccountList(menuOpen.getAttribute('data-layout-account-open') || 'main');
-      return;
-    }
-
-    var themeRow = target.closest && target.closest('.wtl-layout-theme-row');
-    if (themeRow) {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-
-      var realSwitch = document.getElementById('darkThemeSwitch');
-      if (realSwitch) clickElement(realSwitch);
-      return;
-    }
-
-    if (target.id === 'wtl-layout-v4-thulium-chat') {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      openThuliumV4('chat');
-      return;
-    }
-
-    if (target.id === 'wtl-layout-v4-thulium-email') {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      openThuliumV4('email');
-      return;
-    }
-
-    if (isLayoutMode()) {
-      var menu = document.getElementById('wtl-layout-account-menu');
-      if (
-        menu &&
-        menu.classList.contains('wtl-open') &&
-        target.closest &&
-        !target.closest('#wtl-layout-account-menu') &&
-        !target.closest('#wtl-layout-account-trigger')
-      ) {
-        toggleAccountMenu(false);
-      }
-    }
-  }, true);
-
-  if (window.MutationObserver) {
-    var timer = null;
-    var observer = new MutationObserver(function () {
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(runV4, 90);
-    });
-
-    if (document.body) {
-      observer.observe(document.body, {
-        childList: true,
-        subtree: true,
-        attributes: true,
-        attributeFilter: ['class', 'style']
-      });
-    }
-  }
-
-  window.addEventListener('resize', runV4);
-  setInterval(runV4, 500);
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function () { setTimeout(runV4, 160); });
-  } else {
-    setTimeout(runV4, 160);
-  }
-})();
-
-/* PT Assistant V60 Layout correction patch 2026-05-07 v5.
-   Poprawki:
-   - Dodaje przycisk zwijania/lekkiego wysuwania lewego nawigatora Layoutu.
-   - Nie otwiera zamkniętego bazowego sidebaru platformy; tylko zamyka aktywne overlaye, gdy nie są świadomie otwarte z Layoutu.
-   - AI Agent po zamknięciu nie usuwa iframe, więc historia rozmowy zostaje w sesji widoku Layout.
-   - Przyciski Thulium w Layout używają modelu panelowego: set_container, wake launcher, wielokrotne open_chat/open_email i dopasowanie iframe.
-   - My Account w topbarze Layout otwiera natywne menu WTL, nie nasze sklonowane okno.
-*/
-(function () {
-  'use strict';
-
-  if (window.__PT_ASSISTANT_V60_LAYOUT_CORRECTION_V5_2026_05_07__) return;
-  window.__PT_ASSISTANT_V60_LAYOUT_CORRECTION_V5_2026_05_07__ = true;
-
-  var BRAND = 'https://edu.profitabletrader.ai/uploads/media/12510/5/Group_361__1_.png?_t=1778149920';
-  var AI_SRC = 'https://app.multitools.ai/chat-embed-host.html?assistantId=83ab6507-f2b6-402d-8ffd-4ab42aa1e9b2';
-  var THULIUM_SRC = 'https://cdn.thulium.com/apps/chat-widget/chat-loader.js?hash=eliteexpertclub-4cb69311-31a0-4960-9608-ef51bf61693b';
-  var NAV_COLLAPSED_KEY = 'pt_assistant_v60_layout_nav_collapsed_v5';
-  var AI_CREATED = false;
-  var thuliumLoading = false;
-  var thuliumLoaded = false;
-  var thuliumOpenTimer = null;
-  var thuliumFitTimer = null;
-  var nativeAccountWantedOpen = false;
-  var lastNativeAccountToggleAt = 0;
-
-  function esc(value) {
-    return String(value || '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
-  }
-
-  function isLayoutMode() {
-    return document.documentElement.classList.contains('wtl-layout-mode');
-  }
-
-  function readBool(key, fallback) {
-    try {
-      var v = localStorage.getItem(key);
-      if (v === null) return fallback;
-      return v === '1';
-    } catch (e) {
-      return fallback;
-    }
-  }
-
-  function writeBool(key, value) {
-    try { localStorage.setItem(key, value ? '1' : '0'); } catch (e) {}
-  }
-
-  function clickElement(el) {
-    if (!el) return false;
-    try { el.click(); return true; } catch (e) {}
-    try {
-      var evt = document.createEvent('MouseEvents');
-      evt.initMouseEvent('click', true, true, window, 1, 0, 0, 0, 0, false, false, false, false, 0, null);
-      el.dispatchEvent(evt);
-      return true;
-    } catch (err) {}
-    return false;
-  }
-
-  function injectCss() {
-    if (document.getElementById('pt-v60-layout-correction-v5-style')) return;
-
-    var style = document.createElement('style');
-    style.id = 'pt-v60-layout-correction-v5-style';
-    style.textContent = [
-      'html.wtl-layout-mode,html.wtl-layout-mode body{overflow-x:hidden!important}',
-      'html.wtl-layout-mode #wtl-layout-account-menu{display:none!important;visibility:hidden!important;pointer-events:none!important}',
-      '#wtl-layout-topbar[data-layout-v5-topbar="1"] .wtl-layout-native-header{grid-template-columns:324px minmax(260px,1fr) auto!important}',
-      '#wtl-layout-topbar[data-layout-v5-topbar="1"] .wtl-layout-header-right{margin-left:auto!important;justify-content:flex-end!important;gap:10px!important}',
-      '#wtl-layout-topbar[data-layout-v5-topbar="1"] .wtl-layout-return-only{order:1!important;margin-right:6px!important}',
-      '#wtl-layout-topbar[data-layout-v5-topbar="1"] .wtl-layout-header-ico{order:2!important}',
-      '#wtl-layout-topbar[data-layout-v5-topbar="1"] .wtl-layout-header-avatar{order:3!important}',
-      '#wtl-layout-topbar[data-layout-v5-topbar="1"] .wtl-layout-header-left{gap:0!important}',
-      '#wtl-layout-topbar[data-layout-v5-topbar="1"] .wtl-layout-sidebar-ico{display:none!important}',
-      '#wtl-layout-topbar[data-layout-v5-topbar="1"] .wtl-layout-header-ico[href="/next/public/"]{display:none!important}',
-
-      '#wtl-layout-left-toggle{position:fixed;z-index:2147483646;left:318px;top:74px;width:28px;height:62px;border-radius:0 16px 16px 0;border:1px solid rgba(248,113,113,.46);border-left:0;background:linear-gradient(135deg,#111,#451010);color:#fecaca;box-shadow:10px 12px 32px rgba(0,0,0,.24);display:none;align-items:center;justify-content:center;font-size:20px;font-weight:950;cursor:pointer;font-family:Inter,Arial,Helvetica,sans-serif}',
-      'html.wtl-layout-mode #wtl-layout-left-toggle{display:flex}',
-      'html.wtl-layout-nav-collapsed #wtl-layout-left{transform:translateX(-324px)!important;opacity:0!important;pointer-events:none!important}',
-      'html.wtl-layout-nav-collapsed #wtl-layout-left-toggle{left:0!important;border-left:1px solid rgba(248,113,113,.46);border-radius:0 16px 16px 0}',
-      'html.wtl-layout-nav-collapsed .wtl-layout-page-shifted-v2{margin-left:0!important;width:100vw!important;max-width:100vw!important}',
-
-      '#wtl-layout-right .wtl-layout-native-dock{gap:10px!important}',
-      '#wtl-layout-v5-thulium-mount{position:fixed;z-index:2147483645;right:18px;bottom:132px;width:420px;max-width:calc(100vw - 36px);height:560px;max-height:calc(100vh - 154px);border:1px solid rgba(239,68,68,.42);border-radius:18px;background:#070707;box-shadow:0 20px 70px rgba(0,0,0,.52);overflow:hidden;display:none;pointer-events:auto;font-family:Inter,Arial,Helvetica,sans-serif}',
-      '#wtl-layout-v5-thulium-mount.wtl-open{display:block}',
-      '#wtl-layout-v5-thulium-mount .wtl-layout-v5-thulium-loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;color:rgba(255,255,255,.72);font-size:13px;background:#070707;z-index:2}',
-      '#wtl-layout-v5-thulium-close{position:absolute;right:10px;top:10px;z-index:999999;border:1px solid rgba(248,113,113,.46);border-radius:11px;background:rgba(239,68,68,.18);color:#fecaca;width:34px;height:34px;cursor:pointer;font-weight:950}',
-      '#wtl-layout-v5-thulium-mount iframe[title="Thulium Click2Contact"],#wtl-layout-v5-thulium-mount .thulium-chat-wrapper,#wtl-layout-v5-thulium-mount .thulium-chat-frame-wrapper{position:absolute!important;left:0!important;top:0!important;right:auto!important;bottom:auto!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;max-width:none!important;max-height:none!important;visibility:visible!important;opacity:1!important;display:block!important;pointer-events:auto!important;z-index:10!important;transform:none!important;border:0!important;overflow:hidden!important}',
-      '.wtl-layout-v5-thulium-btn{height:46px;border:1px solid rgba(248,113,113,.56);border-radius:16px;background:linear-gradient(135deg,rgba(7,7,7,.96),rgba(70,8,8,.94));color:#fecaca;box-shadow:0 16px 46px rgba(0,0,0,.36),0 0 22px rgba(239,68,68,.12);padding:0 16px;font-size:12px;font-weight:950;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap;pointer-events:auto!important}',
-      '.wtl-layout-v5-thulium-btn:hover{background:linear-gradient(135deg,rgba(35,8,8,.98),rgba(110,12,12,.94));border-color:rgba(248,113,113,.82)}',
-
-      '.wtl-layout-native-ai-pop{display:none!important}',
-      '.wtl-layout-native-ai-pop.wtl-open{display:block!important}',
-      '.wtl-layout-native-ai-pop iframe{pointer-events:auto!important}',
-
-      'html.wtl-layout-mode .header .nav-menu-avatar.wtl-layout-native-account-open,html.wtl-layout-mode .nav-menu-avatar.wtl-layout-native-account-open{display:block!important;visibility:visible!important;opacity:1!important;pointer-events:auto!important;position:fixed!important;right:8px!important;top:72px!important;z-index:2147483647!important}',
-      'html.wtl-layout-mode .header .nav-menu-avatar.wtl-layout-native-account-open .nav-menu-list[menu="main"],html.wtl-layout-mode .nav-menu-avatar.wtl-layout-native-account-open .nav-menu-list[menu="main"]{display:block!important}',
-      '@media(max-width:720px){#wtl-layout-topbar[data-layout-v5-topbar="1"] .wtl-layout-native-header{grid-template-columns:1fr auto!important;grid-template-areas:"left right" "center center"!important}#wtl-layout-left-toggle{top:70px!important}.wtl-layout-page-shifted-v2{margin-left:0!important;width:100vw!important;max-width:100vw!important}#wtl-layout-v5-thulium-mount{left:10px!important;right:10px!important;width:auto!important;bottom:126px!important}}'
-    ].join('');
-
-    document.head.appendChild(style);
-  }
-
-  function avatarSrc() {
-    var img = document.querySelector('.header .nav-menu-avatar-trigger img,.nav-menu-avatar-trigger img,.nav-menu-list-user img,.header-right img,img[src*="/avatars/"]');
-    return img ? (img.getAttribute('src') || img.src || '') : '';
-  }
-
-  function renderTopbarV5() {
-    if (!isLayoutMode()) return;
-    var top = document.getElementById('wtl-layout-topbar');
-    if (!top) return;
-
-    var avatar = avatarSrc();
-    top.setAttribute('data-layout-v5-topbar', '1');
-
-    var wanted = '' +
-      '<div class="wtl-layout-native-header" data-layout-v5-native-header="1">' +
-        '<div class="wtl-layout-header-left">' +
-          '<a class="wtl-layout-header-logo" href="/next/public/" title="User Panel"><img src="' + esc(BRAND) + '" alt="Profitable Trader Assistant"></a>' +
-        '</div>' +
-        '<div class="wtl-layout-header-center">' +
-          '<a class="wtl-layout-header-link" href="/next/public/category">Products</a>' +
-          '<a class="wtl-layout-header-link" href="https://edu.profitabletrader.ai/next/public/community/">Community</a>' +
-        '</div>' +
-        '<div class="wtl-layout-header-right">' +
-          '<button type="button" class="wtl-layout-return-only" id="wtl-layout-return-panel">Wróć do panelu</button>' +
-          '<button type="button" class="wtl-layout-header-ico" id="wtl-layout-v5-search" title="Search">⌕</button>' +
-          '<a class="wtl-layout-header-ico" href="/next/public/admin/panel/ai" title="AI">✦</a>' +
-          '<a class="wtl-layout-header-ico" href="/next/public/account/notifications" title="Powiadomienia">●</a>' +
-          '<button type="button" class="wtl-layout-header-avatar" id="wtl-layout-v5-account-trigger" title="My account">' + (avatar ? '<img src="' + esc(avatar) + '" alt="User Avatar">' : '<span style="color:#fecaca;font-size:12px;font-weight:950;">ME</span>') + '</button>' +
-        '</div>' +
-      '</div>';
-
-    if (top.innerHTML !== wanted) top.innerHTML = wanted;
-  }
-
-  function ensureNavigatorToggle() {
-    var btn = document.getElementById('wtl-layout-left-toggle');
-    if (!btn) {
-      btn = document.createElement('button');
-      btn.type = 'button';
-      btn.id = 'wtl-layout-left-toggle';
-      btn.setAttribute('aria-label', 'Schowaj lub pokaż plan lekcji');
-      document.body.appendChild(btn);
-    }
-
-    var collapsed = readBool(NAV_COLLAPSED_KEY, false);
-    document.documentElement.classList.toggle('wtl-layout-nav-collapsed', isLayoutMode() && collapsed);
-    btn.innerHTML = collapsed ? '›' : '‹';
-    btn.title = collapsed ? 'Pokaż plan lekcji' : 'Schowaj plan lekcji';
-  }
-
-  function toggleNavigator() {
-    var collapsed = !readBool(NAV_COLLAPSED_KEY, false);
-    writeBool(NAV_COLLAPSED_KEY, collapsed);
-    ensureNavigatorToggle();
-  }
-
-  function ensureDockV5() {
-    if (!isLayoutMode()) return;
-    var right = document.getElementById('wtl-layout-right');
-    if (!right) return;
-
-    var dock = right.querySelector('.wtl-layout-native-dock');
-    if (!dock) {
-      dock = document.createElement('div');
-      dock.className = 'wtl-layout-native-dock';
-      right.appendChild(dock);
-    }
-
-    var html = '' +
-      '<button type="button" class="wtl-layout-native-btn" id="wtl-layout-v5-ai-btn">AI Agent</button>' +
-      '<button type="button" class="wtl-layout-v5-thulium-btn" id="wtl-layout-v5-thulium-chat">Thulium: Czat</button>' +
-      '<button type="button" class="wtl-layout-v5-thulium-btn" id="wtl-layout-v5-thulium-email">Thulium: E-mail</button>';
-
-    if (dock.innerHTML !== html) dock.innerHTML = html;
-  }
-
-  function ensureAiPersistentPop() {
-    var pop = document.getElementById('wtl-layout-native-ai-pop');
-    if (!pop) {
-      pop = document.createElement('div');
-      pop.id = 'wtl-layout-native-ai-pop';
-      pop.className = 'wtl-layout-native-ai-pop';
-      document.body.appendChild(pop);
-    }
-
-    if (!AI_CREATED || !pop.querySelector('iframe')) {
-      pop.innerHTML = '<iframe src="' + esc(AI_SRC) + '" allow="microphone; clipboard-read; clipboard-write" loading="eager" referrerpolicy="strict-origin-when-cross-origin"></iframe>';
-      AI_CREATED = true;
-    }
-
-    if (!isLayoutMode()) pop.classList.remove('wtl-open');
-  }
-
-  function toggleAiPersistent() {
-    ensureAiPersistentPop();
-    var pop = document.getElementById('wtl-layout-native-ai-pop');
-    if (pop) pop.classList.toggle('wtl-open');
-  }
-
-  function ensureThuliumMount() {
-    var mount = document.getElementById('wtl-layout-v5-thulium-mount');
-    if (!mount) {
-      mount = document.createElement('div');
-      mount.id = 'wtl-layout-v5-thulium-mount';
-      mount.innerHTML = '<button type="button" id="wtl-layout-v5-thulium-close" aria-label="Zamknij Thulium">×</button><div class="wtl-layout-v5-thulium-loading">Thulium gotowe do uruchomienia.</div>';
-      document.body.appendChild(mount);
-    }
-    return mount;
-  }
-
-  function ensureTcQueue() {
-    if (!window._tc || typeof window._tc !== 'function') {
-      window._tc = function () {
-        (window._tc.q = window._tc.q || []).push(arguments);
-      };
-    }
-  }
-
-  function getThuliumScript() {
-    return document.querySelector('script[src*="cdn.thulium.com/apps/chat-widget/chat-loader.js"]');
-  }
-
-  function getThuliumFrame() {
-    return document.querySelector('#wtl-layout-v5-thulium-mount iframe[title="Thulium Click2Contact"]') ||
-      document.querySelector('#wtl-layout-v5-thulium-mount iframe') ||
-      document.querySelector('iframe[title="Thulium Click2Contact"]');
-  }
-
-  function setThuliumContainer() {
-    ensureTcQueue();
-    ensureThuliumMount();
-
-    try {
-      if (window._tc && typeof window._tc.set_container === 'function') {
-        window._tc.set_container('wtl-layout-v5-thulium-mount');
-        return true;
-      }
-    } catch (e) {}
-
-    try {
-      if (typeof window._tc === 'function') {
-        window._tc('set_container', 'wtl-layout-v5-thulium-mount');
-        return true;
-      }
-    } catch (e2) {}
-
-    return false;
-  }
-
-  function loadThulium(callback) {
-    ensureTcQueue();
-    setThuliumContainer();
-
-    if (thuliumLoaded || getThuliumScript()) {
-      setTimeout(function () {
-        thuliumLoaded = true;
-        setThuliumContainer();
-        if (callback) callback();
-      }, thuliumLoaded ? 60 : 650);
-      return;
-    }
-
-    if (thuliumLoading) {
-      setTimeout(function () { loadThulium(callback); }, 120);
-      return;
-    }
-
-    thuliumLoading = true;
-    var script = document.createElement('script');
-    script.async = true;
-    script.id = 'pt-thulium-layout-loader-v5';
-    script.src = THULIUM_SRC + '&ptLayoutV5=' + Date.now();
-
-    script.onload = function () {
-      thuliumLoaded = true;
-      thuliumLoading = false;
-      setTimeout(function () {
-        setThuliumContainer();
-        if (callback) callback();
-      }, 700);
-    };
-
-    script.onerror = function () {
-      thuliumLoading = false;
-      var loading = ensureThuliumMount().querySelector('.wtl-layout-v5-thulium-loading');
-      if (loading) loading.innerHTML = 'Nie udało się załadować Thulium.';
-    };
-
-    document.head.appendChild(script);
-  }
-
-  function callTc(methodName) {
-    try {
-      if (window._tc && typeof window._tc[methodName] === 'function') {
-        window._tc[methodName]();
-        return true;
-      }
-    } catch (e) {}
-
-    try {
-      if (typeof window._tc === 'function') {
-        window._tc(methodName);
-        return true;
-      }
-    } catch (e2) {}
-
-    return false;
-  }
-
-  function wakeUpThuliumLauncher() {
-    var clicked = false;
-    try {
-      var selectors = [
-        '#wtl-layout-v5-thulium-mount .thulium-chat-wrapper',
-        '#wtl-layout-v5-thulium-mount .thulium-chat-frame-wrapper',
-        '#wtl-layout-v5-thulium-mount [class*="thulium-chat"]',
-        '#wtl-layout-v5-thulium-mount iframe[title="Thulium Click2Contact"]',
-        '.thulium-chat-wrapper',
-        '.thulium-chat-frame-wrapper',
-        '[class*="thulium-chat"]',
-        'iframe[title="Thulium Click2Contact"]'
-      ];
-
-      for (var i = 0; i < selectors.length; i++) {
-        var node = document.querySelector(selectors[i]);
-        if (node) clicked = clickElement(node) || clicked;
-      }
-    } catch (e) {}
-    return clicked;
-  }
-
-  function fitThuliumFrame() {
-    var frame = getThuliumFrame();
-    if (!frame) return;
-
-    try {
-      var mount = ensureThuliumMount();
-      if (frame.parentNode !== mount && frame.tagName && frame.tagName.toLowerCase() === 'iframe') {
-        mount.appendChild(frame);
-      }
-    } catch (e) {}
-
-    try {
-      frame.style.setProperty('position', 'absolute', 'important');
-      frame.style.setProperty('left', '0', 'important');
-      frame.style.setProperty('top', '0', 'important');
-      frame.style.setProperty('right', 'auto', 'important');
-      frame.style.setProperty('bottom', 'auto', 'important');
-      frame.style.setProperty('width', '100%', 'important');
-      frame.style.setProperty('height', '100%', 'important');
-      frame.style.setProperty('min-width', '0', 'important');
-      frame.style.setProperty('min-height', '0', 'important');
-      frame.style.setProperty('max-width', 'none', 'important');
-      frame.style.setProperty('max-height', 'none', 'important');
-      frame.style.setProperty('visibility', 'visible', 'important');
-      frame.style.setProperty('opacity', '1', 'important');
-      frame.style.setProperty('pointer-events', 'auto', 'important');
-      frame.style.setProperty('display', 'block', 'important');
-      frame.style.setProperty('z-index', '10', 'important');
-      frame.style.setProperty('transform', 'none', 'important');
-      frame.style.setProperty('border', '0', 'important');
-      frame.style.setProperty('overflow', 'hidden', 'important');
-    } catch (e2) {}
-  }
-
-  function openThulium(intent) {
-    if (intent !== 'email') intent = 'chat';
-
-    var mount = ensureThuliumMount();
-    mount.classList.add('wtl-open');
-
-    var loading = mount.querySelector('.wtl-layout-v5-thulium-loading');
-    if (loading) {
-      loading.style.display = 'flex';
-      loading.innerHTML = 'Otwieranie Thulium...';
-    }
-
-    loadThulium(function () {
-      var methods = intent === 'email'
-        ? ['open_email', 'open_email_form', 'open_message', 'open_message_form', 'open_contact_form', 'open_contact', 'send_message']
-        : ['open_chat', 'open_chat_form', 'chat'];
-
-      if (thuliumOpenTimer) clearInterval(thuliumOpenTimer);
-      if (thuliumFitTimer) clearInterval(thuliumFitTimer);
-
-      var attempts = 0;
-      thuliumFitTimer = setInterval(function () {
-        setThuliumContainer();
-        fitThuliumFrame();
-      }, 140);
-
-      thuliumOpenTimer = setInterval(function () {
-        attempts++;
-        setThuliumContainer();
-        fitThuliumFrame();
-
-        if (attempts === 1 || attempts === 2 || attempts === 3 || attempts === 6 || attempts === 10 || attempts === 15) {
-          wakeUpThuliumLauncher();
-        }
-
-        for (var i = 0; i < methods.length; i++) callTc(methods[i]);
-
-        if (loading && attempts >= 5 && getThuliumFrame()) loading.style.display = 'none';
-
-        if (attempts >= 42) {
-          clearInterval(thuliumOpenTimer);
-          thuliumOpenTimer = null;
-          clearInterval(thuliumFitTimer);
-          thuliumFitTimer = null;
-        }
-      }, 160);
-    });
-  }
-
-  function closeThulium() {
-    if (thuliumOpenTimer) {
-      clearInterval(thuliumOpenTimer);
-      thuliumOpenTimer = null;
-    }
-    if (thuliumFitTimer) {
-      clearInterval(thuliumFitTimer);
-      thuliumFitTimer = null;
-    }
-    var mount = document.getElementById('wtl-layout-v5-thulium-mount');
-    if (mount) mount.classList.remove('wtl-open');
-    try {
-      if (window._tc && typeof window._tc.close === 'function') window._tc.close();
-      else if (typeof window._tc === 'function') window._tc('close');
-    } catch (e) {}
-  }
-
-  function nativeAvatarMenu() {
-    return document.querySelector('.header .nav-menu-avatar') || document.querySelector('.nav-menu-avatar');
-  }
-
-  function nativeAvatarTrigger() {
-    return document.querySelector('.header .nav-menu-avatar-trigger') || document.querySelector('.nav-menu-avatar-trigger');
-  }
-
-  function showNativeAccountMenu(force) {
-    var menu = nativeAvatarMenu();
-    var trigger = nativeAvatarTrigger();
-    var now = Date.now();
-
-    if (typeof force === 'boolean') nativeAccountWantedOpen = force;
-    else nativeAccountWantedOpen = !nativeAccountWantedOpen;
-
-    if (!nativeAccountWantedOpen) {
-      if (menu) {
-        menu.classList.remove('wtl-layout-native-account-open');
-        menu.classList.remove('active');
-        menu.style.display = '';
-        menu.style.visibility = '';
-        menu.style.pointerEvents = '';
-      }
-      return;
-    }
-
-    if (trigger && now - lastNativeAccountToggleAt > 350) {
-      lastNativeAccountToggleAt = now;
-      clickElement(trigger);
-    }
-
-    keepNativeAccountMenuVisible();
-  }
-
-  function keepNativeAccountMenuVisible() {
-    if (!isLayoutMode() || !nativeAccountWantedOpen) return;
-    var menu = nativeAvatarMenu();
-    if (!menu) return;
-
-    menu.classList.add('active');
-    menu.classList.add('wtl-layout-native-account-open');
-    menu.style.setProperty('display', 'block', 'important');
-    menu.style.setProperty('visibility', 'visible', 'important');
-    menu.style.setProperty('opacity', '1', 'important');
-    menu.style.setProperty('pointer-events', 'auto', 'important');
-    menu.style.setProperty('position', 'fixed', 'important');
-    menu.style.setProperty('right', '8px', 'important');
-    menu.style.setProperty('top', '72px', 'important');
-    menu.style.setProperty('z-index', '2147483647', 'important');
-
-    var lists = menu.querySelectorAll('.nav-menu-list');
-    for (var i = 0; i < lists.length; i++) {
-      if (lists[i].getAttribute('menu') === 'main') lists[i].classList.add('active');
-    }
-  }
-
-  function closeBaseOverlaysExceptWantedAccount() {
-    if (!isLayoutMode()) return;
-
-    try {
-      if (nativeAccountWantedOpen) {
-        keepNativeAccountMenuVisible();
-      } else {
-        var menu = nativeAvatarMenu();
-        if (menu) menu.classList.remove('wtl-layout-native-account-open');
-      }
-
-      var selectors = ['.nav-menu-boxed-wrap.active', '.nav-menu-search-popup-wrap.active', '.nav-menu-boxed-wrap[style*="display: block"]', '.nav-menu-search-popup-wrap[style*="display: block"]'];
-      for (var s = 0; s < selectors.length; s++) {
-        var nodes = document.querySelectorAll(selectors[s]);
-        for (var i = 0; i < nodes.length; i++) {
-          var el = nodes[i];
-          if (!el) continue;
-          el.classList.remove('active');
-          el.style.setProperty('display', 'none', 'important');
-          el.style.setProperty('visibility', 'hidden', 'important');
-          el.style.setProperty('pointer-events', 'none', 'important');
-        }
-      }
-    } catch (e) {}
-  }
-
-  function openSearch() {
-    var trigger = document.querySelector('.header-search-trigger');
-    if (trigger) {
-      clickElement(trigger);
-      return;
-    }
-    location.href = '/next/public/category';
-  }
-
-  function run() {
-    injectCss();
-    if (isLayoutMode()) {
-      renderTopbarV5();
-      ensureNavigatorToggle();
-      ensureDockV5();
-      ensureAiPersistentPop();
-      ensureThuliumMount();
-      closeBaseOverlaysExceptWantedAccount();
-    } else {
-      document.documentElement.classList.remove('wtl-layout-nav-collapsed');
-      showNativeAccountMenu(false);
-      closeThulium();
-      var toggle = document.getElementById('wtl-layout-left-toggle');
-      if (toggle) toggle.style.display = 'none';
-      var ai = document.getElementById('wtl-layout-native-ai-pop');
-      if (ai) ai.classList.remove('wtl-open');
-    }
-  }
-
-  document.addEventListener('click', function (event) {
-    var target = event.target;
-    if (!target) return;
-
-    if (target.id === 'wtl-layout-left-toggle') {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      toggleNavigator();
-      return;
-    }
-
-    if (target.id === 'wtl-layout-v5-ai-btn') {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      toggleAiPersistent();
-      return;
-    }
-
-    if (target.id === 'wtl-layout-v5-thulium-chat') {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      openThulium('chat');
-      return;
-    }
-
-    if (target.id === 'wtl-layout-v5-thulium-email') {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      openThulium('email');
-      return;
-    }
-
-    if (target.id === 'wtl-layout-v5-thulium-close') {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      closeThulium();
-      return;
-    }
-
-    if (target.id === 'wtl-layout-v5-account-trigger') {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      showNativeAccountMenu();
-      return;
-    }
-
-    if (target.id === 'wtl-layout-v5-search') {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      openSearch();
-      return;
-    }
-
-    if (isLayoutMode() && nativeAccountWantedOpen && target.closest) {
-      var menu = nativeAvatarMenu();
-      if (menu && !target.closest('.nav-menu-avatar') && !target.closest('#wtl-layout-v5-account-trigger')) {
-        showNativeAccountMenu(false);
-      }
-    }
-  }, true);
-
-  if (window.MutationObserver) {
-    var timer = null;
-    var observer = new MutationObserver(function () {
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(run, 35);
-    });
-
-    if (document.body) {
-      observer.observe(document.body, {
-        childList: true,
-        subtree: true,
-        attributes: true,
-        attributeFilter: ['class', 'style']
-      });
-    }
-  }
-
-  window.addEventListener('resize', run);
-  setInterval(run, 120);
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function () { setTimeout(run, 40); });
-  } else {
-    setTimeout(run, 40);
-  }
-})();
-
-/* PT Assistant Layout V6 correction patch.
-   Dopiszany po V5. Nie usuwa funkcji panelu - nadpisuje wyłącznie zachowanie trybu Layout.
-*/
-(function () {
-  'use strict';
-  if (window.__PT_ASSISTANT_LAYOUT_V6_CORRECTION__) return;
-  window.__PT_ASSISTANT_LAYOUT_V6_CORRECTION__ = true;
-
-  var BRAND = 'https://edu.profitabletrader.ai/uploads/media/12510/5/Group_361__1_.png?_t=1778149920';
-  var AI_SRC = 'https://app.multitools.ai/chat-embed-host.html?assistantId=83ab6507-f2b6-402d-8ffd-4ab42aa1e9b2';
-  var THULIUM_SRC = 'https://cdn.thulium.com/apps/chat-widget/chat-loader.js?hash=eliteexpertclub-4cb69311-31a0-4960-9608-ef51bf61693b';
-  var PREFIX = 'pt_assistant_v60_';
-  var ACTIVE_SECTION_KEY = 'wtl_layout_active_section_v6';
-  var NAV_COLLAPSED_KEY = PREFIX + 'layout_nav_collapsed_v6';
-  var lastLeftHtml = '';
-  var aiCreated = false;
-  var thuliumLoaded = false;
-  var thuliumLoading = false;
-  var thuliumOpenTimer = null;
-  var thuliumFitTimer = null;
-  var sidebarClickPatched = false;
-
-  var GROUPS = [
-    { id: 'start', title: 'Start / Wprowadzenie', source: ['Preparing / Get ready'], desc: 'Pierwsze lekcje, które klient powinien obejrzeć na start.', fallback: [
-      [191,'Witamy w Profitable Trader AI'],[192,'Przygotuj swoje stanowisko'],[193,'Model biznesowy w handlu'],[194,'Dziennik Inwestora'],[195,'Narzędzie wspierające: ZoomIT'],[196,'Narzędzie wspierające: Lightshot'],[197,'Przed Live Trading Session']
-    ]},
-    { id: 'platformy', title: 'Platformy handlowe', source: ['Trading Platforms'], desc: 'Lekcje dotyczące platform i środowiska tradingowego.', fallback: [
-      [198,'Platforma [darmowa] - MetaTrader 4'],[199,'Platforma [darmowa] - MetaTrader 5'],[200,'Platforma [płatna] - TradingView'],[201,'Dodawanie dodatkowej platformy MT4']
-    ]},
-    { id: 'podstawy', title: 'Podstawy handlu', source: ['ALLin for Beginner Trader'], desc: 'Podstawowe materiały dla początkującego tradera.', fallback: [
-      [212,'Wprowadzenie do rynku Forex'],[214,'Wprowadzenie do rynku Futures'],[215,"Typ Trader'a: Swing | Scalp | Day Trader"],[217,'Analiza Techniczna'],[218,'Analiza Fundamentalna'],[219,'Który typ analizy wybrać?'],[220,'Wykres: Świece Japońskie'],[221,'Typ Dnia Handlowego: Trend lub Range'],[222,'Linie Trendu'],[223,'Wsparcia i Opory'],[224,'Kanały Rotacyjne'],[225,"Kalendarz Trader'a"],[226,'Rodzaje Zleceń: Take Profit | Stop Loss | Limit Trailing'],[227,'Kluczowe słowa w handlu'],[228,'Teoria: Mądrość Tłumu na Rynkach'],[229,'Teoria: Fibonacci & Golden Ratio'],[230,'Teoria: Rynek Aukcyjny']
-    ]},
-    { id: 'psnd', title: 'Strategia PSND', source: ['ALLin PSND'], desc: 'Główna ścieżka nauki strategii PSND.', fallback: [
-      [232,'PSND - Zaczynamy!'],[233,'Przygotowanie Wykresu'],[234,'Instrumenty'],[235,'Separator Czasu'],[236,'Swing High & Low'],[237,'Trend Spadkowy & Wzrostowy'],[238,'Fibonacci: Ekspansje & Zniesienia'],[239,'Open High Low & Target'],[240,'Setup #1 Reakcja'],[241,'Cluster Fibbo'],[242,'Setup Uśrednienie'],[243,'Setup #2 Dojście'],[244,'Trading - Szybkie Nabywanie Umiejętności'],[245,'Market Replay'],[246,'Przewodnik po ALLin Panel']
-    ]},
-    { id: 'psnd-live', title: 'PSND na żywo!', source: ['ALLin Session - PSND'], desc: 'Nagrania sesji live dla strategii PSND.', fallback: [
-      [247,'LTS 13.02.2025 | Bartek'],[248,'LTS 31.01.2025 | Paweł'],[249,'LTS 07.02.2025 | Paweł'],[250,'LTS 13.12.2025 | Bartek']
-    ]},
-    { id: 'pac', title: 'Strategia PAC', source: ['Trading Workflow','Basics for Price Action','ALLin PAC','Price Action Setups'], desc: 'Pełna ścieżka strategii PAC, workflow oraz setupy.', fallback: [
-      [602,'Workflow'],[251,'Assets'],[252,'Charts'],[253,'PAC | Wprowadzenie'],[254,'PAC | Candles'],[255,'PAC | Trendlines'],[256,'PAC | EMA'],[257,'PAC | Fibo'],[258,'PAC | Elliot Waves'],[259,'PAC | Reversal Zone'],[260,'PAC | Double Top & Bottom'],[261,'PAC | Open High Low Close'],[262,'PAC | Session Objective'],[263,'PAC | Measured-Move'],[264,'PAC | Double Down & Up'],[265,'PAC | Hidden Channel'],[266,'PAC | Battle Zones'],[267,'PAC | Spike & Move'],[268,'PAC | Trading Range Basic'],[269,'PAC | 2-try Rule'],[270,'PAC | Price Action Scenario'],[271,'PAC | Micro Rotation'],[273,'PAC | Strenght & Pullback'],[274,'PAC | Price Action Scenario'],[275,'PAC | Micro Rotation Setups']
-    ]},
-    { id: 'pac-live', title: 'PAC na żywo!', source: ['ALLin Session - PAC'], desc: 'Nagrania sesji live dla strategii PAC.', fallback: [
-      [283,'LTS 09.06.2025 | Paweł'],[284,'LTS 06.02.2025 | Paweł'],[285,'LTS 23.01.2025 | Paweł'],[286,'LTS 15.01.2025 | Bartek'],[287,'LTS 08.07.2024 | Paweł']
-    ]}
-  ];
-
-  function isLayoutMode() { return document.documentElement.classList.contains('wtl-layout-mode'); }
-  function clean(v) { return String(v || '').replace(/\s+/g, ' ').trim(); }
-  function key(v) { return clean(v).toLowerCase(); }
-  function esc(v) { return String(v || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;'); }
-  function read(keyName, fallback) { try { var v = localStorage.getItem(PREFIX + keyName); return v ? JSON.parse(v) : fallback; } catch (e) { return fallback; } }
-  function saveRaw(keyName, value) { try { localStorage.setItem(keyName, JSON.stringify(value)); } catch (e) {} }
-  function readRaw(keyName, fallback) { try { var v = localStorage.getItem(keyName); return v ? JSON.parse(v) : fallback; } catch (e) { return fallback; } }
-  function lessonId(url) { var m = String(url || '').match(/\/lesson\/([^/?#]+)/i); return m && m[1] ? String(m[1]) : ''; }
-  function lessonUrl(id) { return location.origin + '/next/public/lesson/' + id; }
-
-  function clickElement(el) {
-    if (!el) return false;
-    try { el.click(); return true; } catch (e) {}
-    try {
-      var evt = document.createEvent('MouseEvents');
-      evt.initMouseEvent('click', true, true, window, 1, 0, 0, 0, 0, false, false, false, false, 0, null);
-      el.dispatchEvent(evt);
-      return true;
-    } catch (err) {}
-    return false;
-  }
-
-  function injectCss() {
-    if (document.getElementById('pt-layout-v6-style')) return;
-    var style = document.createElement('style');
-    style.id = 'pt-layout-v6-style';
-    style.textContent = [
-      'html.wtl-layout-mode,html.wtl-layout-mode body{overflow-x:hidden!important;scrollbar-gutter:stable!important}',
-      'html.wtl-layout-mode .sidebar-trigger{pointer-events:none!important}',
-      'html.wtl-layout-mode .sidebar:not(#wtl-layout-left),html.wtl-layout-mode .sidebar-wrap,html.wtl-layout-mode .sidebar-menu:not(#wtl-layout-left *),html.wtl-layout-mode [class*="sidebar-left"],html.wtl-layout-mode [class*="sidebar-menu"]:not(#wtl-layout-left *){display:none!important;visibility:hidden!important;pointer-events:none!important;transform:translateX(-120%)!important}',
-      'html.wtl-layout-mode #wtl-layout-topbar{z-index:2147483640!important;transition:none!important}',
-      'html.wtl-layout-mode #wtl-layout-left{top:64px!important;width:324px!important;transition:none!important;z-index:2147483638!important}',
-      'html.wtl-layout-mode #wtl-layout-left .wtl-layout-head{display:none!important}',
-      'html.wtl-layout-mode #wtl-layout-left .wtl-layout-body{padding-top:12px!important}',
-      'html.wtl-layout-mode #wtl-layout-right{z-index:2147483639!important}',
-      'html.wtl-layout-mode #wtl-layout-right .wtl-layout-native-dock{display:flex!important;gap:10px!important;align-items:center!important;justify-content:flex-end!important}',
-      'html.wtl-layout-mode .wtl-layout-page-shifted-v2{transition:none!important}',
-      'html.wtl-layout-nav-collapsed #wtl-layout-left{transform:translateX(-324px)!important;opacity:0!important;pointer-events:none!important}',
-      'html.wtl-layout-nav-collapsed .wtl-layout-page-shifted-v2{margin-left:0!important;width:100vw!important;max-width:100vw!important}',
-      '#wtl-layout-left-toggle{position:fixed!important;z-index:2147483646!important;left:318px!important;top:74px!important;width:28px!important;height:62px!important;border-radius:0 16px 16px 0!important;border:1px solid rgba(248,113,113,.46)!important;border-left:0!important;background:linear-gradient(135deg,#111,#451010)!important;color:#fecaca!important;box-shadow:10px 12px 32px rgba(0,0,0,.24)!important;display:none;align-items:center!important;justify-content:center!important;font-size:20px!important;font-weight:950!important;cursor:pointer!important;font-family:Inter,Arial,Helvetica,sans-serif!important}',
-      'html.wtl-layout-mode #wtl-layout-left-toggle{display:flex!important}',
-      'html.wtl-layout-nav-collapsed #wtl-layout-left-toggle{left:0!important;border-left:1px solid rgba(248,113,113,.46)!important;border-radius:0 16px 16px 0!important}',
-      '#wtl-layout-native-ai-pop{position:fixed!important;right:18px!important;bottom:76px!important;width:430px!important;max-width:calc(100vw - 36px)!important;height:620px!important;max-height:calc(100vh - 108px)!important;border:1px solid rgba(239,68,68,.42)!important;border-radius:18px!important;background:#070707!important;box-shadow:0 20px 70px rgba(0,0,0,.5)!important;overflow:hidden!important;display:none!important;pointer-events:auto!important;z-index:2147483645!important;isolation:isolate!important}',
-      '#wtl-layout-native-ai-pop.wtl-open{display:block!important}',
-      '#wtl-layout-native-ai-pop iframe{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;border:0!important;display:block!important;background:#111827!important;pointer-events:auto!important;z-index:1!important}',
-      '#wtl-layout-v6-thulium-mount{position:fixed!important;z-index:2147483645!important;right:18px!important;bottom:132px!important;width:420px!important;max-width:calc(100vw - 36px)!important;height:520px!important;max-height:calc(100vh - 154px)!important;border:1px solid rgba(239,68,68,.42)!important;border-radius:18px!important;background:#070707!important;box-shadow:0 20px 70px rgba(0,0,0,.52)!important;overflow:hidden!important;display:none!important;pointer-events:auto!important;font-family:Inter,Arial,Helvetica,sans-serif!important}',
-      '#wtl-layout-v6-thulium-mount.wtl-open{display:block!important}',
-      '#wtl-layout-v6-thulium-mount .wtl-layout-v6-thulium-loading{position:absolute!important;inset:0!important;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;color:rgba(255,255,255,.72);font-size:13px;background:#070707;z-index:2}',
-      '#wtl-layout-v6-thulium-close{position:absolute!important;right:10px!important;top:10px!important;z-index:999999!important;border:1px solid rgba(248,113,113,.46)!important;border-radius:11px!important;background:rgba(239,68,68,.18)!important;color:#fecaca!important;width:34px!important;height:34px!important;cursor:pointer!important;font-weight:950!important}',
-      '#wtl-layout-v6-thulium-mount iframe[title="Thulium Click2Contact"],#wtl-layout-v6-thulium-mount iframe,#wtl-layout-v6-thulium-mount .thulium-chat-wrapper,#wtl-layout-v6-thulium-mount .thulium-chat-frame-wrapper{position:absolute!important;left:-4px!important;top:-72px!important;right:auto!important;bottom:auto!important;width:calc(100% + 8px)!important;height:750px!important;min-width:0!important;min-height:750px!important;max-width:none!important;max-height:none!important;visibility:visible!important;opacity:1!important;display:block!important;pointer-events:auto!important;z-index:10!important;transform:none!important;border:0!important;overflow:hidden!important}',
-      'html.wtl-layout-mode #wtl-layout-v5-thulium-mount{display:none!important;visibility:hidden!important;pointer-events:none!important}',
-      'html.wtl-layout-mode #wtl-layout-v6-thulium-mount.wtl-open ~ .thulium-chat-wrapper,html.wtl-layout-mode #wtl-layout-v6-thulium-mount.wtl-open ~ .thulium-chat-frame-wrapper{display:none!important;visibility:hidden!important}',
-      'html.wtl-layout-mode body > .thulium-chat-wrapper:not(#wtl-layout-v6-thulium-mount *),html.wtl-layout-mode body > .thulium-chat-frame-wrapper:not(#wtl-layout-v6-thulium-mount *){opacity:0!important;visibility:hidden!important;pointer-events:none!important;left:-9999px!important;right:auto!important}',
-      'html.wtl-layout-mode .nav-menu-avatar.active,html.wtl-layout-mode .nav-menu-avatar.wtl-layout-native-account-open{display:block!important;visibility:visible!important;opacity:1!important;pointer-events:auto!important;position:fixed!important;right:8px!important;top:72px!important;z-index:2147483647!important}',
-      '@media(max-width:720px){#wtl-layout-native-ai-pop,#wtl-layout-v6-thulium-mount{left:10px!important;right:10px!important;width:auto!important;bottom:126px!important}#wtl-layout-left-toggle{top:70px!important}.wtl-layout-page-shifted-v2{margin-left:0!important;width:100vw!important;max-width:100vw!important}}'
-    ].join('');
-    document.head.appendChild(style);
-  }
-
-  function nativeSidebarLooksOpen() {
-    var nodes = document.querySelectorAll('.sidebar,.sidebar-wrap,.sidebar-menu,[class*="sidebar-left"],[class*="sidebar-menu"]');
-    for (var i = 0; i < nodes.length; i++) {
-      var el = nodes[i];
-      if (!el || (el.closest && el.closest('#wtl-layout-left'))) continue;
-      try {
-        var cs = window.getComputedStyle(el);
-        var r = el.getBoundingClientRect();
-        if (cs.display !== 'none' && cs.visibility !== 'hidden' && Number(cs.opacity) !== 0 && r.width > 40 && r.right > 10) return true;
-      } catch (e) {}
-    }
-    return false;
-  }
-
-  function closeNativeSidebarOnly() {
-    try {
-      var nodes = document.querySelectorAll('.sidebar,.sidebar-wrap,.sidebar-menu,[class*="sidebar-left"],[class*="sidebar-menu"]');
-      for (var i = 0; i < nodes.length; i++) {
-        var el = nodes[i];
-        if (!el || (el.closest && el.closest('#wtl-layout-left'))) continue;
-        el.style.setProperty('display','none','important');
-        el.style.setProperty('visibility','hidden','important');
-        el.style.setProperty('pointer-events','none','important');
-        el.style.setProperty('transform','translateX(-120%)','important');
-      }
-    } catch (e) {}
-  }
-
-  function patchSidebarClick() {
-    if (sidebarClickPatched) return;
-    sidebarClickPatched = true;
-
-    document.addEventListener('click', function (event) {
-      var t = event.target;
-      if (!isLayoutMode() || !t || !t.closest) return;
-      if (t.closest('.sidebar-trigger,[class*="sidebar-trigger"],[class*="SidebarTrigger"]')) {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        closeNativeSidebarOnly();
+  function setupObservers() {
+    document.addEventListener('change', function (ev) {
+      var t = ev.target;
+      if (!t || !t.matches) return;
+      if (t.matches('input[name="lesson_done_form[isLessonDone]"]') || t.matches('#lesson_done_form_isLessonDone') || t.matches('.lesson-toggle-status input[type="checkbox"]')) {
+        saveStatusCache({});
+        layoutGroupsCacheAt = 0;
+        setTimeout(function () { if (document.documentElement.classList.contains('wtl-layout-mode')) refreshLayoutStatus(true); }, 250);
       }
     }, true);
 
-    try {
-      var oldClick = HTMLElement.prototype.click;
-      HTMLElement.prototype.click = function () {
-        try {
-          if (isLayoutMode() && this && this.matches && this.matches('.sidebar-trigger,[class*="sidebar-trigger"],[class*="SidebarTrigger"]')) {
-            if (nativeSidebarLooksOpen()) closeNativeSidebarOnly();
-            return;
-          }
-        } catch (e) {}
-        return oldClick.apply(this, arguments);
-      };
-    } catch (e2) {}
-  }
-
-  function titleFromNode(node) { return clean(node ? (node.getAttribute('title') || node.textContent || node.innerText || '') : ''); }
-  function isDoneItem(item) {
-    if (!item) return false;
-    if (item.querySelector('.fa-circle-check,.fa-check,.wtl-color-green,.text-success,[class*="green"],[class*="success"]')) return true;
-    var txt = key(item.textContent || item.innerText || '');
-    return txt.indexOf('completed') !== -1 || txt.indexOf('ukończona') !== -1 || txt.indexOf('ukonczona') !== -1;
-  }
-  function extractSectionTitle(box) {
-    return titleFromNode(box && (box.querySelector('.lessons-box-header-top span') || box.querySelector('.lessons-box-header span') || box.querySelector('.lessons-box-header-top') || box.querySelector('[class*="header"]')));
-  }
-  function findBox(sourceTitle) {
-    var wanted = key(sourceTitle);
-    var boxes = document.querySelectorAll('.lessons-box,.lesson-list-box,[class*="lessons-box"],[class*="lesson-box"]');
-    for (var i = 0; i < boxes.length; i++) {
-      var t = key(extractSectionTitle(boxes[i]));
-      if (t && (t === wanted || t.indexOf(wanted) !== -1 || wanted.indexOf(t) !== -1)) return boxes[i];
-    }
-    return null;
-  }
-  function extractLessons(box) {
-    var out = [];
-    var seen = {};
-    if (!box) return out;
-    var links = box.querySelectorAll('a[href*="/lesson/"],a[href*="/next/public/lesson/"]');
-    for (var i = 0; i < links.length; i++) {
-      var a = links[i];
-      var id = lessonId(a.getAttribute('href') || a.href || '');
-      if (!id || seen[id]) continue;
-      seen[id] = true;
-      var item = a.closest('.lesson-item,li,.accordion-item,.item,div') || a;
-      var title = titleFromNode(a).replace(/Completed|Ukończona|Ukonczona|Do obejrzenia/gi,'').trim();
-      var href = '';
-      try { href = new URL(a.getAttribute('href') || a.href, location.origin).href; } catch (e) { href = lessonUrl(id); }
-      out.push({ id: Number(id), title: title || ('Lekcja ' + id), url: href, done: isDoneItem(item), fallback: false });
-    }
-    return out;
-  }
-  function fallbackLessons(group) {
-    var out = [];
-    for (var i = 0; i < (group.fallback || []).length; i++) {
-      out.push({ id: group.fallback[i][0], title: group.fallback[i][1], url: lessonUrl(group.fallback[i][0]), done: false, fallback: true });
-    }
-    return out;
-  }
-  function scanGroups() {
-    var groups = [];
-    for (var i = 0; i < GROUPS.length; i++) {
-      var cfg = GROUPS[i];
-      var lessons = [];
-      var seen = {};
-      for (var s = 0; s < cfg.source.length; s++) {
-        var items = extractLessons(findBox(cfg.source[s]));
-        for (var j = 0; j < items.length; j++) {
-          if (seen[items[j].id]) continue;
-          seen[items[j].id] = true;
-          lessons.push(items[j]);
-        }
+    var lastUrl = location.href;
+    setInterval(function () {
+      if (location.href === lastUrl) return;
+      lastUrl = location.href;
+      layoutGroupsCacheAt = 0;
+      if (document.documentElement.classList.contains('wtl-layout-mode')) {
+        closeBaseNavigatorNoClick();
+        renderLayoutLeft();
+        refreshLayoutStatus(true);
       }
-      if (!lessons.length) lessons = fallbackLessons(cfg);
-      groups.push({ id: cfg.id, title: cfg.title, sourceTitle: cfg.source.join(' + '), desc: cfg.desc, lessons: lessons });
-    }
-    return groups;
-  }
-  function progress(lessons) {
-    var done = 0;
-    for (var i = 0; i < lessons.length; i++) if (lessons[i].done) done++;
-    var total = lessons.length;
-    return { done: done, total: total, percent: total ? Math.round(done / total * 100) : 0 };
-  }
-  function groupById(id, groups) {
-    for (var i = 0; i < groups.length; i++) if (groups[i].id === id) return groups[i];
-    return groups[0] || null;
-  }
-  function currentLessonId() { return lessonId(location.href); }
-  function currentLessonTitle() {
-    return titleFromNode(document.querySelector('.lesson-content-item.title-nav > .title[title],.lesson-content-item.title-nav .title[title],.lesson-item.active .lesson-item-title[title],.content-lesson-in .title[title],h1,.title[title]')) || clean(document.title || '') || 'Ostatnia lekcja PT';
-  }
-  function formatDate(iso) {
-    if (!iso) return '';
-    try {
-      var date = new Date(iso), diff = Date.now() - date.getTime(), min = Math.floor(diff/60000), h = Math.floor(min/60), days = Math.floor(h/24);
-      if (min < 1) return 'przed chwilą';
-      if (min < 60) return min + ' min temu';
-      if (h < 24) return h + ' godz. temu';
-      if (days === 1) return 'wczoraj';
-      if (days < 7) return days + ' dni temu';
-      return date.toLocaleDateString('pl-PL');
-    } catch (e) { return ''; }
-  }
-  function saveCurrentLesson(groups) {
-    var id = currentLessonId();
-    if (!id) return;
-    var group = null;
-    for (var i = 0; i < groups.length; i++) {
-      for (var j = 0; j < groups[i].lessons.length; j++) {
-        if (String(groups[i].lessons[j].id) === String(id)) group = groups[i];
-      }
-    }
-    var lesson = { url: location.href, path: location.pathname, id: id, title: currentLessonTitle(), section: group ? group.title : 'Nieprzypisana sekcja', sectionId: group ? group.id : '', savedAt: new Date().toISOString() };
-    try { localStorage.setItem(PREFIX + 'last_lesson', JSON.stringify(lesson)); } catch (e) {}
-  }
-  function lastLessonHtml(groups) {
-    var lesson = read('last_lesson', null);
-    if (!lesson) return '';
-    var savedId = lesson.id || lessonId(lesson.url);
-    var isCurrent = currentLessonId() && savedId && String(currentLessonId()) === String(savedId);
-    var title = lesson.title || 'Ostatnia lekcja PT';
-    var section = lesson.section || 'Nieprzypisana sekcja';
-    return '<div class="wtl-layout-card">' +
-      '<div class="wtl-layout-label">↩ WRÓĆ DO OSTATNIEJ LEKCJI</div>' +
-      '<div class="wtl-layout-muted">Ostatnio oglądana lekcja:</div>' +
-      '<div class="wtl-layout-title">' + esc(title) + '</div>' +
-      '<div class="wtl-layout-muted">Sekcja: ' + esc(section) + '</div>' +
-      '<div class="wtl-layout-muted">Zapisano: ' + esc(formatDate(lesson.savedAt)) + '</div>' +
-      (isCurrent ? '<button type="button" class="wtl-layout-back" style="margin-top:10px;width:100%;justify-content:center;" disabled>Aktualnie oglądasz tę lekcję</button>' : '<a class="wtl-layout-back" style="margin-top:10px;text-decoration:none;display:flex;justify-content:center;" href="' + esc(lesson.url) + '">Wróć do: ' + esc(title.length > 34 ? title.slice(0,33) + '…' : title) + '</a>') +
-      '</div>';
-  }
-  function sectionsHtml(groups) {
-    var html = lastLessonHtml(groups) + '<div class="wtl-layout-card"><div class="wtl-layout-label">▶ PLAN LEKCJI</div><div class="wtl-layout-title">Wybierz sekcję</div><div class="wtl-layout-muted">Layout zczytuje lekcje bezpośrednio z listy lekcji na platformie i odświeża postęp na bieżąco.</div>';
-    for (var i = 0; i < groups.length; i++) {
-      var g = groups[i], p = progress(g.lessons || []);
-      html += '<button type="button" class="wtl-layout-section" data-layout-section="' + esc(g.id) + '"><div class="wtl-layout-num">' + (i + 1) + '</div><div style="flex:1;min-width:0;"><div class="wtl-layout-title">' + esc(g.title) + '</div><div class="wtl-layout-muted">' + esc(g.desc) + '</div><div class="wtl-layout-muted" style="opacity:.75;margin-top:3px;">Źródło: ' + esc(g.sourceTitle) + '</div><div class="wtl-layout-progress"><div class="wtl-layout-progress-top"><span>Postęp</span><strong>' + p.done + '/' + p.total + ' — ' + p.percent + '%</strong></div><div class="wtl-layout-bar"><div class="wtl-layout-fill" style="width:' + p.percent + '%"></div></div></div></div></button>';
-    }
-    return html + '</div>';
-  }
-  function lessonsHtml(id, groups) {
-    var g = groupById(id, groups), lessons = g && g.lessons ? g.lessons : [], p = progress(lessons);
-    var html = '<div class="wtl-layout-card"><div class="wtl-layout-topbar"><div><div class="wtl-layout-label">▶ PLAN LEKCJI</div><div class="wtl-layout-title">' + esc(g ? g.title : 'Plan lekcji') + '</div></div><button type="button" class="wtl-layout-back" id="wtl-layout-plan-back">← Wróć</button></div><div class="wtl-layout-muted">Źródło: ' + esc(g ? g.sourceTitle : '') + '</div><div class="wtl-layout-progress"><div class="wtl-layout-progress-top"><span>Postęp sekcji</span><strong>' + p.done + '/' + p.total + ' — ' + p.percent + '%</strong></div><div class="wtl-layout-bar"><div class="wtl-layout-fill" style="width:' + p.percent + '%"></div></div></div>';
-    for (var i = 0; i < lessons.length; i++) {
-      var l = lessons[i];
-      html += '<a class="wtl-layout-lesson" href="' + esc(l.url) + '"><div class="wtl-layout-num">' + (i + 1) + '</div><div><div class="wtl-layout-title">' + esc(l.title) + '</div><div class="wtl-layout-muted">Lekcja #' + esc(l.id) + (l.fallback ? ' · fallback' : '') + '</div><span class="wtl-layout-status ' + (l.done ? 'done' : 'todo') + '">' + (l.done ? 'Ukończona' : 'Do obejrzenia') + '</span></div></a>';
-    }
-    return html + '</div>';
-  }
-  function renderLeftV6(force) {
-    if (!isLayoutMode()) return;
-    var left = document.getElementById('wtl-layout-left');
-    if (!left) return;
-    var groups = scanGroups();
-    saveCurrentLesson(groups);
-    var active = sessionStorage.getItem(ACTIVE_SECTION_KEY) || sessionStorage.getItem('wtl_layout_active_section') || '';
-    var html = '<div class="wtl-layout-body">' + (active ? lessonsHtml(active, groups) : sectionsHtml(groups)) + '</div>';
-    if (force || html !== lastLeftHtml) {
-      left.innerHTML = html;
-      lastLeftHtml = html;
+    }, 700);
+
+    if (window.MutationObserver) {
+      var timer = null;
+      var obs = new MutationObserver(function () {
+        if (!document.documentElement.classList.contains('wtl-layout-mode')) return;
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(function () {
+          closeBaseNavigatorNoClick();
+          hideLooseThuliumWidgets();
+        }, 250);
+      });
+      if (document.body) obs.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style'] });
     }
   }
 
-  function ensureNavigatorToggle() {
-    var btn = document.getElementById('wtl-layout-left-toggle');
-    if (!btn) {
-      btn = document.createElement('button');
-      btn.type = 'button';
-      btn.id = 'wtl-layout-left-toggle';
-      btn.setAttribute('aria-label', 'Schowaj lub pokaż plan lekcji');
-      document.body.appendChild(btn);
-    }
-    var collapsed = !!readRaw(NAV_COLLAPSED_KEY, false);
-    document.documentElement.classList.toggle('wtl-layout-nav-collapsed', isLayoutMode() && collapsed);
-    btn.innerHTML = collapsed ? '›' : '‹';
-    btn.title = collapsed ? 'Pokaż plan lekcji' : 'Schowaj plan lekcji';
-  }
-  function toggleNavigator() { saveRaw(NAV_COLLAPSED_KEY, !readRaw(NAV_COLLAPSED_KEY, false)); ensureNavigatorToggle(); }
-
-  function ensureDock() {
-    if (!isLayoutMode()) return;
-    var right = document.getElementById('wtl-layout-right');
-    if (!right) return;
-    var dock = right.querySelector('.wtl-layout-native-dock');
-    if (!dock) { dock = document.createElement('div'); dock.className = 'wtl-layout-native-dock'; right.appendChild(dock); }
-    var html = '<button type="button" class="wtl-layout-native-btn" id="wtl-layout-v6-ai-btn">AI Agent</button><button type="button" class="wtl-layout-native-btn" id="wtl-layout-v6-thulium-chat">Thulium: Czat</button><button type="button" class="wtl-layout-native-btn" id="wtl-layout-v6-thulium-email">Thulium: E-mail</button>';
-    if (dock.innerHTML !== html) dock.innerHTML = html;
-  }
-  function ensureAi() {
-    var pop = document.getElementById('wtl-layout-native-ai-pop');
-    if (!pop) { pop = document.createElement('div'); pop.id = 'wtl-layout-native-ai-pop'; pop.className = 'wtl-layout-native-ai-pop'; document.body.appendChild(pop); }
-    if (!aiCreated || !pop.querySelector('iframe')) {
-      pop.innerHTML = '<iframe src="' + esc(AI_SRC) + '" allow="microphone; clipboard-read; clipboard-write" loading="eager" referrerpolicy="strict-origin-when-cross-origin"></iframe>';
-      aiCreated = true;
-    }
-    if (!isLayoutMode()) pop.classList.remove('wtl-open');
-  }
-  function toggleAi() { ensureAi(); var pop = document.getElementById('wtl-layout-native-ai-pop'); if (pop) pop.classList.toggle('wtl-open'); }
-
-  function ensureTcQueue() {
-    if (!window._tc || typeof window._tc !== 'function') {
-      window._tc = function () { (window._tc.q = window._tc.q || []).push(arguments); };
-    }
-  }
-  function ensureThuliumMount() {
-    var old = document.getElementById('wtl-layout-v5-thulium-mount');
-    if (old) old.classList.remove('wtl-open');
-    var mount = document.getElementById('wtl-layout-v6-thulium-mount');
-    if (!mount) {
-      mount = document.createElement('div');
-      mount.id = 'wtl-layout-v6-thulium-mount';
-      mount.innerHTML = '<button type="button" id="wtl-layout-v6-thulium-close" aria-label="Zamknij Thulium">×</button><div class="wtl-layout-v6-thulium-loading">Thulium gotowe do uruchomienia.</div><button type="button" class="wtl-thulium-native-control-cover" id="wtl-layout-v6-cover-min" aria-label="Wróć"></button><button type="button" class="wtl-thulium-native-control-cover" id="wtl-layout-v6-cover-close" aria-label="Wróć"></button>';
-      document.body.appendChild(mount);
-    }
-    return mount;
-  }
-  function setThuliumContainer() {
-    ensureTcQueue();
-    ensureThuliumMount();
-    try { if (window._tc && typeof window._tc.set_container === 'function') { window._tc.set_container('wtl-layout-v6-thulium-mount'); return true; } } catch (e) {}
-    try { if (typeof window._tc === 'function') { window._tc('set_container', 'wtl-layout-v6-thulium-mount'); return true; } } catch (e2) {}
-    return false;
-  }
-  function getThuliumScript() { return document.querySelector('script[src*="cdn.thulium.com/apps/chat-widget/chat-loader.js"]'); }
-  function getThuliumFrame() { return document.querySelector('#wtl-layout-v6-thulium-mount iframe[title="Thulium Click2Contact"]') || document.querySelector('#wtl-layout-v6-thulium-mount iframe') || document.querySelector('iframe[title="Thulium Click2Contact"]'); }
-  function loadThulium(callback) {
-    ensureTcQueue(); setThuliumContainer();
-    if (thuliumLoaded || getThuliumScript()) {
-      setTimeout(function () { thuliumLoaded = true; setThuliumContainer(); if (callback) callback(); }, thuliumLoaded ? 80 : 700);
-      return;
-    }
-    if (thuliumLoading) { setTimeout(function () { loadThulium(callback); }, 120); return; }
-    thuliumLoading = true;
-    var script = document.createElement('script'); script.async = true; script.id = 'pt-thulium-layout-loader-v6'; script.src = THULIUM_SRC + '&ptLayoutV6=' + Date.now();
-    script.onload = function () { thuliumLoaded = true; thuliumLoading = false; setTimeout(function () { setThuliumContainer(); if (callback) callback(); }, 750); };
-    script.onerror = function () { thuliumLoading = false; var l = ensureThuliumMount().querySelector('.wtl-layout-v6-thulium-loading'); if (l) l.innerHTML = 'Nie udało się załadować Thulium.'; };
-    document.head.appendChild(script);
-  }
-  function callTc(method) {
-    try { if (window._tc && typeof window._tc[method] === 'function') { window._tc[method](); return true; } } catch (e) {}
-    try { if (typeof window._tc === 'function') { window._tc(method); return true; } } catch (e2) {}
-    return false;
-  }
-  function wakeThulium() {
-    var selectors = ['#wtl-layout-v6-thulium-mount .thulium-chat-wrapper','#wtl-layout-v6-thulium-mount .thulium-chat-frame-wrapper','#wtl-layout-v6-thulium-mount iframe[title="Thulium Click2Contact"]','.thulium-chat-wrapper','.thulium-chat-frame-wrapper','iframe[title="Thulium Click2Contact"]'];
-    for (var i = 0; i < selectors.length; i++) { var n = document.querySelector(selectors[i]); if (n) clickElement(n); }
-  }
-  function fitThulium() {
-    var frame = getThuliumFrame(); if (!frame) return;
-    var mount = ensureThuliumMount();
-    try { if (frame.parentNode !== mount && frame.tagName && frame.tagName.toLowerCase() === 'iframe') mount.appendChild(frame); } catch (e) {}
-    try {
-      frame.style.setProperty('position','absolute','important'); frame.style.setProperty('left','-4px','important'); frame.style.setProperty('top','-72px','important'); frame.style.setProperty('right','auto','important'); frame.style.setProperty('bottom','auto','important'); frame.style.setProperty('width','calc(100% + 8px)','important'); frame.style.setProperty('height','750px','important'); frame.style.setProperty('min-height','750px','important'); frame.style.setProperty('max-height','none','important'); frame.style.setProperty('display','block','important'); frame.style.setProperty('visibility','visible','important'); frame.style.setProperty('opacity','1','important'); frame.style.setProperty('pointer-events','auto','important'); frame.style.setProperty('z-index','10','important'); frame.style.setProperty('transform','none','important'); frame.style.setProperty('border','0','important'); frame.style.setProperty('overflow','hidden','important');
-    } catch (e2) {}
-    var loading = mount.querySelector('.wtl-layout-v6-thulium-loading');
-    if (loading && frame) loading.style.display = 'none';
-  }
-  function openThulium(intent) {
-    if (intent !== 'email') intent = 'chat';
-    var mount = ensureThuliumMount(); mount.classList.add('wtl-open');
-    var loading = mount.querySelector('.wtl-layout-v6-thulium-loading'); if (loading) { loading.style.display = 'flex'; loading.innerHTML = 'Otwieranie Thulium...'; }
-    loadThulium(function () {
-      var methods = intent === 'email' ? ['open_email','open_email_form','open_message','open_message_form','open_contact_form','open_contact','send_message'] : ['open_chat','open_chat_form','chat'];
-      if (thuliumOpenTimer) clearInterval(thuliumOpenTimer); if (thuliumFitTimer) clearInterval(thuliumFitTimer);
-      var attempts = 0;
-      thuliumFitTimer = setInterval(function () { setThuliumContainer(); fitThulium(); }, 120);
-      thuliumOpenTimer = setInterval(function () {
-        attempts++; setThuliumContainer(); fitThulium();
-        if (attempts === 1 || attempts === 2 || attempts === 3 || attempts === 6 || attempts === 10 || attempts === 15) wakeThulium();
-        for (var i = 0; i < methods.length; i++) callTc(methods[i]);
-        if (loading && attempts >= 5 && getThuliumFrame()) loading.style.display = 'none';
-        if (attempts >= 42) { clearInterval(thuliumOpenTimer); thuliumOpenTimer = null; clearInterval(thuliumFitTimer); thuliumFitTimer = null; }
-      }, 150);
-    });
-  }
-  function closeThulium() {
-    if (thuliumOpenTimer) { clearInterval(thuliumOpenTimer); thuliumOpenTimer = null; }
-    if (thuliumFitTimer) { clearInterval(thuliumFitTimer); thuliumFitTimer = null; }
-    var m = document.getElementById('wtl-layout-v6-thulium-mount'); if (m) m.classList.remove('wtl-open');
-    try { if (window._tc && typeof window._tc.close === 'function') window._tc.close(); else if (typeof window._tc === 'function') window._tc('close'); } catch (e) {}
+  function initPatch() {
+    injectCss();
+    createLayoutDom();
+    addLayoutButtonToPanel();
+    setupObservers();
+    setInterval(addLayoutButtonToPanel, 1200);
   }
 
-  function openNativeAccount() {
-    var menu = document.querySelector('.header .nav-menu-avatar') || document.querySelector('.nav-menu-avatar');
-    var trigger = document.querySelector('.header .nav-menu-avatar-trigger') || document.querySelector('.nav-menu-avatar-trigger');
-    if (menu && menu.classList.contains('active')) return;
-    if (trigger) clickElement(trigger);
-    setTimeout(function () {
-      var m = document.querySelector('.header .nav-menu-avatar') || document.querySelector('.nav-menu-avatar');
-      if (m) {
-        m.classList.add('active');
-        m.classList.add('wtl-layout-native-account-open');
-        m.style.setProperty('display','block','important');
-        m.style.setProperty('visibility','visible','important');
-        m.style.setProperty('opacity','1','important');
-        m.style.setProperty('pointer-events','auto','important');
-      }
-    }, 40);
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initPatch);
+  } else {
+    initPatch();
   }
-  function closeOtherBasePopups() {
-    if (!isLayoutMode()) return;
-    var selectors = ['.nav-menu-boxed-wrap.active','.nav-menu-search-popup-wrap.active','.nav-menu-boxed-wrap[style*="display: block"]','.nav-menu-search-popup-wrap[style*="display: block"]'];
-    for (var s = 0; s < selectors.length; s++) {
-      var nodes = document.querySelectorAll(selectors[s]);
-      for (var i = 0; i < nodes.length; i++) { nodes[i].classList.remove('active'); nodes[i].style.setProperty('display','none','important'); nodes[i].style.setProperty('visibility','hidden','important'); nodes[i].style.setProperty('pointer-events','none','important'); }
-    }
-  }
-
-  function run() {
-    injectCss(); patchSidebarClick();
-    if (isLayoutMode()) {
-      closeNativeSidebarOnly();
-      closeOtherBasePopups();
-      ensureNavigatorToggle();
-      ensureDock();
-      ensureAi();
-      ensureThuliumMount();
-      renderLeftV6(false);
-    } else {
-      document.documentElement.classList.remove('wtl-layout-nav-collapsed');
-      var t = document.getElementById('wtl-layout-left-toggle'); if (t) t.style.display = 'none';
-      var ai = document.getElementById('wtl-layout-native-ai-pop'); if (ai) ai.classList.remove('wtl-open');
-      closeThulium();
-    }
-  }
-
-  document.addEventListener('click', function (event) {
-    var target = event.target;
-    if (!target) return;
-    var section = target.closest && target.closest('[data-layout-section]');
-    if (isLayoutMode() && section) {
-      event.preventDefault(); event.stopImmediatePropagation();
-      var id = section.getAttribute('data-layout-section') || '';
-      sessionStorage.setItem(ACTIVE_SECTION_KEY, id);
-      sessionStorage.setItem('wtl_layout_active_section', id);
-      lastLeftHtml = '';
-      renderLeftV6(true);
-      return;
-    }
-    if (isLayoutMode() && (target.id === 'wtl-layout-plan-back' || (target.closest && target.closest('#wtl-layout-plan-back')))) {
-      event.preventDefault(); event.stopImmediatePropagation();
-      sessionStorage.removeItem(ACTIVE_SECTION_KEY);
-      sessionStorage.removeItem('wtl_layout_active_section');
-      lastLeftHtml = '';
-      renderLeftV6(true);
-      return;
-    }
-    if (target.id === 'wtl-layout-left-toggle') { event.preventDefault(); event.stopImmediatePropagation(); toggleNavigator(); return; }
-    if (target.id === 'wtl-layout-v6-ai-btn' || target.id === 'wtl-layout-v5-ai-btn' || target.id === 'wtl-layout-native-ai-btn') { event.preventDefault(); event.stopImmediatePropagation(); toggleAi(); return; }
-    if (target.id === 'wtl-layout-v6-thulium-chat' || target.id === 'wtl-layout-v5-thulium-chat' || target.id === 'wtl-layout-native-thulium-chat') { event.preventDefault(); event.stopImmediatePropagation(); openThulium('chat'); return; }
-    if (target.id === 'wtl-layout-v6-thulium-email' || target.id === 'wtl-layout-v5-thulium-email' || target.id === 'wtl-layout-native-thulium-email') { event.preventDefault(); event.stopImmediatePropagation(); openThulium('email'); return; }
-    if (target.id === 'wtl-layout-v6-thulium-close' || target.id === 'wtl-layout-v6-cover-min' || target.id === 'wtl-layout-v6-cover-close') { event.preventDefault(); event.stopImmediatePropagation(); closeThulium(); return; }
-    if (target.id === 'wtl-layout-v5-account-trigger' || target.id === 'wtl-layout-account-trigger' || (target.closest && target.closest('.wtl-layout-header-avatar'))) { event.preventDefault(); event.stopImmediatePropagation(); openNativeAccount(); return; }
-  }, true);
-
-  document.addEventListener('change', function (event) {
-    if (!isLayoutMode()) return;
-    var t = event.target;
-    if (t && t.matches && (t.matches('input[name="lesson_done_form[isLessonDone]"]') || t.matches('#lesson_done_form_isLessonDone') || t.matches('.lesson-toggle-status input[type="checkbox"]'))) {
-      setTimeout(function () { lastLeftHtml = ''; renderLeftV6(true); }, 150);
-      setTimeout(function () { lastLeftHtml = ''; renderLeftV6(true); }, 900);
-    }
-  }, true);
-
-  if (window.MutationObserver && document.body) {
-    var timer = null;
-    var observer = new MutationObserver(function () {
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(function () { run(); }, 120);
-    });
-    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class','style','checked'] });
-  }
-  window.addEventListener('resize', run);
-  setInterval(run, 900);
-  setTimeout(run, 30);
-  setTimeout(run, 300);
-  setTimeout(run, 900);
 })();

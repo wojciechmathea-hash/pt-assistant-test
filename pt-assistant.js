@@ -1,16 +1,16 @@
 (function () {
   'use strict';
 
-  if (window.__PT_ASSISTANT_GTM_MAIN_V55_SECTION_PROGRESS_NAME_FIX__) return;
-  window.__PT_ASSISTANT_GTM_MAIN_V55_SECTION_PROGRESS_NAME_FIX__ = true;
+  if (window.__PT_ASSISTANT_GTM_MAIN_V56_LAST_LESSON_ONLY_IN_SECTION_PICKER__) return;
+  window.__PT_ASSISTANT_GTM_MAIN_V56_LAST_LESSON_ONLY_IN_SECTION_PICKER__ = true;
 
   var CONFIG = {
     allowedHostnames: ['edu.profitabletrader.ai'],
     aiIframeSrc: 'https://app.multitools.ai/chat-embed-host.html?assistantId=83ab6507-f2b6-402d-8ffd-4ab42aa1e9b2',
     thuliumScriptSrc: 'https://cdn.thulium.com/apps/chat-widget/chat-loader.js?hash=eliteexpertclub-4cb69311-31a0-4960-9608-ef51bf61693b',
-    storagePrefix: 'pt_assistant_v55_',
+    storagePrefix: 'pt_assistant_v56_',
 
-    brandImageSrc: 'TU_WKLEJ_LINK_DO_GRAFIKI',
+    brandImageSrc: 'https://github.com/wojciechmathea-hash/pt-assistant-test/blob/main/Untitled%20(5).png',
 
     siteLinks: [
       {
@@ -234,6 +234,21 @@
     return 'Nieprzypisana sekcja';
   }
 
+  function lessonSectionIdById(id) {
+    id = Number(id || 0);
+
+    for (var i = 0; i < CONFIG.lessonPlanGroups.length; i++) {
+      var group = CONFIG.lessonPlanGroups[i];
+      var lessons = group.lessons || [];
+
+      for (var j = 0; j < lessons.length; j++) {
+        if (Number(lessons[j]) === id) return group.id;
+      }
+    }
+
+    return '';
+  }
+
   function readTitleNode(node) {
     if (!node) return '';
     return clean(node.getAttribute('title') || node.textContent || node.innerText || '');
@@ -284,6 +299,7 @@
       id: lessonId,
       title: currentLessonTitle(),
       section: lessonSectionById(lessonId),
+      sectionId: lessonSectionIdById(lessonId),
       savedAt: new Date().toISOString()
     };
 
@@ -896,6 +912,7 @@
       + '.wtl-tab.wtl-active{display:block;}'
 
       + '.wtl-card{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:15px;padding:12px;}'
+      + '.wtl-card + .wtl-card{margin-top:9px;}'
       + '.wtl-label{display:inline-flex;color:#fca5a5;font-size:10.5px;font-weight:900;text-transform:uppercase;letter-spacing:.04em;margin-bottom:7px;}'
       + '.wtl-lesson-title{font-size:13px;font-weight:800;line-height:1.32;margin-bottom:5px;}'
       + '.wtl-muted{color:rgba(255,255,255,.62);font-size:11.5px;line-height:1.4;}'
@@ -1032,7 +1049,7 @@
       + '}';
 
     var style = document.createElement('style');
-    style.id = 'pt-assistant-style-v55';
+    style.id = 'pt-assistant-style-v56';
     style.type = 'text/css';
     style.appendChild(document.createTextNode(css));
     document.head.appendChild(style);
@@ -1075,6 +1092,7 @@
 
   function lessonPlanSectionsHtml() {
     var html = ''
+      + lessonBoxHtml()
       + '<div class="wtl-card">'
       + '<div class="wtl-label">▶ Plan lekcji</div>'
       + '<div class="wtl-lesson-title">Wybierz sekcję</div>'
@@ -1129,10 +1147,6 @@
       + '</div>'
 
       + '<div class="wtl-muted">Panel automatycznie pobiera nazwy lekcji oraz sprawdza, które są oznaczone jako ukończone.</div>'
-
-      + '<div class="wtl-plan-section">'
-      + '<div id="wtl-lesson-box">' + lessonBoxHtml() + '</div>'
-      + '</div>'
 
       + '<div class="wtl-plan-progress-wrap">'
       + '<div class="wtl-plan-progress-top">'
@@ -1549,7 +1563,22 @@
 
       if (target.id === 'wtl-return-last-lesson') {
         var lesson = getLastLesson();
-        if (lesson && lesson.url) location.href = lesson.url;
+
+        if (lesson && lesson.url) {
+          var savedId = lesson.id || lessonIdFromUrl(lesson.url);
+          var sectionId = lesson.sectionId || lessonSectionIdById(savedId);
+
+          save('active_tab', 'order');
+
+          if (sectionId) {
+            save('active_plan_section', sectionId);
+          } else {
+            remove('active_plan_section');
+          }
+
+          location.href = lesson.url;
+        }
+
         return;
       }
     }, true);
@@ -1745,7 +1774,7 @@
 
     var script = document.createElement('script');
     script.async = true;
-    script.id = 'pt-thulium-loader-v55';
+    script.id = 'pt-thulium-loader-v56';
     script.src = CONFIG.thuliumScriptSrc + '&ptReload=' + Date.now();
 
     script.onload = function () {

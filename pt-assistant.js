@@ -7807,256 +7807,305 @@
   else init();
 })();
 
-/* PT Assistant V30 - stable navigation loader + non destructive layout Thulium bridge.
-   Dopisane na koncu czystej wersji. Nie resetuje stanu Thulium, nie czysci storage
-   i nie klika w petli natywnych przyciskow. Loader dziala tylko przy realnej zmianie URL. */
+/* PT Assistant V31 - navigation loader that survives page changes + Thulium layout anti-blank/anti-jump patch.
+   Dopisane na koncu czystego pliku. Nie czysci storage Thulium i nie resetuje aktywnego czatu. */
 (function () {
   'use strict';
 
-  if (window.__PT_ASSISTANT_V30_STABLE_LOADER_THULIUM__) return;
-  window.__PT_ASSISTANT_V30_STABLE_LOADER_THULIUM__ = true;
+  if (window.__PT_ASSISTANT_V31_LOADER_THULIUM_FIX__) return;
+  window.__PT_ASSISTANT_V31_LOADER_THULIUM_FIX__ = true;
 
   var LOGO_URL = 'https://edu.profitabletrader.ai/uploads/media/12510/5/Obszar_roboczy_9%404x.png?_t=1776253923';
   var BG_URL = 'https://edu.profitabletrader.ai/uploads/media/12510/5/T%C5%81O_PT__1_.png?_t=1777481120';
-  var NAV_KEY = 'pt_v30_nav_loader_active';
-  var NAV_URL_KEY = 'pt_v30_nav_loader_url';
-  var NAV_STARTED_KEY = 'pt_v30_nav_loader_started_at';
-  var STYLE_ID = 'pt-v30-stable-style';
-  var LOADER_ID = 'pt-v30-loader';
+  var STYLE_ID = 'pt-v31-style';
+  var LOADER_ID = 'pt-v31-loader';
+  var NAV_KEY = 'pt_v31_nav_active';
+  var NAV_STARTED_KEY = 'pt_v31_nav_started_at';
+  var NAV_TO_KEY = 'pt_v31_nav_to';
   var ENTER_MS = 260;
   var EXIT_MS = 340;
-  var MIN_VISIBLE_MS = 520;
-  var MAX_WAIT_MS = 9500;
   var LINK_DELAY_MS = 120;
+  var MIN_VISIBLE_MS = 650;
+  var READY_STABLE_TICKS = 5;
+  var READY_INTERVAL_MS = 120;
+  var MAX_HOLD_MS = 13500;
 
+  var pointerUrl = '';
+  var pointerTimer = null;
   var loaderVisible = false;
   var loaderShownAt = 0;
   var hideTimer = null;
-  var safetyTimer = null;
-  var readinessTimer = null;
-  var lastThuliumApplyAt = 0;
-  var thuliumApplyTimer = null;
-  var thuliumAttemptsTimer = null;
+  var readyTimer = null;
+  var hardStopTimer = null;
+  var lastHref = location.href;
+
+  var thuliumTimer = null;
   var thuliumObserver = null;
-  var stableThuliumIntent = 'chat';
+  var thuliumLastApply = 0;
+  var thuliumBlankSince = 0;
+  var thuliumRetryDone = false;
 
   function now() { return Date.now ? Date.now() : new Date().getTime(); }
-  function clean(v) { return String(v || '').replace(/\s+/g, ' ').trim(); }
-
-  function safeSessionSet(k, v) { try { sessionStorage.setItem(k, v); } catch (e) {} }
-  function safeSessionGet(k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } }
-  function safeSessionRemove(k) { try { sessionStorage.removeItem(k); } catch (e) {} }
+  function ssSet(k, v) { try { sessionStorage.setItem(k, String(v)); } catch (e) {} }
+  function ssGet(k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } }
+  function ssDel(k) { try { sessionStorage.removeItem(k); } catch (e) {} }
+  function lsRead(k, fallback) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : fallback; } catch (e) { return fallback; } }
 
   function injectStyle() {
     if (document.getElementById(STYLE_ID)) return;
     var css = ''
       + '#' + LOADER_ID + '{position:fixed;inset:0;z-index:2147483647;background:#000 url("' + BG_URL + '") center center/cover no-repeat;display:flex;align-items:center;justify-content:center;transform:scale(.04);opacity:0;visibility:hidden;border-radius:50%;pointer-events:none;overflow:hidden;}'
-      + '#' + LOADER_ID + '.pt-v30-visible{visibility:visible;pointer-events:all;opacity:1;transform:scale(1);border-radius:0;transition:transform ' + ENTER_MS + 'ms cubic-bezier(.77,0,.18,1),opacity .14s ease,border-radius ' + ENTER_MS + 'ms ease;}'
-      + '#' + LOADER_ID + '.pt-v30-closing{visibility:visible;pointer-events:none;opacity:0;transform:scale(.04);border-radius:50%;transition:transform ' + EXIT_MS + 'ms cubic-bezier(.77,0,.18,1),opacity .2s ease,border-radius ' + EXIT_MS + 'ms ease;}'
-      + '#pt-v30-loader-inner{text-align:center;transform:translateY(-4px);}'
-      + '#pt-v30-loader-logo{width:min(560px,74vw);height:auto;display:block;margin:0 auto 30px;filter:drop-shadow(0 0 16px rgba(255,255,255,.18));}'
-      + '#pt-v30-loader-bar{width:min(420px,60vw);height:5px;background:rgba(255,255,255,.14);border-radius:999px;overflow:hidden;margin:0 auto;box-shadow:0 0 18px rgba(255,255,255,.12);}'
-      + '#pt-v30-loader-progress{height:100%;width:100%;background:#fff;border-radius:999px;box-shadow:0 0 14px rgba(255,255,255,.75);transform:scaleX(0);transform-origin:left center;}'
-      + '#' + LOADER_ID + '.pt-v30-visible #pt-v30-loader-progress{transform:scaleX(1);transition:transform 1.4s ease-out;}'
-      + '#pt-v30-loader-close{position:fixed;right:14px;bottom:14px;border:1px solid rgba(255,255,255,.24);border-radius:999px;background:rgba(0,0,0,.28);color:rgba(255,255,255,.76);font:700 11px/1 Arial,sans-serif;padding:8px 11px;cursor:pointer;opacity:.0;transition:opacity .2s ease;}'
-      + '#' + LOADER_ID + '.pt-v30-stuck #pt-v30-loader-close{opacity:1;}'
-      + 'html.wtl-layout-mode #wtl-assistant-panel.pt-v30-layout-thulium{display:block!important;visibility:visible!important;opacity:1!important;pointer-events:auto!important;position:fixed!important;left:auto!important;top:auto!important;right:14px!important;bottom:68px!important;width:420px!important;height:520px!important;max-width:calc(100vw - 28px)!important;max-height:calc(100vh - 84px)!important;overflow:hidden!important;border-radius:18px!important;background:#070707!important;z-index:2147483646!important;}'
-      + 'html.wtl-layout-mode #wtl-assistant-panel.pt-v30-layout-thulium .wtl-header,html.wtl-layout-mode #wtl-assistant-panel.pt-v30-layout-thulium .wtl-welcome,html.wtl-layout-mode #wtl-assistant-panel.pt-v30-layout-thulium .wtl-tabs,html.wtl-layout-mode #wtl-assistant-panel.pt-v30-layout-thulium .wtl-frame-head,html.wtl-layout-mode #wtl-assistant-panel.pt-v30-layout-thulium #wtl-thulium-choice,html.wtl-layout-mode #wtl-assistant-panel.pt-v30-layout-thulium #wtl-thulium-back{display:none!important;visibility:hidden!important;pointer-events:none!important;}'
-      + 'html.wtl-layout-mode #wtl-assistant-panel.pt-v30-layout-thulium .wtl-body{padding:0!important;overflow:hidden!important;background:#070707!important;height:520px!important;max-height:calc(100vh - 84px)!important;}'
-      + 'html.wtl-layout-mode #wtl-assistant-panel.pt-v30-layout-thulium .wtl-card{padding:0!important;border:0!important;border-radius:0!important;background:#070707!important;overflow:hidden!important;}'
-      + 'html.wtl-layout-mode #wtl-assistant-panel.pt-v30-layout-thulium #wtl-thulium-native-mount{position:relative!important;display:block!important;height:520px!important;min-height:520px!important;max-height:520px!important;margin:0!important;border:0!important;overflow:hidden!important;background:#070707!important;}'
-      + 'html.wtl-layout-mode #wtl-assistant-panel.pt-v30-layout-thulium #wtl-thulium-native-loading{background:#070707!important;}'
-      + 'html.wtl-layout-mode #wtl-assistant-panel.pt-v30-layout-thulium #wtl-thulium-native-mount iframe[title="Thulium Click2Contact"],html.wtl-layout-mode #wtl-assistant-panel.pt-v30-layout-thulium #wtl-thulium-native-mount .thulium-chat-wrapper,html.wtl-layout-mode #wtl-assistant-panel.pt-v30-layout-thulium #wtl-thulium-native-mount .thulium-chat-frame-wrapper{position:absolute!important;left:-4px!important;top:-72px!important;right:auto!important;bottom:auto!important;width:calc(100% + 8px)!important;height:750px!important;min-height:750px!important;max-height:none!important;opacity:1!important;visibility:visible!important;display:block!important;pointer-events:auto!important;transform:none!important;border:0!important;z-index:10!important;}'
-      + 'html.wtl-layout-mode #wtl-assistant-panel.pt-v30-layout-thulium .wtl-thulium-native-control-cover,html.wtl-layout-mode #wtl-assistant-panel.pt-v30-layout-thulium #wtl-thulium-cover-min,html.wtl-layout-mode #wtl-assistant-panel.pt-v30-layout-thulium #wtl-thulium-cover-close{display:block!important;visibility:visible!important;opacity:0!important;color:transparent!important;background:transparent!important;border:0!important;box-shadow:none!important;outline:0!important;pointer-events:auto!important;}'
-      + 'html.wtl-layout-mode #wtl-assistant-panel.pt-v30-layout-thulium #wtl-thulium-cover-min{position:absolute!important;top:18px!important;right:50px!important;width:38px!important;height:38px!important;z-index:2147483647!important;}'
-      + 'html.wtl-layout-mode #wtl-assistant-panel.pt-v30-layout-thulium #wtl-thulium-cover-close{position:absolute!important;top:18px!important;right:12px!important;width:38px!important;height:38px!important;z-index:2147483647!important;}'
-      + 'html.wtl-layout-mode #wtl-assistant-panel.pt-v30-layout-thulium.pt-layout-thulium-proxy.pt-thulium-preload{opacity:1!important;visibility:visible!important;}'
-      + 'html.wtl-layout-mode #wtl-assistant-panel.pt-v30-layout-thulium.pt-layout-thulium-proxy.pt-thulium-ready{opacity:1!important;visibility:visible!important;}'
-      + '#wtl-thulium-cover-min,#wtl-thulium-cover-close{opacity:0!important;color:transparent!important;background:transparent!important;border:0!important;box-shadow:none!important;}'
-      + '.pt-v30-hide-loose-thulium{opacity:0!important;visibility:hidden!important;pointer-events:none!important;left:-9999px!important;right:auto!important;bottom:auto!important;transform:scale(.01)!important;}'
-      + '@media(max-width:480px){html.wtl-layout-mode #wtl-assistant-panel.pt-v30-layout-thulium{right:5px!important;bottom:64px!important;width:calc(100vw - 10px)!important;height:520px!important;max-height:calc(100vh - 76px)!important;}}';
-    var style = document.createElement('style');
-    style.id = STYLE_ID;
-    style.type = 'text/css';
-    style.appendChild(document.createTextNode(css));
-    (document.head || document.documentElement).appendChild(style);
+      + '#' + LOADER_ID + '.pt-v31-visible{visibility:visible;pointer-events:all;opacity:1;transform:scale(1);border-radius:0;transition:transform ' + ENTER_MS + 'ms cubic-bezier(.77,0,.18,1),opacity .14s ease,border-radius ' + ENTER_MS + 'ms ease;}'
+      + '#' + LOADER_ID + '.pt-v31-closing{visibility:visible;pointer-events:none;opacity:0;transform:scale(.04);border-radius:50%;transition:transform ' + EXIT_MS + 'ms cubic-bezier(.77,0,.18,1),opacity .2s ease,border-radius ' + EXIT_MS + 'ms ease;}'
+      + '#pt-v31-loader-inner{text-align:center;transform:translateY(-4px);}'
+      + '#pt-v31-loader-logo{width:min(560px,74vw);height:auto;display:block;margin:0 auto 30px;filter:drop-shadow(0 0 16px rgba(255,255,255,.18));}'
+      + '#pt-v31-loader-bar{width:min(420px,60vw);height:5px;background:rgba(255,255,255,.14);border-radius:999px;overflow:hidden;margin:0 auto;box-shadow:0 0 18px rgba(255,255,255,.12);}'
+      + '#pt-v31-loader-progress{height:100%;width:100%;background:#fff;border-radius:999px;box-shadow:0 0 14px rgba(255,255,255,.75);transform:scaleX(0);transform-origin:left center;}'
+      + '#' + LOADER_ID + '.pt-v31-visible #pt-v31-loader-progress{transform:scaleX(1);transition:transform 2.8s ease-out;}'
+      + '#pt-v31-loader-safe{position:fixed;right:14px;bottom:14px;border:1px solid rgba(255,255,255,.22);border-radius:999px;background:rgba(0,0,0,.35);color:rgba(255,255,255,.78);font:800 11px/1 Arial,sans-serif;padding:8px 11px;cursor:pointer;opacity:0;pointer-events:none;transition:opacity .2s ease;}'
+      + '#' + LOADER_ID + '.pt-v31-long #pt-v31-loader-safe{opacity:1;pointer-events:auto;}'
+      + 'html.pt-v31-navigating,html.pt-v31-navigating body{cursor:wait!important;}'
+      + 'html.wtl-layout-mode #wtl-assistant-panel.pt-v31-layout-thulium-fix{display:block!important;visibility:visible!important;pointer-events:auto!important;position:fixed!important;left:auto!important;top:auto!important;right:14px!important;bottom:68px!important;width:420px!important;height:520px!important;max-width:calc(100vw - 28px)!important;max-height:calc(100vh - 84px)!important;background:#070707!important;border-radius:18px!important;overflow:hidden!important;z-index:2147483646!important;box-shadow:0 20px 62px rgba(0,0,0,.46)!important;}'
+      + 'html.wtl-layout-mode #wtl-assistant-panel.pt-v31-layout-thulium-fix.pt-v31-thulium-wait{opacity:0!important;visibility:hidden!important;pointer-events:none!important;}'
+      + 'html.wtl-layout-mode #wtl-assistant-panel.pt-v31-layout-thulium-fix.pt-v31-thulium-ready{opacity:1!important;visibility:visible!important;pointer-events:auto!important;}'
+      + 'html.wtl-layout-mode #wtl-assistant-panel.pt-v31-layout-thulium-fix .wtl-header,html.wtl-layout-mode #wtl-assistant-panel.pt-v31-layout-thulium-fix .wtl-welcome,html.wtl-layout-mode #wtl-assistant-panel.pt-v31-layout-thulium-fix .wtl-tabs,html.wtl-layout-mode #wtl-assistant-panel.pt-v31-layout-thulium-fix .wtl-frame-head,html.wtl-layout-mode #wtl-assistant-panel.pt-v31-layout-thulium-fix #wtl-thulium-choice,html.wtl-layout-mode #wtl-assistant-panel.pt-v31-layout-thulium-fix #wtl-thulium-back{display:none!important;visibility:hidden!important;pointer-events:none!important;}'
+      + 'html.wtl-layout-mode #wtl-assistant-panel.pt-v31-layout-thulium-fix .wtl-body{display:block!important;padding:0!important;overflow:hidden!important;background:#070707!important;height:520px!important;max-height:calc(100vh - 84px)!important;}'
+      + 'html.wtl-layout-mode #wtl-assistant-panel.pt-v31-layout-thulium-fix [data-wtl-panel]{display:none!important;}html.wtl-layout-mode #wtl-assistant-panel.pt-v31-layout-thulium-fix [data-wtl-panel="thulium"]{display:block!important;height:100%!important;}'
+      + 'html.wtl-layout-mode #wtl-assistant-panel.pt-v31-layout-thulium-fix .wtl-card,html.wtl-layout-mode #wtl-assistant-panel.pt-v31-layout-thulium-fix .wtl-frame-card{height:100%!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;background:#070707!important;overflow:hidden!important;}'
+      + 'html.wtl-layout-mode #wtl-assistant-panel.pt-v31-layout-thulium-fix #wtl-thulium-native-mount{position:relative!important;display:block!important;height:520px!important;min-height:520px!important;max-height:520px!important;margin:0!important;border:0!important;background:#070707!important;overflow:hidden!important;}'
+      + 'html.wtl-layout-mode #wtl-assistant-panel.pt-v31-layout-thulium-fix #wtl-thulium-native-loading{display:none!important;visibility:hidden!important;pointer-events:none!important;}'
+      + 'html.wtl-layout-mode #wtl-assistant-panel.pt-v31-layout-thulium-fix #wtl-thulium-native-mount iframe[title="Thulium Click2Contact"],html.wtl-layout-mode #wtl-assistant-panel.pt-v31-layout-thulium-fix #wtl-thulium-native-mount .thulium-chat-wrapper,html.wtl-layout-mode #wtl-assistant-panel.pt-v31-layout-thulium-fix #wtl-thulium-native-mount .thulium-chat-frame-wrapper{position:absolute!important;left:-4px!important;top:-72px!important;right:auto!important;bottom:auto!important;width:calc(100% + 8px)!important;height:750px!important;min-height:750px!important;max-height:none!important;opacity:1!important;visibility:visible!important;display:block!important;pointer-events:auto!important;transform:none!important;border:0!important;z-index:10!important;}'
+      + 'html.wtl-layout-mode #wtl-assistant-panel.pt-v31-layout-thulium-fix .wtl-thulium-native-control-cover,html.wtl-layout-mode #wtl-assistant-panel.pt-v31-layout-thulium-fix #wtl-thulium-cover-min,html.wtl-layout-mode #wtl-assistant-panel.pt-v31-layout-thulium-fix #wtl-thulium-cover-close{display:block!important;visibility:visible!important;opacity:0!important;color:transparent!important;background:transparent!important;border:0!important;box-shadow:none!important;outline:0!important;pointer-events:auto!important;}'
+      + 'html.wtl-layout-mode #wtl-assistant-panel.pt-v31-layout-thulium-fix #wtl-thulium-cover-min{position:absolute!important;top:18px!important;right:50px!important;width:38px!important;height:38px!important;z-index:2147483647!important;}'
+      + 'html.wtl-layout-mode #wtl-assistant-panel.pt-v31-layout-thulium-fix #wtl-thulium-cover-close{position:absolute!important;top:18px!important;right:12px!important;width:38px!important;height:38px!important;z-index:2147483647!important;}'
+      + '#wtl-thulium-cover-min,#wtl-thulium-cover-close,.wtl-thulium-native-control-cover{opacity:0!important;color:transparent!important;background:transparent!important;border:0!important;box-shadow:none!important;outline:0!important;}'
+      + 'html.wtl-layout-mode body>.thulium-chat-wrapper,html.wtl-layout-mode body>.thulium-chat-frame-wrapper,html.wtl-layout-mode body>iframe[title="Thulium Click2Contact"]{opacity:0!important;visibility:hidden!important;pointer-events:none!important;left:-9999px!important;right:auto!important;bottom:auto!important;transform:scale(.01)!important;}'
+      + '@media(max-width:480px){html.wtl-layout-mode #wtl-assistant-panel.pt-v31-layout-thulium-fix{right:5px!important;bottom:64px!important;width:calc(100vw - 10px)!important;max-width:calc(100vw - 10px)!important;height:520px!important;max-height:calc(100vh - 76px)!important;}}';
+    var s = document.createElement('style');
+    s.id = STYLE_ID;
+    s.type = 'text/css';
+    s.appendChild(document.createTextNode(css));
+    (document.head || document.documentElement).appendChild(s);
   }
 
   function createLoader() {
     injectStyle();
-    if (document.getElementById(LOADER_ID)) return document.getElementById(LOADER_ID);
-    if (!document.body) return null;
+    var existing = document.getElementById(LOADER_ID);
+    if (existing) return existing;
+    var host = document.body || document.documentElement;
+    if (!host) return null;
     var el = document.createElement('div');
     el.id = LOADER_ID;
-    el.innerHTML = '<div id="pt-v30-loader-inner"><img id="pt-v30-loader-logo" src="' + LOGO_URL + '" alt="Profitable Trader"><div id="pt-v30-loader-bar"><div id="pt-v30-loader-progress"></div></div></div><button type="button" id="pt-v30-loader-close">Zamknij loader</button>';
-    document.body.appendChild(el);
-    var close = document.getElementById('pt-v30-loader-close');
-    if (close) close.onclick = function (ev) { ev.preventDefault(); forceHideLoader(); };
+    el.innerHTML = '<div id="pt-v31-loader-inner"><img id="pt-v31-loader-logo" src="' + LOGO_URL + '" alt="Profitable Trader"><div id="pt-v31-loader-bar"><div id="pt-v31-loader-progress"></div></div></div><button type="button" id="pt-v31-loader-safe">Zamknij loader</button>';
+    host.appendChild(el);
+    var btn = document.getElementById('pt-v31-loader-safe');
+    if (btn) btn.onclick = function (ev) { ev.preventDefault(); forceHideLoader(); };
     return el;
   }
 
   function showLoader() {
+    injectStyle();
+    document.documentElement.classList.add('pt-v31-navigating');
     var el = createLoader();
     if (!el) return;
     if (hideTimer) clearTimeout(hideTimer);
-    if (safetyTimer) clearTimeout(safetyTimer);
+    if (hardStopTimer) clearTimeout(hardStopTimer);
     loaderVisible = true;
     loaderShownAt = now();
     el.className = '';
-    var progress = document.getElementById('pt-v30-loader-progress');
-    if (progress) {
-      progress.style.transition = 'none';
-      progress.style.transform = 'scaleX(0)';
-    }
+    var p = document.getElementById('pt-v31-loader-progress');
+    if (p) { p.style.transition = 'none'; p.style.transform = 'scaleX(0)'; }
     setTimeout(function () {
-      if (progress) {
-        progress.style.transition = '';
-        progress.style.transform = '';
-      }
-      el.className = 'pt-v30-visible';
+      if (p) { p.style.transition = ''; p.style.transform = ''; }
+      el.className = 'pt-v31-visible';
     }, 20);
-    safetyTimer = setTimeout(function () {
-      var loader = document.getElementById(LOADER_ID);
-      if (loader && loaderVisible) loader.classList.add('pt-v30-stuck');
-      setTimeout(function () { if (loaderVisible) forceHideLoader(); }, 2500);
-    }, MAX_WAIT_MS);
+    hardStopTimer = setTimeout(function () {
+      var l = document.getElementById(LOADER_ID);
+      if (l) l.classList.add('pt-v31-long');
+      setTimeout(function () { if (loaderVisible) forceHideLoader(); }, 4500);
+    }, MAX_HOLD_MS);
   }
 
-  function hideLoaderWhenAllowed() {
-    if (!loaderVisible) return;
+  function clearNavState() {
+    ssDel(NAV_KEY); ssDel(NAV_STARTED_KEY); ssDel(NAV_TO_KEY);
+    document.documentElement.classList.remove('pt-v31-navigating');
+  }
+
+  function hideLoader() {
     var el = document.getElementById(LOADER_ID);
-    if (!el) return;
+    if (!el) { loaderVisible = false; clearNavState(); return; }
     var wait = MIN_VISIBLE_MS - (now() - loaderShownAt);
     if (wait < 0) wait = 0;
     if (hideTimer) clearTimeout(hideTimer);
     hideTimer = setTimeout(function () {
-      if (safetyTimer) clearTimeout(safetyTimer);
-      el.className = 'pt-v30-closing';
+      if (hardStopTimer) clearTimeout(hardStopTimer);
+      el.className = 'pt-v31-closing';
       setTimeout(function () {
         if (el && el.parentNode) el.parentNode.removeChild(el);
         loaderVisible = false;
-        safeSessionRemove(NAV_KEY);
-        safeSessionRemove(NAV_URL_KEY);
-        safeSessionRemove(NAV_STARTED_KEY);
-      }, EXIT_MS + 30);
+        clearNavState();
+      }, EXIT_MS + 40);
     }, wait);
   }
 
   function forceHideLoader() {
-    if (readinessTimer) clearInterval(readinessTimer);
-    if (safetyTimer) clearTimeout(safetyTimer);
-    safeSessionRemove(NAV_KEY);
-    safeSessionRemove(NAV_URL_KEY);
-    safeSessionRemove(NAV_STARTED_KEY);
+    if (readyTimer) { clearInterval(readyTimer); readyTimer = null; }
+    if (hardStopTimer) clearTimeout(hardStopTimer);
     loaderVisible = true;
     if (!document.getElementById(LOADER_ID)) createLoader();
-    hideLoaderWhenAllowed();
-  }
-
-  function isInsideNoLoaderArea(target) {
-    if (!target || !target.closest) return false;
-    return !!target.closest('#wtl-assistant-panel,#wtl-mini,#wtl-bottom-bar,#wtl-site-switcher,#pt-layout-account,.nav-menu-avatar,.nav-menu-avatar-trigger,.wtl-thulium-native-control-cover,#pt-layout-ai-window');
-  }
-
-  function urlFromClickTarget(target) {
-    if (!target || !target.closest) return null;
-    var a = target.closest('a[href]');
-    if (!a) return null;
-    if (isInsideNoLoaderArea(a)) return null;
-    var href = a.getAttribute('href');
-    if (!href) return null;
-    if (a.target && a.target !== '_self') return null;
-    if (a.hasAttribute('download')) return null;
-    if (/^(#|mailto:|tel:|javascript:)/i.test(href)) return null;
-    var u;
-    try { u = new URL(a.href, location.href); } catch (e) { return null; }
-    if (u.hostname !== location.hostname) return null;
-    if (u.href === location.href) return null;
-    return u.href;
+    hideLoader();
   }
 
   function markNavigation(url) {
-    safeSessionSet(NAV_KEY, '1');
-    safeSessionSet(NAV_URL_KEY, url || '');
-    safeSessionSet(NAV_STARTED_KEY, String(now()));
+    ssSet(NAV_KEY, '1');
+    ssSet(NAV_STARTED_KEY, String(now()));
+    ssSet(NAV_TO_KEY, url || '');
   }
 
-  function startNavigationTo(url) {
+  function isPanelControl(el) {
+    if (!el || !el.closest) return false;
+    return !!el.closest('#wtl-assistant-panel,#wtl-mini,#wtl-bottom-bar,#wtl-site-switcher,#pt-layout-ai-window,#pt-layout-ai-proxy-close,[data-pt-layout-thulium],[data-pt-v19-thulium],[data-pt-v20-thulium],[data-pt-v21-thulium],[data-pt-v22-thulium],#pt-layout-account,.nav-menu-avatar,.nav-menu-avatar-trigger,.wtl-thulium-native-control-cover,#wtl-thulium-cover-min,#wtl-thulium-cover-close');
+  }
+
+  function urlFromTarget(target) {
+    if (!target || !target.closest) return '';
+    if (isPanelControl(target)) return '';
+    var a = target.closest('a[href]');
+    if (!a || isPanelControl(a)) return '';
+    var href = a.getAttribute('href') || '';
+    if (!href || /^(#|mailto:|tel:|javascript:)/i.test(href)) return '';
+    if (a.target && a.target !== '_self') return '';
+    if (a.hasAttribute('download')) return '';
+    var u;
+    try { u = new URL(a.href, location.href); } catch (e) { return ''; }
+    if (u.hostname !== location.hostname) return '';
+    if (u.href === location.href) return '';
+    return u.href;
+  }
+
+  function startNav(url) {
     markNavigation(url);
     showLoader();
     setTimeout(function () { location.href = url; }, LINK_DELAY_MS);
   }
 
-  function pageAndPanelReady() {
+  function layoutExpected() {
+    return document.documentElement.classList.contains('wtl-layout-mode') || lsRead('pt_assistant_v60_layout_enabled', false) || lsRead('pt_assistant_v60_layout_mode', false) || lsRead('layout_mode', false);
+  }
+
+  function pageReadyEnough() {
     if (!document.body) return false;
     if (document.readyState === 'loading') return false;
     var panel = document.getElementById('wtl-assistant-panel');
     var mini = document.getElementById('wtl-mini');
-    var topbar = document.getElementById('pt-layout-topbar');
-    var left = document.getElementById('pt-layout-left');
-    var layoutMode = document.documentElement.classList.contains('wtl-layout-mode') || !!readLocal('pt_assistant_v60_layout_mode');
-    if (layoutMode) return !!(topbar && left && panel);
+    var style = document.getElementById('pt-layout-v16-style');
+    if (layoutExpected()) {
+      return !!(panel && style && document.getElementById('pt-layout-topbar') && document.getElementById('pt-layout-left') && document.getElementById('pt-layout-bottom-actions'));
+    }
     return !!(panel || mini);
   }
 
-  function readLocal(key) {
-    try {
-      var v = localStorage.getItem(key);
-      return v ? JSON.parse(v) : null;
-    } catch (e) { return null; }
-  }
-
-  function waitForReadyThenHide() {
-    if (readinessTimer) clearInterval(readinessTimer);
-    var started = now();
+  function waitForReady() {
+    if (readyTimer) clearInterval(readyTimer);
     var stable = 0;
-    readinessTimer = setInterval(function () {
-      if (pageAndPanelReady()) stable++;
+    var started = now();
+    readyTimer = setInterval(function () {
+      if (pageReadyEnough()) stable += 1;
       else stable = 0;
-      if (stable >= 3 || now() - started > MAX_WAIT_MS) {
-        clearInterval(readinessTimer);
-        readinessTimer = null;
-        hideLoaderWhenAllowed();
+      if (stable >= READY_STABLE_TICKS || now() - started > MAX_HOLD_MS) {
+        clearInterval(readyTimer);
+        readyTimer = null;
+        hideLoader();
       }
-    }, 180);
+    }, READY_INTERVAL_MS);
   }
 
-  function installLoaderNavHooks() {
-    if (safeSessionGet(NAV_KEY) === '1') {
-      if (document.body) showLoader();
-      else document.addEventListener('DOMContentLoaded', showLoader, { once: true });
-      waitForReadyThenHide();
+  function installLoader() {
+    if (ssGet(NAV_KEY) === '1') {
+      showLoader();
+      waitForReady();
     }
+
+    document.addEventListener('pointerdown', function (ev) {
+      var url = urlFromTarget(ev.target);
+      pointerUrl = url;
+      if (!url) return;
+      markNavigation(url);
+      showLoader();
+      if (pointerTimer) clearTimeout(pointerTimer);
+      pointerTimer = setTimeout(function () {
+        if (ssGet(NAV_KEY) === '1' && location.href === lastHref) {
+          clearNavState();
+          if (loaderVisible) hideLoader();
+        }
+      }, 1400);
+    }, true);
 
     document.addEventListener('click', function (ev) {
       if (ev.defaultPrevented || ev.button !== 0 || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) return;
-      var url = urlFromClickTarget(ev.target);
+      var url = urlFromTarget(ev.target) || pointerUrl;
       if (!url) return;
       ev.preventDefault();
       ev.stopPropagation();
-      ev.stopImmediatePropagation();
-      startNavigationTo(url);
+      if (ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+      startNav(url);
     }, true);
 
     document.addEventListener('submit', function (ev) {
-      if (isInsideNoLoaderArea(ev.target)) return;
+      if (isPanelControl(ev.target)) return;
       markNavigation(location.href);
       showLoader();
     }, true);
 
     window.addEventListener('beforeunload', function () {
-      if (safeSessionGet(NAV_KEY) === '1') showLoader();
+      if (!isPanelControl(document.activeElement)) {
+        markNavigation(location.href);
+        showLoader();
+      }
     });
 
     window.addEventListener('pageshow', function () {
-      if (safeSessionGet(NAV_KEY) === '1') {
+      if (ssGet(NAV_KEY) === '1') {
         showLoader();
-        waitForReadyThenHide();
+        waitForReady();
       }
     });
+
+    var oldPush = history.pushState;
+    var oldReplace = history.replaceState;
+    history.pushState = function () {
+      var old = location.href;
+      var result = oldPush.apply(this, arguments);
+      setTimeout(function () {
+        if (location.href !== old && !loaderVisible) {
+          markNavigation(location.href);
+          showLoader();
+          waitForReady();
+        }
+        lastHref = location.href;
+      }, 0);
+      return result;
+    };
+    history.replaceState = function () {
+      var result = oldReplace.apply(this, arguments);
+      setTimeout(function () { lastHref = location.href; }, 0);
+      return result;
+    };
   }
 
-  function q(sel, root) { return (root || document).querySelector(sel); }
+  function panel() { return document.getElementById('wtl-assistant-panel'); }
+  function mount() { return document.getElementById('wtl-thulium-native-mount'); }
+  function frame() { var m = mount(); return m ? m.querySelector('iframe[title="Thulium Click2Contact"]') : null; }
+
+  function visibleFrame() {
+    var f = frame();
+    if (!f) return false;
+    try {
+      var r = f.getBoundingClientRect();
+      var cs = window.getComputedStyle(f);
+      return r.width > 160 && r.height > 240 && cs.display !== 'none' && cs.visibility !== 'hidden' && Number(cs.opacity) !== 0;
+    } catch (e) { return false; }
+  }
 
   function clickEl(el) {
     if (!el) return false;
@@ -8070,243 +8119,118 @@
     return false;
   }
 
-  function getMount() { return document.getElementById('wtl-thulium-native-mount'); }
-  function getPanel() { return document.getElementById('wtl-assistant-panel'); }
-  function getFrame() {
-    var mount = getMount();
-    return mount ? mount.querySelector('iframe[title="Thulium Click2Contact"]') : null;
+  function setImportant(el, prop, val) {
+    if (!el) return;
+    try { if (el.style.getPropertyValue(prop) !== val) el.style.setProperty(prop, val, 'important'); } catch (e) {}
   }
 
-  function visibleFrame() {
-    var frame = getFrame();
-    if (!frame) return false;
-    try {
-      var r = frame.getBoundingClientRect();
-      var cs = window.getComputedStyle(frame);
-      return r.width > 120 && r.height > 180 && cs.display !== 'none' && cs.visibility !== 'hidden' && Number(cs.opacity) !== 0;
-    } catch (e) { return false; }
-  }
+  function applyThuliumFit() {
+    var p = panel();
+    var m = mount();
+    if (!p || !m || !document.documentElement.classList.contains('wtl-layout-mode')) return;
+    if (!p.classList.contains('pt-layout-thulium-proxy') && !p.classList.contains('wtl-thulium-window-open') && !p.classList.contains('wtl-thulium-expanded')) return;
 
-  function applyLayoutThuliumStable() {
-    var panel = getPanel();
-    var mount = getMount();
-    if (!panel || !mount || !document.documentElement.classList.contains('wtl-layout-mode')) return;
-    panel.classList.remove('wtl-hidden');
-    panel.classList.add('pt-layout-thulium-proxy');
-    panel.classList.add('pt-v30-layout-thulium');
-    panel.classList.remove('pt-layout-ai-proxy');
+    p.classList.remove('wtl-hidden');
+    p.classList.add('pt-layout-thulium-proxy');
+    p.classList.add('pt-v31-layout-thulium-fix');
+    p.classList.remove('pt-layout-ai-proxy');
+
+    setImportant(p, 'left', 'auto'); setImportant(p, 'top', 'auto'); setImportant(p, 'right', '14px'); setImportant(p, 'bottom', '68px');
+    setImportant(p, 'width', '420px'); setImportant(p, 'height', '520px'); setImportant(p, 'max-height', 'calc(100vh - 84px)'); setImportant(p, 'overflow', 'hidden');
+    setImportant(m, 'display', 'block'); setImportant(m, 'height', '520px'); setImportant(m, 'min-height', '520px'); setImportant(m, 'max-height', '520px'); setImportant(m, 'margin', '0'); setImportant(m, 'overflow', 'hidden');
+
+    var f = frame();
+    if (f) {
+      setImportant(f, 'position', 'absolute'); setImportant(f, 'left', '-4px'); setImportant(f, 'top', '-72px'); setImportant(f, 'right', 'auto'); setImportant(f, 'bottom', 'auto');
+      setImportant(f, 'width', 'calc(100% + 8px)'); setImportant(f, 'height', '750px'); setImportant(f, 'min-height', '750px'); setImportant(f, 'max-height', 'none');
+      setImportant(f, 'opacity', '1'); setImportant(f, 'visibility', 'visible'); setImportant(f, 'display', 'block'); setImportant(f, 'pointer-events', 'auto'); setImportant(f, 'transform', 'none');
+    }
+
+    var covers = p.querySelectorAll('.wtl-thulium-native-control-cover,#wtl-thulium-cover-min,#wtl-thulium-cover-close');
+    for (var i = 0; i < covers.length; i++) {
+      setImportant(covers[i], 'opacity', '0'); setImportant(covers[i], 'color', 'transparent'); setImportant(covers[i], 'background', 'transparent'); setImportant(covers[i], 'border', '0'); setImportant(covers[i], 'box-shadow', 'none');
+    }
+
     if (visibleFrame()) {
-      panel.classList.remove('pt-thulium-preload');
-      panel.classList.add('pt-thulium-ready');
-      var loading = document.getElementById('wtl-thulium-native-loading');
-      if (loading) loading.style.setProperty('display', 'none', 'important');
-    }
-
-    var props = [
-      [panel, 'right', '14px'], [panel, 'bottom', '68px'], [panel, 'left', 'auto'], [panel, 'top', 'auto'],
-      [panel, 'width', '420px'], [panel, 'height', '520px'], [panel, 'max-height', 'calc(100vh - 84px)'], [panel, 'overflow', 'hidden']
-    ];
-    for (var i = 0; i < props.length; i++) props[i][0].style.setProperty(props[i][1], props[i][2], 'important');
-
-    var hideNodes = panel.querySelectorAll('.wtl-header,.wtl-welcome,.wtl-tabs,.wtl-frame-head,#wtl-thulium-choice,#wtl-thulium-back');
-    for (var h = 0; h < hideNodes.length; h++) hideNodes[h].style.setProperty('display', 'none', 'important');
-
-    mount.style.setProperty('display', 'block', 'important');
-    mount.style.setProperty('height', '520px', 'important');
-    mount.style.setProperty('min-height', '520px', 'important');
-    mount.style.setProperty('max-height', '520px', 'important');
-    mount.style.setProperty('margin', '0', 'important');
-    mount.style.setProperty('overflow', 'hidden', 'important');
-
-    var frame = getFrame();
-    if (frame) {
-      frame.style.setProperty('position', 'absolute', 'important');
-      frame.style.setProperty('left', '-4px', 'important');
-      frame.style.setProperty('top', '-72px', 'important');
-      frame.style.setProperty('width', 'calc(100% + 8px)', 'important');
-      frame.style.setProperty('height', '750px', 'important');
-      frame.style.setProperty('min-height', '750px', 'important');
-      frame.style.setProperty('max-height', 'none', 'important');
-      frame.style.setProperty('opacity', '1', 'important');
-      frame.style.setProperty('visibility', 'visible', 'important');
-      frame.style.setProperty('display', 'block', 'important');
-      frame.style.setProperty('pointer-events', 'auto', 'important');
-      frame.style.setProperty('transform', 'none', 'important');
-    }
-
-    var coverMin = document.getElementById('wtl-thulium-cover-min');
-    var coverClose = document.getElementById('wtl-thulium-cover-close');
-    var covers = [coverMin, coverClose];
-    for (var c = 0; c < covers.length; c++) {
-      if (!covers[c]) continue;
-      covers[c].style.setProperty('opacity', '0', 'important');
-      covers[c].style.setProperty('color', 'transparent', 'important');
-      covers[c].style.setProperty('background', 'transparent', 'important');
-      covers[c].style.setProperty('border', '0', 'important');
-      covers[c].style.setProperty('box-shadow', 'none', 'important');
-      covers[c].style.setProperty('visibility', 'visible', 'important');
-      covers[c].style.setProperty('pointer-events', 'auto', 'important');
-    }
-
-    hideLooseThulium();
-  }
-
-  function scheduleApplyThulium() {
-    var t = now();
-    if (t - lastThuliumApplyAt > 140) {
-      lastThuliumApplyAt = t;
-      applyLayoutThuliumStable();
-      return;
-    }
-    if (thuliumApplyTimer) return;
-    thuliumApplyTimer = setTimeout(function () {
-      thuliumApplyTimer = null;
-      lastThuliumApplyAt = now();
-      applyLayoutThuliumStable();
-    }, 140);
-  }
-
-  function hideLooseThulium() {
-    var mount = getMount();
-    var nodes = document.querySelectorAll('.thulium-chat-wrapper,.thulium-chat-frame-wrapper,iframe[title="Thulium Click2Contact"]');
-    for (var i = 0; i < nodes.length; i++) {
-      if (mount && mount.contains(nodes[i])) continue;
-      nodes[i].classList.add('pt-v30-hide-loose-thulium');
-    }
-  }
-
-  function closeV30LayoutThulium(closeNative) {
-    var panel = getPanel();
-    if (thuliumAttemptsTimer) { clearInterval(thuliumAttemptsTimer); thuliumAttemptsTimer = null; }
-    if (panel) {
-      panel.classList.remove('pt-v30-layout-thulium');
-      panel.classList.remove('pt-layout-thulium-proxy');
-      panel.classList.remove('pt-thulium-preload');
-      panel.classList.remove('pt-thulium-ready');
-      if (document.documentElement.classList.contains('wtl-layout-mode')) panel.classList.add('wtl-hidden');
-      var nodes = panel.querySelectorAll('.wtl-header,.wtl-frame-head,.wtl-tabs,.wtl-welcome,.wtl-body,.wtl-card,#wtl-thulium-native-mount,#wtl-thulium-native-mount iframe[title="Thulium Click2Contact"],#wtl-thulium-cover-min,#wtl-thulium-cover-close');
-      for (var i = 0; i < nodes.length; i++) nodes[i].removeAttribute('style');
-      panel.style.removeProperty('right'); panel.style.removeProperty('bottom'); panel.style.removeProperty('left'); panel.style.removeProperty('top');
-      panel.style.removeProperty('width'); panel.style.removeProperty('height'); panel.style.removeProperty('max-height'); panel.style.removeProperty('overflow');
-    }
-    try { localStorage.setItem('pt_assistant_v60_layout_thulium_open', JSON.stringify(false)); } catch (e) {}
-    if (closeNative) {
-      try {
-        if (window._tc && typeof window._tc.close === 'function') window._tc.close();
-        else if (typeof window._tc === 'function') window._tc('close');
-      } catch (err) {}
-    }
-  }
-
-  function openV30LayoutThulium(intent) {
-    if (intent !== 'email') intent = 'chat';
-    stableThuliumIntent = intent;
-    try {
-      localStorage.setItem('pt_assistant_v60_layout_thulium_open', JSON.stringify(true));
-      localStorage.setItem('pt_assistant_v60_layout_thulium_intent', JSON.stringify(intent));
-    } catch (e) {}
-
-    var panel = getPanel();
-    if (!panel) return;
-
-    var aiClose = document.getElementById('pt-layout-ai-proxy-close') || document.getElementById('pt-layout-ai-close');
-    if (aiClose) clickEl(aiClose);
-
-    panel.classList.remove('wtl-hidden');
-    panel.classList.remove('pt-layout-ai-proxy');
-    panel.classList.add('pt-layout-thulium-proxy');
-    panel.classList.add('pt-v30-layout-thulium');
-    panel.classList.add('pt-thulium-preload');
-    panel.classList.remove('pt-thulium-ready');
-
-    var tab = panel.querySelector('[data-wtl-tab="thulium"]');
-    if (tab) clickEl(tab);
-    scheduleApplyThulium();
-
-    var alreadyVisible = visibleFrame() || panel.classList.contains('wtl-thulium-window-open') || panel.classList.contains('wtl-thulium-expanded');
-    var attempts = 0;
-    if (thuliumAttemptsTimer) clearInterval(thuliumAttemptsTimer);
-    thuliumAttemptsTimer = setInterval(function () {
-      attempts++;
-      if (!document.documentElement.classList.contains('wtl-layout-mode')) {
-        clearInterval(thuliumAttemptsTimer);
-        thuliumAttemptsTimer = null;
-        closeV30LayoutThulium(false);
-        return;
-      }
-      panel.classList.remove('wtl-hidden');
-      panel.classList.add('pt-layout-thulium-proxy');
-      panel.classList.add('pt-v30-layout-thulium');
-      scheduleApplyThulium();
-
-      if (!alreadyVisible && !visibleFrame() && (attempts === 2 || attempts === 8 || attempts === 16)) {
-        var btn = panel.querySelector('[data-wtl-thulium-intent="' + intent + '"]');
+      thuliumBlankSince = 0;
+      thuliumRetryDone = false;
+      p.classList.remove('pt-v31-thulium-wait');
+      p.classList.add('pt-v31-thulium-ready');
+      p.classList.remove('pt-thulium-preload');
+      p.classList.add('pt-thulium-ready');
+    } else {
+      p.classList.remove('pt-v31-thulium-ready');
+      p.classList.add('pt-v31-thulium-wait');
+      if (!thuliumBlankSince) thuliumBlankSince = now();
+      if (!thuliumRetryDone && now() - thuliumBlankSince > 1300) {
+        thuliumRetryDone = true;
+        var intent = 'chat';
+        try { intent = JSON.parse(localStorage.getItem('pt_assistant_v60_layout_thulium_intent') || '"chat"') || 'chat'; } catch (e) {}
+        var btn = p.querySelector('[data-wtl-thulium-intent="' + (intent === 'email' ? 'email' : 'chat') + '"]');
         clickEl(btn);
       }
-
-      if (visibleFrame()) {
-        alreadyVisible = true;
-        panel.classList.remove('pt-thulium-preload');
-        panel.classList.add('pt-thulium-ready');
+      if (now() - thuliumBlankSince > 4200) {
+        p.classList.remove('pt-layout-thulium-proxy', 'pt-v31-layout-thulium-fix', 'pt-v31-thulium-wait', 'pt-thulium-preload', 'pt-thulium-ready');
+        p.classList.add('wtl-hidden');
+        thuliumBlankSince = 0;
+        thuliumRetryDone = false;
       }
-
-      if (attempts >= 45) {
-        clearInterval(thuliumAttemptsTimer);
-        thuliumAttemptsTimer = null;
-        if (!visibleFrame()) panel.classList.remove('pt-thulium-preload');
-      }
-    }, 160);
+    }
   }
 
-  function installThuliumBridge() {
+  function scheduleFit() {
+    var t = now();
+    if (t - thuliumLastApply < 180) return;
+    thuliumLastApply = t;
+    applyThuliumFit();
+  }
+
+  function installThuliumFix() {
     document.addEventListener('click', function (ev) {
       var t = ev.target;
       if (!t || !t.closest) return;
-      var layoutBtn = t.closest('[data-pt-layout-thulium]');
-      if (layoutBtn) {
-        ev.preventDefault();
-        ev.stopPropagation();
-        ev.stopImmediatePropagation();
-        openV30LayoutThulium(layoutBtn.getAttribute('data-pt-layout-thulium') || 'chat');
-        return;
+      var b = t.closest('[data-pt-layout-thulium],[data-pt-v19-thulium],[data-pt-v20-thulium],[data-pt-v21-thulium],[data-pt-v22-thulium]');
+      if (b) {
+        thuliumBlankSince = 0;
+        thuliumRetryDone = false;
+        setTimeout(applyThuliumFit, 80);
+        setTimeout(applyThuliumFit, 450);
+        setTimeout(applyThuliumFit, 1200);
+        setTimeout(applyThuliumFit, 2200);
       }
-      if (document.documentElement.classList.contains('wtl-layout-mode')) {
-        var min = t.closest('#wtl-thulium-cover-min');
-        var close = t.closest('#wtl-thulium-cover-close');
-        if (min || close) {
-          ev.preventDefault();
-          ev.stopPropagation();
-          ev.stopImmediatePropagation();
-          closeV30LayoutThulium(!!close);
+      if (t.closest('#wtl-thulium-cover-close,#wtl-thulium-cover-min')) {
+        var p = panel();
+        if (p && document.documentElement.classList.contains('wtl-layout-mode')) {
+          setTimeout(function () {
+            p.classList.remove('pt-v31-layout-thulium-fix', 'pt-v31-thulium-wait', 'pt-v31-thulium-ready');
+          }, 80);
         }
       }
     }, true);
 
     if (window.MutationObserver) {
-      thuliumObserver = new MutationObserver(function () {
-        var panel = getPanel();
-        if (panel && panel.classList.contains('pt-v30-layout-thulium')) scheduleApplyThulium();
-      });
-      function startObs() {
+      thuliumObserver = new MutationObserver(function () { scheduleFit(); });
+      var start = function () {
         if (document.body) thuliumObserver.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style'] });
-      }
-      if (document.body) startObs(); else document.addEventListener('DOMContentLoaded', startObs, { once: true });
+      };
+      if (document.body) start(); else document.addEventListener('DOMContentLoaded', start, { once: true });
     }
 
-    setInterval(function () {
-      var panel = getPanel();
+    thuliumTimer = setInterval(function () {
+      var p = panel();
+      if (!p) return;
       if (!document.documentElement.classList.contains('wtl-layout-mode')) {
-        if (panel && panel.classList.contains('pt-v30-layout-thulium')) closeV30LayoutThulium(false);
+        p.classList.remove('pt-v31-layout-thulium-fix', 'pt-v31-thulium-wait', 'pt-v31-thulium-ready');
         return;
       }
-      if (panel && panel.classList.contains('pt-v30-layout-thulium')) scheduleApplyThulium();
-    }, 500);
+      if (p.classList.contains('pt-layout-thulium-proxy') || p.classList.contains('wtl-thulium-window-open') || p.classList.contains('wtl-thulium-expanded')) scheduleFit();
+    }, 260);
   }
 
   function init() {
     injectStyle();
-    installLoaderNavHooks();
-    installThuliumBridge();
+    installLoader();
+    installThuliumFix();
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once: true });

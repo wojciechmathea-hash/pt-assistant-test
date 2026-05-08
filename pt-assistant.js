@@ -7373,53 +7373,28 @@
   }
 
   function restorePanelThuliumButtonsHard() {
-    var panel = document.getElementById('wtl-assistant-panel');
     var choice = document.getElementById('wtl-thulium-choice');
-    if (!panel || !choice) return;
+    if (!choice) return;
 
-    var layout = isLayoutMode();
-    var hasVisibleFrame = thuliumFrameVisible();
-    var hasButtons = !!choice.querySelector('[data-wtl-thulium-intent="chat"]') && !!choice.querySelector('[data-wtl-thulium-intent="email"]');
-
-    if (!layout && !hasVisibleFrame) {
-      panel.classList.remove(
-        'wtl-thulium-expanded',
-        'wtl-thulium-window-open',
-        'pt-layout-thulium-proxy',
-        'pt-v22-thulium-opening',
-        'pt-v22-thulium-ready',
-        'pt-v21-thulium-opening',
-        'pt-v21-thulium-ready',
-        'pt-v20-thulium-opening',
-        'pt-v20-thulium-ready',
-        'pt-v19-thulium-opening',
-        'pt-v19-thulium-ready',
-        'pt-thulium-preload',
-        'pt-thulium-ready'
-      );
-      if (!hasButtons) rebuildThuliumChoice();
-      choice.style.setProperty('display', 'block', 'important');
-      choice.style.setProperty('visibility', 'visible', 'important');
-      choice.style.setProperty('opacity', '1', 'important');
+    // V26: do not remove Thulium/window classes here.
+    // V25 was closing the native Thulium flow immediately after clicking Chat/E-mail,
+    // so the original panel handler could not finish opening the widget.
+    // This helper now only restores the choice markup when it is truly missing.
+    try {
+      if (!choice.querySelector('[data-wtl-thulium-intent="chat"]') || !choice.querySelector('[data-wtl-thulium-intent="email"]')) {
+        rebuildThuliumChoice();
+      }
+      choice.style.removeProperty('display');
+      choice.style.removeProperty('visibility');
+      choice.style.removeProperty('opacity');
       var row = choice.querySelector('.wtl-choice-row');
       if (row) {
-        row.style.setProperty('display', 'grid', 'important');
-        row.style.setProperty('visibility', 'visible', 'important');
-        row.style.setProperty('opacity', '1', 'important');
+        row.style.removeProperty('display');
+        row.style.removeProperty('visibility');
+        row.style.removeProperty('opacity');
       }
-      var back = document.getElementById('wtl-thulium-back');
-      if (back) back.style.removeProperty('display');
-      var mount = document.getElementById('wtl-thulium-native-mount');
-      if (mount) {
-        mount.style.removeProperty('height');
-        mount.style.removeProperty('min-height');
-        mount.style.removeProperty('max-height');
-        mount.style.removeProperty('margin');
-        mount.style.removeProperty('border-top');
-      }
-    }
-
-    translateRoot(choice);
+      translateRoot(choice);
+    } catch (e) {}
   }
 
   function bindPanelThuliumRepair() {
@@ -7501,6 +7476,331 @@
       restorePanelThuliumButtonsHard();
       if (ticks <= 80 || ticks % 5 === 0) translateAll();
     }, 250);
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();
+
+
+/* PT Assistant V26 Thulium-only Fix
+   Base: V25. Scope: only Thulium buttons/opening stability.
+   - Restores the working V22-style opening flow.
+   - Does not touch language, AI Agent, lesson mapping, layout animations, or navigator state.
+*/
+(function () {
+  'use strict';
+  if (window.__PT_ASSISTANT_V26_THULIUM_ONLY_FIX__) return;
+  window.__PT_ASSISTANT_V26_THULIUM_ONLY_FIX__ = true;
+
+  var THULIUM_SRC = 'https://cdn.thulium.com/apps/chat-widget/chat-loader.js?hash=eliteexpertclub-4cb69311-31a0-4960-9608-ef51bf61693b';
+  var openingTimer = null;
+  var fitTimer = null;
+  var repairTimer = null;
+  var lastIntent = 'chat';
+
+  function qs(sel) { try { return document.querySelector(sel); } catch (e) { return null; } }
+  function qsa(sel) { try { return Array.prototype.slice.call(document.querySelectorAll(sel)); } catch (e) { return []; } }
+
+  function isLayoutMode() {
+    return document.documentElement.classList.contains('wtl-layout-mode');
+  }
+
+  function ensureTcQueue() {
+    if (!window._tc || typeof window._tc !== 'function') {
+      window._tc = function () { (window._tc.q = window._tc.q || []).push(arguments); };
+    }
+  }
+
+  function callTc(method, arg) {
+    try {
+      if (window._tc && typeof window._tc[method] === 'function') {
+        if (typeof arg !== 'undefined') window._tc[method](arg);
+        else window._tc[method]();
+        return true;
+      }
+    } catch (e) {}
+
+    try {
+      if (typeof window._tc === 'function') {
+        if (typeof arg !== 'undefined') window._tc(method, arg);
+        else window._tc(method);
+        return true;
+      }
+    } catch (e2) {}
+
+    return false;
+  }
+
+  function ensureScript(callback) {
+    ensureTcQueue();
+
+    var existing = qs('script[src*="cdn.thulium.com/apps/chat-widget/chat-loader.js"]');
+    if (existing) {
+      if (callback) setTimeout(callback, 80);
+      return;
+    }
+
+    var script = document.createElement('script');
+    script.async = true;
+    script.id = 'pt-thulium-loader-v26';
+    script.src = THULIUM_SRC + '&ptV26=' + Date.now();
+    script.onload = function () { if (callback) setTimeout(callback, 350); };
+    script.onerror = function () { if (callback) callback(); };
+    document.head.appendChild(script);
+  }
+
+  function getPanel() { return document.getElementById('wtl-assistant-panel'); }
+  function getChoice() { return document.getElementById('wtl-thulium-choice'); }
+  function getMount() { return document.getElementById('wtl-thulium-native-mount'); }
+
+  function getFrame() {
+    return qs('#wtl-thulium-native-mount iframe[title="Thulium Click2Contact"]') || qs('iframe[title="Thulium Click2Contact"]');
+  }
+
+  function frameVisible() {
+    var frame = getFrame();
+    if (!frame) return false;
+    try {
+      var rect = frame.getBoundingClientRect();
+      var cs = window.getComputedStyle(frame);
+      return rect.width > 80 && rect.height > 80 && cs.display !== 'none' && cs.visibility !== 'hidden' && Number(cs.opacity) !== 0;
+    } catch (e) { return false; }
+  }
+
+  function hideLooseLaunchers() {
+    qsa('.thulium-chat-wrapper,.thulium-chat-frame-wrapper,[class*="thulium-chat"],[class*="click2contact"],[id*="click2contact"]').forEach(function (el) {
+      if (!el) return;
+      if (el.closest && el.closest('#wtl-thulium-native-mount')) return;
+      if (el.id && String(el.id).indexOf('wtl-') === 0) return;
+      try {
+        el.style.setProperty('opacity', '0', 'important');
+        el.style.setProperty('visibility', 'hidden', 'important');
+        el.style.setProperty('pointer-events', 'none', 'important');
+      } catch (e) {}
+    });
+  }
+
+  function setContainer() {
+    ensureTcQueue();
+    callTc('set_container', 'wtl-thulium-native-mount');
+    try {
+      if (window._tc && typeof window._tc.set_container === 'function') window._tc.set_container('wtl-thulium-native-mount');
+    } catch (e) {}
+  }
+
+  function preparePanelThuliumView() {
+    var panel = getPanel();
+    var loading = document.getElementById('wtl-thulium-native-loading');
+    var choice = getChoice();
+    var mount = getMount();
+
+    if (panel) {
+      panel.classList.add('wtl-thulium-expanded');
+      panel.classList.add('wtl-thulium-window-open');
+      panel.classList.remove('pt-v22-thulium-ready');
+      panel.classList.add('pt-v22-thulium-opening');
+    }
+
+    if (choice) choice.style.setProperty('display', 'none', 'important');
+    if (mount) {
+      mount.style.removeProperty('display');
+      mount.style.removeProperty('visibility');
+      mount.style.removeProperty('opacity');
+    }
+    if (loading) {
+      loading.style.display = 'flex';
+      loading.innerHTML = 'Otwieranie Thulium...';
+    }
+
+    document.documentElement.classList.add('wtl-thulium-visible');
+  }
+
+  function markReady() {
+    var panel = getPanel();
+    var loading = document.getElementById('wtl-thulium-native-loading');
+    if (loading) loading.style.display = 'none';
+    if (panel) {
+      panel.classList.remove('pt-v22-thulium-opening');
+      panel.classList.add('pt-v22-thulium-ready');
+    }
+  }
+
+  function fitFrame() {
+    var frame = getFrame();
+    if (!frame) return;
+
+    try {
+      var panel = getPanel();
+      var windowMode = panel && panel.classList.contains('wtl-thulium-window-open');
+      frame.style.setProperty('position', 'absolute', 'important');
+      frame.style.setProperty('right', 'auto', 'important');
+      frame.style.setProperty('bottom', 'auto', 'important');
+      frame.style.setProperty('visibility', 'visible', 'important');
+      frame.style.setProperty('opacity', '1', 'important');
+      frame.style.setProperty('display', 'block', 'important');
+      frame.style.setProperty('pointer-events', 'auto', 'important');
+      frame.style.setProperty('z-index', '10', 'important');
+      frame.style.setProperty('transform', 'none', 'important');
+      frame.style.setProperty('border', '0', 'important');
+      frame.style.setProperty('overflow', 'hidden', 'important');
+
+      if (windowMode) {
+        frame.style.setProperty('left', '-4px', 'important');
+        frame.style.setProperty('top', '-72px', 'important');
+        frame.style.setProperty('width', 'calc(100% + 8px)', 'important');
+        frame.style.setProperty('height', '750px', 'important');
+        frame.style.setProperty('min-height', '750px', 'important');
+        frame.style.setProperty('max-height', 'none', 'important');
+      } else {
+        frame.style.setProperty('left', '0', 'important');
+        frame.style.setProperty('top', '0', 'important');
+        frame.style.setProperty('width', '100%', 'important');
+        frame.style.setProperty('height', '100%', 'important');
+        frame.style.setProperty('min-height', '0', 'important');
+        frame.style.setProperty('max-height', '100%', 'important');
+      }
+    } catch (e) {}
+  }
+
+  function startFitLoop() {
+    if (fitTimer) clearInterval(fitTimer);
+    var n = 0;
+    fitTimer = setInterval(function () {
+      n++;
+      setContainer();
+      fitFrame();
+      hideLooseLaunchers();
+      if (frameVisible()) markReady();
+      if (n >= 50) {
+        clearInterval(fitTimer);
+        fitTimer = null;
+      }
+    }, 120);
+  }
+
+  function openByApi(intent) {
+    intent = intent === 'email' ? 'email' : 'chat';
+    if (intent === 'email') {
+      callTc('open_email');
+      callTc('open_email_form');
+      callTc('open_message');
+      callTc('open_message_form');
+      callTc('open_contact_form');
+      callTc('open_contact');
+      callTc('send_message');
+    } else {
+      callTc('open_chat');
+      callTc('open_chat_form');
+      callTc('chat');
+    }
+  }
+
+  function openThulium(intent) {
+    lastIntent = intent === 'email' ? 'email' : 'chat';
+    preparePanelThuliumView();
+    setContainer();
+    hideLooseLaunchers();
+    startFitLoop();
+
+    ensureScript(function () {
+      setContainer();
+      startFitLoop();
+      var attempts = 0;
+      if (openingTimer) clearInterval(openingTimer);
+      openingTimer = setInterval(function () {
+        attempts++;
+        setContainer();
+        hideLooseLaunchers();
+        fitFrame();
+
+        if (!frameVisible() || attempts <= 8 || attempts === 12 || attempts === 18 || attempts === 26) {
+          openByApi(lastIntent);
+        }
+
+        if (frameVisible()) markReady();
+
+        if (attempts >= 34) {
+          clearInterval(openingTimer);
+          openingTimer = null;
+          if (frameVisible()) markReady();
+        }
+      }, 150);
+    });
+  }
+
+  function restoreChoiceIfClosed() {
+    var panel = getPanel();
+    var choice = getChoice();
+    if (!panel || !choice) return;
+
+    if (!frameVisible() && !panel.classList.contains('pt-v22-thulium-opening')) {
+      panel.classList.remove('wtl-thulium-expanded', 'wtl-thulium-window-open', 'pt-v22-thulium-ready');
+      choice.style.removeProperty('display');
+      choice.style.removeProperty('visibility');
+      choice.style.removeProperty('opacity');
+      if (!choice.querySelector('[data-wtl-thulium-intent="chat"]')) {
+        choice.innerHTML = '<div class="wtl-choice-text">Nie musisz klikać natywnej ikonki Thulium — wybierz opcję poniżej.</div><div class="wtl-choice-row"><button type="button" class="wtl-thulium-action" data-wtl-thulium-intent="chat">Czat</button><button type="button" class="wtl-thulium-action" data-wtl-thulium-intent="email">E-mail</button></div>';
+      }
+    }
+  }
+
+  function bindPanelButtons() {
+    var body = document.getElementById('wtl-body');
+    if (!body || body.__ptV26PanelThuliumBound) return;
+    body.__ptV26PanelThuliumBound = true;
+
+    body.addEventListener('click', function (ev) {
+      var btn = ev.target && ev.target.closest ? ev.target.closest('[data-wtl-thulium-intent]') : null;
+      if (!btn) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+      openThulium(btn.getAttribute('data-wtl-thulium-intent') || 'chat');
+    }, true);
+  }
+
+  function bindLayoutButtons() {
+    var selectors = '[data-pt-layout-thulium], [data-pt-v19-thulium], [data-pt-v20-thulium], [data-pt-v21-thulium], [data-pt-v22-thulium]';
+    qsa(selectors).forEach(function (btn) {
+      if (!btn || btn.__ptV26LayoutThuliumBound) return;
+      btn.__ptV26LayoutThuliumBound = true;
+      btn.addEventListener('click', function (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        if (ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+        var intent = this.getAttribute('data-pt-v22-thulium') || this.getAttribute('data-pt-v21-thulium') || this.getAttribute('data-pt-v20-thulium') || this.getAttribute('data-pt-v19-thulium') || this.getAttribute('data-pt-layout-thulium') || 'chat';
+        openThulium(intent);
+      }, true);
+    });
+  }
+
+  function bindAll() {
+    bindPanelButtons();
+    bindLayoutButtons();
+  }
+
+  function startRepair() {
+    if (repairTimer) clearInterval(repairTimer);
+    repairTimer = setInterval(function () {
+      bindAll();
+      hideLooseLaunchers();
+      if (getPanel() && getPanel().classList.contains('wtl-thulium-window-open')) {
+        setContainer();
+        fitFrame();
+        if (frameVisible()) markReady();
+      } else {
+        restoreChoiceIfClosed();
+      }
+    }, 350);
+  }
+
+  function init() {
+    bindAll();
+    startRepair();
+    setTimeout(bindAll, 200);
+    setTimeout(bindAll, 800);
+    setTimeout(bindAll, 1600);
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);

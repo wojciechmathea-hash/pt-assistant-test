@@ -1,60 +1,58 @@
-/* PT Assistant V33 EARLY CONTINUOUS PAGE LOADER
-   UWAGA: zeby loader realnie zaslanial moment ladowania GTM, ten kod musi byc na samej gorze tagu
-   i tag musi odpalac sie jak najwczesniej: Consent Initialization / Initialization - All Pages.
+/* PT Assistant V34 EARLY NAVIGATION LOADER
+   Cel: zaslonic moment przejscia miedzy stronami i poczekac na gotowy panel/layout.
+   Wazne: ten blok musi byc na samej gorze tagu GTM i tag musi dzialac jako Initialization - All Pages.
 */
 (function () {
   'use strict';
 
-  if (window.__PT_V33_EARLY_LOADER__) return;
-  window.__PT_V33_EARLY_LOADER__ = true;
+  if (window.__PT_V34_EARLY_NAV_LOADER__) return;
+  window.__PT_V34_EARLY_NAV_LOADER__ = true;
 
   var LOGO_URL = 'https://edu.profitabletrader.ai/uploads/media/12510/5/Obszar_roboczy_9%404x.png?_t=1776253923';
   var BG_URL = 'https://edu.profitabletrader.ai/uploads/media/12510/5/T%C5%81O_PT__1_.png?_t=1777481120';
   var PREFIX = 'pt_assistant_v60_';
-  var NAV_FLAG = 'pt_v33_loader_active';
-  var NAV_FROM = 'pt_v33_loader_from';
-  var NAV_AT = 'pt_v33_loader_at';
-  var MIN_VISIBLE = 850;
-  var MAX_VISIBLE = 14000;
-  var POLL = 100;
-  var REQUIRED_STABLE = 8;
-  var LINK_DELAY = 120;
+  var FLAG = 'pt_v34_loader_active';
+  var FROM = 'pt_v34_loader_from';
+  var AT = 'pt_v34_loader_at';
+  var MIN_VISIBLE = 900;
+  var MAX_VISIBLE = 15000;
+  var OLD_PAGE_FAILSAFE = 9000;
+  var POLL = 90;
+  var STABLE_NEEDED = 8;
 
   var visible = false;
   var shownAt = 0;
+  var watchTimer = null;
   var hideTimer = null;
-  var safetyTimer = null;
-  var watcherTimer = null;
+  var slowTimer = null;
+  var oldPageTimer = null;
   var lastUrl = location.href;
-  var internalNavArmed = false;
 
   function now() { return Date.now ? Date.now() : new Date().getTime(); }
   function ssSet(k, v) { try { sessionStorage.setItem(k, String(v)); } catch (e) {} }
   function ssGet(k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } }
   function ssDel(k) { try { sessionStorage.removeItem(k); } catch (e) {} }
-  function lsGetJson(key, fallback) { try { var v = localStorage.getItem(PREFIX + key); return v ? JSON.parse(v) : fallback; } catch (e) { return fallback; } }
+  function lsJson(key, fallback) { try { var v = localStorage.getItem(PREFIX + key); return v ? JSON.parse(v) : fallback; } catch (e) { return fallback; } }
 
-  function isAllowedHost() {
-    return location.hostname === 'edu.profitabletrader.ai';
-  }
+  if (location.hostname !== 'edu.profitabletrader.ai') return;
 
-  if (!isAllowedHost()) return;
+  try { new Image().src = LOGO_URL; new Image().src = BG_URL; } catch (e) {}
 
   function injectCss() {
-    if (document.getElementById('pt-v33-loader-style')) return;
+    if (document.getElementById('pt-v34-loader-style')) return;
     var css = ''
-      + '#pt-v33-loader{position:fixed!important;inset:0!important;z-index:2147483647!important;background:#000 url("' + BG_URL + '") center center/cover no-repeat!important;display:flex!important;align-items:center!important;justify-content:center!important;opacity:0!important;visibility:hidden!important;pointer-events:none!important;overflow:hidden!important;transform:translateZ(0)!important;}'
-      + '#pt-v33-loader.pt-v33-show{opacity:1!important;visibility:visible!important;pointer-events:all!important;}'
-      + '#pt-v33-loader.pt-v33-hide{opacity:0!important;visibility:visible!important;pointer-events:none!important;transition:opacity .22s ease!important;}'
-      + '#pt-v33-loader-inner{text-align:center!important;transform:translateY(-4px)!important;}'
-      + '#pt-v33-loader-logo{width:min(560px,74vw)!important;height:auto!important;display:block!important;margin:0 auto 30px!important;filter:drop-shadow(0 0 16px rgba(255,255,255,.18))!important;}'
-      + '#pt-v33-loader-bar{width:min(420px,60vw)!important;height:5px!important;background:rgba(255,255,255,.14)!important;border-radius:999px!important;overflow:hidden!important;margin:0 auto!important;box-shadow:0 0 18px rgba(255,255,255,.12)!important;}'
-      + '#pt-v33-loader-progress{height:100%!important;width:100%!important;background:#fff!important;border-radius:999px!important;box-shadow:0 0 14px rgba(255,255,255,.75)!important;transform:scaleX(.12)!important;transform-origin:left center!important;animation:pt-v33-loader-progress 1.25s ease-in-out infinite!important;}'
-      + '#pt-v33-loader-skip{position:absolute!important;right:14px!important;bottom:12px!important;border:1px solid rgba(255,255,255,.18)!important;border-radius:12px!important;background:rgba(0,0,0,.34)!important;color:rgba(255,255,255,.62)!important;font:800 11px Inter,Arial,sans-serif!important;padding:8px 10px!important;cursor:pointer!important;opacity:0!important;pointer-events:none!important;transition:opacity .2s ease!important;}'
-      + '#pt-v33-loader.pt-v33-slow #pt-v33-loader-skip{opacity:1!important;pointer-events:auto!important;}'
-      + '@keyframes pt-v33-loader-progress{0%{transform:scaleX(.08)}55%{transform:scaleX(.88)}100%{transform:scaleX(1)}}';
+      + '#pt-v34-loader{position:fixed!important;inset:0!important;z-index:2147483647!important;background:#000 url("' + BG_URL + '") center center/cover no-repeat!important;display:flex!important;align-items:center!important;justify-content:center!important;opacity:0!important;visibility:hidden!important;pointer-events:none!important;overflow:hidden!important;transform:translateZ(0)!important;}'
+      + '#pt-v34-loader.pt-v34-visible{opacity:1!important;visibility:visible!important;pointer-events:all!important;}'
+      + '#pt-v34-loader.pt-v34-closing{opacity:0!important;visibility:visible!important;pointer-events:none!important;transition:opacity .22s ease!important;}'
+      + '#pt-v34-loader-inner{text-align:center!important;transform:translateY(-4px)!important;}'
+      + '#pt-v34-loader-logo{width:min(560px,74vw)!important;height:auto!important;display:block!important;margin:0 auto 30px!important;filter:drop-shadow(0 0 16px rgba(255,255,255,.18))!important;}'
+      + '#pt-v34-loader-bar{position:relative!important;width:min(420px,60vw)!important;height:5px!important;background:rgba(255,255,255,.14)!important;border-radius:999px!important;overflow:hidden!important;margin:0 auto!important;box-shadow:0 0 18px rgba(255,255,255,.12)!important;}'
+      + '#pt-v34-loader-progress{position:absolute!important;left:-45%!important;top:0!important;height:100%!important;width:45%!important;background:#fff!important;border-radius:999px!important;box-shadow:0 0 14px rgba(255,255,255,.75)!important;animation:pt-v34-loader-move 1.05s cubic-bezier(.65,0,.35,1) infinite!important;}'
+      + '#pt-v34-loader-skip{position:absolute!important;right:14px!important;bottom:12px!important;border:1px solid rgba(255,255,255,.18)!important;border-radius:12px!important;background:rgba(0,0,0,.34)!important;color:rgba(255,255,255,.62)!important;font:800 11px Inter,Arial,sans-serif!important;padding:8px 10px!important;cursor:pointer!important;opacity:0!important;pointer-events:none!important;transition:opacity .2s ease!important;}'
+      + '#pt-v34-loader.pt-v34-slow #pt-v34-loader-skip{opacity:1!important;pointer-events:auto!important;}'
+      + '@keyframes pt-v34-loader-move{0%{left:-45%;width:35%}45%{width:62%}100%{left:110%;width:35%}}';
     var style = document.createElement('style');
-    style.id = 'pt-v33-loader-style';
+    style.id = 'pt-v34-loader-style';
     style.type = 'text/css';
     style.appendChild(document.createTextNode(css));
     (document.head || document.documentElement).appendChild(style);
@@ -62,18 +60,18 @@
 
   function ensureLoader() {
     injectCss();
-    var loader = document.getElementById('pt-v33-loader');
+    var loader = document.getElementById('pt-v34-loader');
     if (loader) return loader;
     loader = document.createElement('div');
-    loader.id = 'pt-v33-loader';
+    loader.id = 'pt-v34-loader';
     loader.innerHTML = ''
-      + '<div id="pt-v33-loader-inner">'
-      + '<img id="pt-v33-loader-logo" src="' + LOGO_URL + '" alt="Profitable Trader">'
-      + '<div id="pt-v33-loader-bar"><div id="pt-v33-loader-progress"></div></div>'
+      + '<div id="pt-v34-loader-inner">'
+      + '<img id="pt-v34-loader-logo" src="' + LOGO_URL + '" alt="Profitable Trader">'
+      + '<div id="pt-v34-loader-bar"><div id="pt-v34-loader-progress"></div></div>'
       + '</div>'
-      + '<button type="button" id="pt-v33-loader-skip" aria-label="Zamknij loader">Pomiń ładowanie</button>';
+      + '<button type="button" id="pt-v34-loader-skip">Pomin ladowanie</button>';
     (document.body || document.documentElement).appendChild(loader);
-    var skip = document.getElementById('pt-v33-loader-skip');
+    var skip = document.getElementById('pt-v34-loader-skip');
     if (skip) {
       skip.onclick = function (e) {
         if (e) { e.preventDefault(); e.stopPropagation(); }
@@ -84,69 +82,72 @@
   }
 
   function markNavigation() {
-    ssSet(NAV_FLAG, '1');
-    ssSet(NAV_FROM, location.href);
-    ssSet(NAV_AT, String(now()));
+    ssSet(FLAG, '1');
+    ssSet(FROM, location.href);
+    ssSet(AT, String(now()));
   }
 
   function clearNavigation() {
-    ssDel(NAV_FLAG);
-    ssDel(NAV_FROM);
-    ssDel(NAV_AT);
+    ssDel(FLAG);
+    ssDel(FROM);
+    ssDel(AT);
   }
 
-  function shouldResumeLoader() {
-    if (ssGet(NAV_FLAG) === '1') return true;
-    var t = parseInt(ssGet(NAV_AT) || '0', 10);
-    if (t && now() - t < 6000) return true;
-    return false;
+  function shouldResume() {
+    if (ssGet(FLAG) === '1') return true;
+    var t = parseInt(ssGet(AT) || '0', 10);
+    return !!(t && now() - t < 7000);
   }
 
-  function show(reason) {
+  function show(reason, oldPageUrl) {
     var loader = ensureLoader();
     if (!loader) return;
     if (!visible) shownAt = now();
     visible = true;
     if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
-    loader.className = 'pt-v33-show';
-    if (safetyTimer) clearTimeout(safetyTimer);
-    safetyTimer = setTimeout(function () {
-      var l = document.getElementById('pt-v33-loader');
-      if (l) l.classList.add('pt-v33-slow');
-    }, 8000);
-    startReadyWatcher(reason || 'show');
-  }
+    loader.className = 'pt-v34-visible';
 
-  function hideWhenAllowed() {
-    var elapsed = now() - shownAt;
-    var wait = Math.max(0, MIN_VISIBLE - elapsed);
-    if (hideTimer) clearTimeout(hideTimer);
-    hideTimer = setTimeout(function () {
-      forceHide('ready');
-    }, wait);
+    if (slowTimer) clearTimeout(slowTimer);
+    slowTimer = setTimeout(function () {
+      var l = document.getElementById('pt-v34-loader');
+      if (l) l.classList.add('pt-v34-slow');
+    }, 8000);
+
+    if (oldPageTimer) clearTimeout(oldPageTimer);
+    if (oldPageUrl) {
+      oldPageTimer = setTimeout(function () {
+        if (location.href === oldPageUrl && document.visibilityState !== 'hidden') {
+          forceHide('navigation-cancelled');
+        }
+      }, OLD_PAGE_FAILSAFE);
+    }
+
+    startWatcher(reason || 'show');
   }
 
   function forceHide(reason) {
-    var loader = document.getElementById('pt-v33-loader');
-    if (watcherTimer) { clearInterval(watcherTimer); watcherTimer = null; }
-    if (safetyTimer) { clearTimeout(safetyTimer); safetyTimer = null; }
-    clearNavigation();
+    var loader = document.getElementById('pt-v34-loader');
+    if (watchTimer) { clearInterval(watchTimer); watchTimer = null; }
+    if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+    if (slowTimer) { clearTimeout(slowTimer); slowTimer = null; }
+    if (oldPageTimer) { clearTimeout(oldPageTimer); oldPageTimer = null; }
     visible = false;
-    internalNavArmed = false;
+    clearNavigation();
     if (!loader) return;
-    loader.className = 'pt-v33-hide';
+    loader.className = 'pt-v34-closing';
     setTimeout(function () {
       if (loader && loader.parentNode) loader.parentNode.removeChild(loader);
     }, 260);
   }
 
-  function isElementVisible(el) {
-    if (!el) return false;
-    try {
-      var r = el.getBoundingClientRect();
-      var cs = window.getComputedStyle(el);
-      return !!r && r.width > 20 && r.height > 20 && cs.display !== 'none' && cs.visibility !== 'hidden' && Number(cs.opacity) !== 0;
-    } catch (e) { return true; }
+  function hideAfterMinimum() {
+    var wait = Math.max(0, MIN_VISIBLE - (now() - shownAt));
+    if (hideTimer) clearTimeout(hideTimer);
+    hideTimer = setTimeout(function () { forceHide('ready'); }, wait);
+  }
+
+  function pageReady() {
+    return document.readyState === 'interactive' || document.readyState === 'complete';
   }
 
   function panelReady() {
@@ -154,42 +155,37 @@
     var mini = document.getElementById('wtl-mini');
     var bottom = document.getElementById('wtl-bottom-bar');
     if (!panel && !mini && !bottom) return false;
-
-    var state = lsGetJson('state', 'open');
+    var state = lsJson('state', 'open');
     if (state === 'minimized') return !!mini;
     if (state === 'docked') return !!bottom;
     return !!panel;
   }
 
   function layoutReady() {
-    var wantsLayout = !!lsGetJson('layout_mode', false);
-    if (!wantsLayout && !document.documentElement.classList.contains('wtl-layout-mode')) return true;
-    var topbar = document.getElementById('pt-layout-topbar');
-    var left = document.getElementById('pt-layout-left');
-    var actions = document.getElementById('pt-layout-bottom-actions');
-    if (!topbar || !left || !actions) return false;
-    if (!document.documentElement.classList.contains('wtl-layout-mode')) return false;
-    return true;
-  }
-
-  function pageReady() {
-    return document.readyState === 'interactive' || document.readyState === 'complete';
+    var wantsLayout = !!lsJson('layout_mode', false) || document.documentElement.classList.contains('wtl-layout-mode');
+    if (!wantsLayout) return true;
+    return !!(
+      document.documentElement.classList.contains('wtl-layout-mode') &&
+      document.getElementById('pt-layout-topbar') &&
+      document.getElementById('pt-layout-left') &&
+      document.getElementById('pt-layout-bottom-actions')
+    );
   }
 
   function appReady() {
     return pageReady() && panelReady() && layoutReady();
   }
 
-  function startReadyWatcher(reason) {
-    if (watcherTimer) clearInterval(watcherTimer);
+  function startWatcher(reason) {
+    if (watchTimer) clearInterval(watchTimer);
     var stable = 0;
     var started = now();
-    watcherTimer = setInterval(function () {
+    watchTimer = setInterval(function () {
       if (appReady()) stable++;
       else stable = 0;
 
-      if (stable >= REQUIRED_STABLE) {
-        hideWhenAllowed();
+      if (stable >= STABLE_NEEDED) {
+        hideAfterMinimum();
         return;
       }
 
@@ -199,14 +195,13 @@
     }, POLL);
   }
 
-  function isPanelOrLayoutClick(target) {
+  function insideAssistant(target) {
     if (!target || !target.closest) return false;
-    return !!target.closest('#wtl-assistant-panel,#wtl-mini,#wtl-bottom-bar,#wtl-site-switcher,#pt-layout-topbar,#pt-layout-left,#pt-layout-left-toggle,#pt-layout-bottom-actions,#pt-layout-ai-window,#pt-v33-loader');
+    return !!target.closest('#wtl-assistant-panel,#wtl-mini,#wtl-bottom-bar,#wtl-site-switcher,#pt-layout-topbar,#pt-layout-left,#pt-layout-left-toggle,#pt-layout-bottom-actions,#pt-layout-ai-window,#pt-v34-loader');
   }
 
   function internalUrlFromTarget(target) {
-    if (!target || !target.closest) return '';
-    if (isPanelOrLayoutClick(target)) return '';
+    if (!target || !target.closest || insideAssistant(target)) return '';
     var a = target.closest('a[href]');
     if (!a) return '';
     var href = a.getAttribute('href') || '';
@@ -220,64 +215,62 @@
     return u.href;
   }
 
-  function installNavHooks() {
+  function armForNavigation(reason, oldPageUrl) {
+    markNavigation();
+    show(reason, oldPageUrl || location.href);
+  }
+
+  function installHooks() {
     document.addEventListener('pointerdown', function (e) {
       var url = internalUrlFromTarget(e.target);
       if (!url) return;
-      internalNavArmed = true;
-      markNavigation();
-      show('pointerdown');
+      armForNavigation('pointerdown', location.href);
     }, true);
 
     document.addEventListener('click', function (e) {
       var url = internalUrlFromTarget(e.target);
       if (!url) return;
-      markNavigation();
-      show('click');
-      if (!e.defaultPrevented) {
-        e.preventDefault();
-        setTimeout(function () { location.href = url; }, LINK_DELAY);
-      }
+      armForNavigation('click', location.href);
+      /* Nie robimy preventDefault. Nawigacja ma zostac w 100% po stronie platformy/przegladarki. */
     }, true);
 
     document.addEventListener('submit', function (e) {
-      if (isPanelOrLayoutClick(e.target)) return;
-      markNavigation();
-      show('submit');
+      if (insideAssistant(e.target)) return;
+      armForNavigation('submit', location.href);
     }, true);
 
     window.addEventListener('beforeunload', function () {
       markNavigation();
-      ensureLoader();
-      var loader = document.getElementById('pt-v33-loader');
-      if (loader) loader.className = 'pt-v33-show';
+      var loader = ensureLoader();
+      if (loader) loader.className = 'pt-v34-visible';
     });
 
     window.addEventListener('pagehide', function () {
       markNavigation();
-      ensureLoader();
-      var loader = document.getElementById('pt-v33-loader');
-      if (loader) loader.className = 'pt-v33-show';
+      var loader = ensureLoader();
+      if (loader) loader.className = 'pt-v34-visible';
     });
 
     var oldPush = history.pushState;
     var oldReplace = history.replaceState;
+
     history.pushState = function () {
       var before = location.href;
       var result = oldPush.apply(this, arguments);
       setTimeout(function () {
-        if (location.href !== before && !isPanelOrLayoutClick(document.activeElement)) {
+        if (location.href !== before) {
           markNavigation();
           show('pushState');
         }
       }, 0);
       return result;
     };
+
     history.replaceState = function () {
       var before = location.href;
       var result = oldReplace.apply(this, arguments);
       setTimeout(function () {
-        if (location.href !== before && !isPanelOrLayoutClick(document.activeElement)) {
+        if (location.href !== before) {
           markNavigation();
           show('replaceState');
         }
@@ -286,27 +279,27 @@
     };
 
     window.addEventListener('popstate', function () {
-      markNavigation();
-      show('popstate');
+      armForNavigation('popstate', lastUrl);
     }, true);
 
     setInterval(function () {
       if (location.href === lastUrl) return;
       lastUrl = location.href;
-      if (ssGet(NAV_FLAG) === '1') show('url-watch');
-    }, 160);
+      if (ssGet(FLAG) === '1') show('url-watch');
+    }, 140);
   }
 
   function boot() {
     injectCss();
-    if (shouldResumeLoader()) show('resume');
-    installNavHooks();
+    if (shouldResume()) show('resume');
+    installHooks();
   }
 
-  if (document.body) boot();
-  else {
-    injectCss();
-    if (shouldResumeLoader()) {
+  injectCss();
+
+  if (shouldResume()) {
+    if (document.body) show('resume-immediate');
+    else {
       var early = setInterval(function () {
         if (document.body) {
           clearInterval(early);
@@ -314,7 +307,12 @@
         }
       }, 10);
     }
+  }
+
+  if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', boot, { once: true });
+  } else {
+    boot();
   }
 })();
 (function () {
@@ -8125,55 +8123,41 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
 })();
-/* PT Assistant V33 Thulium Layout Stabilizer
-   Ten patch nie resetuje localStorage/sessionStorage Thulium i nie przeładowuje widgetu.
-   Stabilizuje tylko proxy w layoucie oraz zapewnia osobny przycisk zamykania, zeby nie zostawac na czarnym oknie.
+/* PT Assistant V34 Thulium close + layout stabilizer
+   Nie resetuje sesji Thulium. Nie przechwytuje X w normalnym panelu, zeby nie chowac calego panelu.
 */
 (function () {
   'use strict';
 
-  if (window.__PT_V33_THULIUM_STABILIZER__) return;
-  window.__PT_V33_THULIUM_STABILIZER__ = true;
+  if (window.__PT_V34_THULIUM_CLOSE_LAYOUT_FIX__) return;
+  window.__PT_V34_THULIUM_CLOSE_LAYOUT_FIX__ = true;
 
   var closeBtn = null;
+  var monitor = null;
   var lastFitAt = 0;
   var missingSince = 0;
-  var visibleSince = 0;
-  var monitor = null;
 
-  function qs(sel) { return document.querySelector(sel); }
+  if (location.hostname !== 'edu.profitabletrader.ai') return;
 
   function panel() { return document.getElementById('wtl-assistant-panel'); }
   function mount() { return document.getElementById('wtl-thulium-native-mount'); }
   function frame() {
     var m = mount();
-    return m ? m.querySelector('iframe[title="Thulium Click2Contact"]') : null;
+    return (m && m.querySelector('iframe[title="Thulium Click2Contact"]')) || document.querySelector('iframe[title="Thulium Click2Contact"]');
   }
-
-  function isLayout() {
-    return document.documentElement.classList.contains('wtl-layout-mode');
-  }
-
-  function isProxy() {
+  function isLayout() { return document.documentElement.classList.contains('wtl-layout-mode'); }
+  function isLayoutProxy() {
     var p = panel();
-    return !!(p && p.classList.contains('pt-layout-thulium-proxy'));
-  }
-
-  function visibleFrame() {
-    var f = frame();
-    if (!f) return false;
-    try {
-      var r = f.getBoundingClientRect();
-      var cs = window.getComputedStyle(f);
-      return r.width > 120 && r.height > 180 && cs.display !== 'none' && cs.visibility !== 'hidden' && Number(cs.opacity) !== 0;
-    } catch (e) {
-      return true;
-    }
+    return !!(isLayout() && p && p.classList.contains('pt-layout-thulium-proxy'));
   }
 
   function injectCss() {
-    if (document.getElementById('pt-v33-thulium-style')) return;
+    if (document.getElementById('pt-v34-thulium-style')) return;
     var css = ''
+      /* Wieksze niewidzialne przyciski w zwyklym widoku panelu. */
+      + '#wtl-assistant-panel.wtl-thulium-window-open #wtl-thulium-cover-close{display:block!important;top:0!important;right:0!important;width:72px!important;height:66px!important;z-index:2147483646!important;}'
+      + '#wtl-assistant-panel.wtl-thulium-window-open #wtl-thulium-cover-min{display:block!important;top:0!important;right:58px!important;width:68px!important;height:66px!important;z-index:2147483646!important;}'
+      /* Widok layoutu - stabilne proxy Thulium. */
       + 'html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy{right:14px!important;bottom:68px!important;left:auto!important;top:auto!important;width:420px!important;height:520px!important;max-height:calc(100vh - 84px)!important;max-width:calc(100vw - 28px)!important;overflow:hidden!important;background:#070707!important;border-radius:18px!important;}'
       + 'html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy.pt-thulium-preload{opacity:0!important;visibility:hidden!important;pointer-events:none!important;}'
       + 'html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy.pt-thulium-ready{opacity:1!important;visibility:visible!important;pointer-events:auto!important;}'
@@ -8184,11 +8168,11 @@
       + 'html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy #wtl-thulium-native-loading{display:none!important;visibility:hidden!important;pointer-events:none!important;}'
       + 'html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy #wtl-thulium-native-mount iframe[title="Thulium Click2Contact"],html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy #wtl-thulium-native-mount .thulium-chat-wrapper,html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy #wtl-thulium-native-mount .thulium-chat-frame-wrapper{position:absolute!important;left:-4px!important;top:-72px!important;right:auto!important;bottom:auto!important;width:calc(100% + 8px)!important;height:750px!important;min-height:750px!important;max-height:none!important;opacity:1!important;visibility:visible!important;display:block!important;pointer-events:auto!important;transform:none!important;z-index:10!important;}'
       + 'html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy #wtl-thulium-cover-min,html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy #wtl-thulium-cover-close{display:none!important;visibility:hidden!important;pointer-events:none!important;}'
-      + '#pt-v33-thulium-close{position:fixed!important;right:26px!important;bottom:548px!important;width:46px!important;height:46px!important;z-index:2147483647!important;background:transparent!important;border:0!important;box-shadow:none!important;color:transparent!important;opacity:0!important;cursor:pointer!important;display:none!important;padding:0!important;margin:0!important;}'
-      + 'html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy.pt-thulium-ready ~ #pt-v33-thulium-close,html.wtl-layout-mode #pt-v33-thulium-close.pt-v33-show{display:block!important;pointer-events:auto!important;}'
+      + '#pt-v34-thulium-close{position:fixed!important;right:18px!important;bottom:536px!important;width:78px!important;height:78px!important;z-index:2147483647!important;background:transparent!important;border:0!important;box-shadow:none!important;color:transparent!important;opacity:0!important;cursor:pointer!important;display:none!important;padding:0!important;margin:0!important;}'
+      + 'html.wtl-layout-mode #pt-v34-thulium-close.pt-v34-show{display:block!important;pointer-events:auto!important;}'
       + 'html.wtl-layout-mode .thulium-chat-wrapper:not(#wtl-thulium-native-mount .thulium-chat-wrapper),html.wtl-layout-mode .thulium-chat-frame-wrapper:not(#wtl-thulium-native-mount .thulium-chat-frame-wrapper),html.wtl-layout-mode body>iframe[title="Thulium Click2Contact"]{opacity:0!important;visibility:hidden!important;pointer-events:none!important;left:-9999px!important;right:auto!important;bottom:auto!important;transform:scale(.01)!important;}';
     var style = document.createElement('style');
-    style.id = 'pt-v33-thulium-style';
+    style.id = 'pt-v34-thulium-style';
     style.type = 'text/css';
     style.appendChild(document.createTextNode(css));
     (document.head || document.documentElement).appendChild(style);
@@ -8196,81 +8180,95 @@
 
   function ensureCloseButton() {
     if (closeBtn && document.body && document.body.contains(closeBtn)) return closeBtn;
-    closeBtn = document.getElementById('pt-v33-thulium-close');
-    if (!closeBtn) {
+    closeBtn = document.getElementById('pt-v34-thulium-close');
+    if (!closeBtn && document.body) {
       closeBtn = document.createElement('button');
       closeBtn.type = 'button';
-      closeBtn.id = 'pt-v33-thulium-close';
+      closeBtn.id = 'pt-v34-thulium-close';
       closeBtn.setAttribute('aria-label', 'Zamknij Thulium');
-      closeBtn.textContent = '×';
+      closeBtn.textContent = 'x';
       document.body.appendChild(closeBtn);
     }
-    closeBtn.onclick = function (e) {
-      if (e) { e.preventDefault(); e.stopPropagation(); }
-      closeThulium(true);
-      return false;
-    };
+    if (closeBtn) {
+      closeBtn.onclick = function (e) {
+        if (e) { e.preventDefault(); e.stopPropagation(); }
+        closeLayoutThulium(true);
+        return false;
+      };
+    }
     return closeBtn;
   }
 
-  function setImportant(el, prop, val) {
-    if (!el) return;
-    try { el.style.setProperty(prop, val, 'important'); } catch (e) {}
+  function visibleFrame() {
+    var f = frame();
+    if (!f) return false;
+    try {
+      var r = f.getBoundingClientRect();
+      var cs = window.getComputedStyle(f);
+      return r.width > 120 && r.height > 180 && cs.display !== 'none' && cs.visibility !== 'hidden' && Number(cs.opacity) !== 0;
+    } catch (e) { return true; }
   }
 
-  function fitOnce() {
+  function setImp(el, prop, value) {
+    if (!el) return;
+    try { el.style.setProperty(prop, value, 'important'); } catch (e) {}
+  }
+
+  function fitLayoutOnce() {
     var t = Date.now();
-    if (t - lastFitAt < 180) return;
+    if (t - lastFitAt < 220) return;
     lastFitAt = t;
 
     var p = panel();
     var m = mount();
     var f = frame();
-    if (!p || !m || !isLayout() || !p.classList.contains('pt-layout-thulium-proxy')) return;
+    if (!isLayoutProxy() || !p || !m) return;
 
-    setImportant(p, 'right', '14px');
-    setImportant(p, 'bottom', '68px');
-    setImportant(p, 'left', 'auto');
-    setImportant(p, 'top', 'auto');
-    setImportant(p, 'width', '420px');
-    setImportant(p, 'height', '520px');
-    setImportant(p, 'max-height', 'calc(100vh - 84px)');
-    setImportant(p, 'overflow', 'hidden');
+    setImp(p, 'right', '14px');
+    setImp(p, 'bottom', '68px');
+    setImp(p, 'left', 'auto');
+    setImp(p, 'top', 'auto');
+    setImp(p, 'width', '420px');
+    setImp(p, 'height', '520px');
+    setImp(p, 'max-height', 'calc(100vh - 84px)');
+    setImp(p, 'overflow', 'hidden');
 
-    setImportant(m, 'position', 'relative');
-    setImportant(m, 'height', '520px');
-    setImportant(m, 'min-height', '520px');
-    setImportant(m, 'max-height', '520px');
-    setImportant(m, 'margin', '0');
-    setImportant(m, 'border-top', '0');
-    setImportant(m, 'overflow', 'hidden');
+    setImp(m, 'position', 'relative');
+    setImp(m, 'height', '520px');
+    setImp(m, 'min-height', '520px');
+    setImp(m, 'max-height', '520px');
+    setImp(m, 'margin', '0');
+    setImp(m, 'border-top', '0');
+    setImp(m, 'overflow', 'hidden');
 
     if (f) {
-      setImportant(f, 'position', 'absolute');
-      setImportant(f, 'left', '-4px');
-      setImportant(f, 'top', '-72px');
-      setImportant(f, 'right', 'auto');
-      setImportant(f, 'bottom', 'auto');
-      setImportant(f, 'width', 'calc(100% + 8px)');
-      setImportant(f, 'height', '750px');
-      setImportant(f, 'min-height', '750px');
-      setImportant(f, 'max-height', 'none');
-      setImportant(f, 'opacity', '1');
-      setImportant(f, 'visibility', 'visible');
-      setImportant(f, 'display', 'block');
-      setImportant(f, 'pointer-events', 'auto');
-      setImportant(f, 'transform', 'none');
+      setImp(f, 'position', 'absolute');
+      setImp(f, 'left', '-4px');
+      setImp(f, 'top', '-72px');
+      setImp(f, 'right', 'auto');
+      setImp(f, 'bottom', 'auto');
+      setImp(f, 'width', 'calc(100% + 8px)');
+      setImp(f, 'height', '750px');
+      setImp(f, 'min-height', '750px');
+      setImp(f, 'max-height', 'none');
+      setImp(f, 'opacity', '1');
+      setImp(f, 'visibility', 'visible');
+      setImp(f, 'display', 'block');
+      setImp(f, 'pointer-events', 'auto');
+      setImp(f, 'transform', 'none');
     }
   }
 
-  function closeThulium(closeNative) {
+  function closeLayoutThulium(closeNative) {
     var p = panel();
+
     if (closeNative) {
       try {
         if (window._tc && typeof window._tc.close === 'function') window._tc.close();
         else if (typeof window._tc === 'function') window._tc('close');
       } catch (e) {}
     }
+
     if (p) {
       p.classList.remove('pt-layout-thulium-proxy');
       p.classList.remove('pt-thulium-preload');
@@ -8287,10 +8285,10 @@
         p.style.removeProperty('overflow');
       } catch (e2) {}
     }
-    if (closeBtn) closeBtn.classList.remove('pt-v33-show');
+
+    if (closeBtn) closeBtn.classList.remove('pt-v34-show');
     try { localStorage.setItem('pt_assistant_v60_layout_thulium_open', JSON.stringify(false)); } catch (e3) {}
     missingSince = 0;
-    visibleSince = 0;
   }
 
   function monitorTick() {
@@ -8298,51 +8296,46 @@
     ensureCloseButton();
 
     var p = panel();
-    if (!isLayout() || !p || !p.classList.contains('pt-layout-thulium-proxy')) {
-      if (closeBtn) closeBtn.classList.remove('pt-v33-show');
+    if (!isLayoutProxy() || !p) {
+      if (closeBtn) closeBtn.classList.remove('pt-v34-show');
       missingSince = 0;
-      visibleSince = 0;
       return;
     }
 
-    var vf = visibleFrame();
-    if (vf) {
-      visibleSince = visibleSince || Date.now();
+    if (visibleFrame()) {
       missingSince = 0;
       p.classList.remove('pt-thulium-preload');
       p.classList.add('pt-thulium-ready');
       p.classList.remove('wtl-hidden');
-      if (closeBtn) closeBtn.classList.add('pt-v33-show');
-      fitOnce();
+      if (closeBtn) closeBtn.classList.add('pt-v34-show');
+      fitLayoutOnce();
       return;
     }
 
-    if (closeBtn) closeBtn.classList.remove('pt-v33-show');
-
-    if (p.classList.contains('pt-thulium-ready')) {
-      if (!missingSince) missingSince = Date.now();
-      if (Date.now() - missingSince > 900) {
-        closeThulium(false);
-      }
-      return;
-    }
-
-    if (!visibleSince) {
-      if (!missingSince) missingSince = Date.now();
-      if (Date.now() - missingSince > 4500) {
-        closeThulium(false);
-      }
-    }
+    if (closeBtn) closeBtn.classList.remove('pt-v34-show');
+    if (!missingSince) missingSince = Date.now();
+    if (Date.now() - missingSince > 1400) closeLayoutThulium(false);
   }
 
   document.addEventListener('click', function (e) {
     var t = e.target;
     if (!t) return;
-    if (t.id === 'pt-v33-thulium-close' || t.id === 'wtl-thulium-cover-close' || t.id === 'wtl-thulium-cover-min') {
+
+    if (t.id === 'pt-v34-thulium-close') {
       e.preventDefault();
       e.stopPropagation();
       e.stopImmediatePropagation();
-      closeThulium(true);
+      closeLayoutThulium(true);
+      return false;
+    }
+
+    /* Wazne: X z oryginalnego panelu przechwytujemy tylko w layout proxy.
+       W normalnym widoku panelu zostawiamy go bazowemu kodowi, bo inaczej chowa caly panel. */
+    if ((t.id === 'wtl-thulium-cover-close' || t.id === 'wtl-thulium-cover-min') && isLayoutProxy()) {
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      closeLayoutThulium(true);
       return false;
     }
   }, true);
@@ -8351,7 +8344,7 @@
     injectCss();
     ensureCloseButton();
     if (monitor) clearInterval(monitor);
-    monitor = setInterval(monitorTick, 220);
+    monitor = setInterval(monitorTick, 240);
     if (window.MutationObserver && document.body) {
       var pending = null;
       var obs = new MutationObserver(function () {
@@ -8359,7 +8352,7 @@
         pending = setTimeout(function () {
           pending = null;
           monitorTick();
-        }, 120);
+        }, 140);
       });
       obs.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style'] });
     }

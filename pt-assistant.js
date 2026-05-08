@@ -5439,3 +5439,601 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initV19);
   else initV19();
 })();
+
+/* PT Assistant Layout V20
+   - Stabilniejsze uruchamianie Thulium z widoku Layout bez potrzeby kilku klikniec.
+   - Poprawione wykrywanie jezyka platformy: priorytet ma ustawienie z menu WTL i URL, a nie html lang.
+*/
+(function () {
+  'use strict';
+  if (window.__PT_LAYOUT_V20_THULIUM_LANGUAGE_FIX__) return;
+  window.__PT_LAYOUT_V20_THULIUM_LANGUAGE_FIX__ = true;
+
+  var PREFIX = 'pt_assistant_v60_';
+  var THULIUM_SRC = 'https://cdn.thulium.com/apps/chat-widget/chat-loader.js?hash=eliteexpertclub-4cb69311-31a0-4960-9608-ef51bf61693b';
+  var openTimer = null;
+  var monitorTimer = null;
+  var localeTimer = null;
+  var observer = null;
+  var lastIntent = 'chat';
+  var hadVisibleThulium = false;
+  var lastVisibleAt = 0;
+
+  var DICT = {
+    en: {
+      'Wroc do panelu': 'Back to panel',
+      'Wróć do panelu': 'Back to panel',
+      'Plan lekcji': 'Lesson plan',
+      'Wybierz sekcje': 'Choose a section',
+      'Wybierz sekcję': 'Choose a section',
+      'Wroc do ostatniej lekcji': 'Return to last lesson',
+      'Wróć do ostatniej lekcji': 'Return to last lesson',
+      'Ostatnio ogladana lekcja:': 'Last watched lesson:',
+      'Ostatnio oglądana lekcja:': 'Last watched lesson:',
+      'Brak zapisanej ostatniej lekcji': 'No saved last lesson',
+      'Wejdz na dowolna lekcje, a panel automatycznie zapamieta jej tytul, link oraz sekcje.': 'Open any lesson and the panel will automatically save its title, link and section.',
+      'Wejdź na dowolną lekcję, a panel automatycznie zapamięta jej tytuł, link oraz sekcję.': 'Open any lesson and the panel will automatically save its title, link and section.',
+      'Wejdz na dowolna lekcje, a Layout automatycznie pokaze ostatni material.': 'Open any lesson and Layout will automatically show your last material.',
+      'Wejdź na dowolną lekcję, a Layout automatycznie pokaże ostatni materiał.': 'Open any lesson and Layout will automatically show your last material.',
+      'Sekcja:': 'Section:',
+      'Zapisano:': 'Saved:',
+      'Zapisano': 'Saved',
+      'Aktualnie ogladasz te lekcje': 'You are currently watching this lesson',
+      'Aktualnie oglądasz tę lekcję': 'You are currently watching this lesson',
+      'Wroc do:': 'Return to:',
+      'Wróć do:': 'Return to:',
+      'Zrodlo:': 'Source:',
+      'Źródło:': 'Source:',
+      'Postep sekcji': 'Section progress',
+      'Postęp sekcji': 'Section progress',
+      'Postep': 'Progress',
+      'Postęp': 'Progress',
+      'Ukonczona': 'Completed',
+      'Ukończona': 'Completed',
+      'Do obejrzenia': 'To watch',
+      'Lekcja #': 'Lesson #',
+      'lekcji': 'lessons',
+      'ukonczone': 'completed',
+      'ukończone': 'completed',
+      'Ladowanie': 'Loading',
+      'Ładowanie': 'Loading',
+      '← Wroc': '← Back',
+      '← Wróć': '← Back',
+      'Czat': 'Chat',
+      'E-mail': 'E-mail',
+      'Profitable Assistant jest na pasku': 'Profitable Assistant is on the bar',
+      'Kliknij, aby przywrocic panel.': 'Click to restore the panel.',
+      'Kliknij, aby przywrócić panel.': 'Click to restore the panel.',
+      'Otworz panel': 'Open panel',
+      'Otwórz panel': 'Open panel',
+      'Witaj ponownie': 'Welcome back',
+      'Mozesz sprawdzic plan lekcji, uzyc AI Agenta albo skontaktowac sie przez Thulium.': 'You can check the lesson plan, use the AI Agent or contact us via Thulium.',
+      'Możesz sprawdzić plan lekcji, użyć AI Agenta albo skontaktować się przez Thulium.': 'You can check the lesson plan, use the AI Agent or contact us via Thulium.',
+      'Strona glowna': 'Home',
+      'Strona główna': 'Home',
+      'Powiadomienia': 'Notifications',
+      'Moje konto': 'My account',
+      'Sprawdzam': 'Checking',
+      'sprawdzam...': 'checking...',
+      'aktywne': 'active',
+      'nieaktywne': 'inactive',
+      'nieznane': 'unknown'
+    },
+    de: {
+      'Wróć do panelu': 'Zurück zum Panel',
+      'Plan lekcji': 'Lektionsplan',
+      'Wybierz sekcję': 'Abschnitt wählen',
+      'Wróć do ostatniej lekcji': 'Zur letzten Lektion zurück',
+      'Ostatnio oglądana lekcja:': 'Zuletzt angesehene Lektion:',
+      'Brak zapisanej ostatniej lekcji': 'Keine gespeicherte letzte Lektion',
+      'Sekcja:': 'Abschnitt:',
+      'Zapisano:': 'Gespeichert:',
+      'Wróć do:': 'Zurück zu:',
+      'Źródło:': 'Quelle:',
+      'Postęp sekcji': 'Abschnittsfortschritt',
+      'Postęp': 'Fortschritt',
+      'Ukończona': 'Abgeschlossen',
+      'Do obejrzenia': 'Ansehen',
+      'Lekcja #': 'Lektion #',
+      '← Wróć': '← Zurück',
+      'Czat': 'Chat',
+      'Otwórz panel': 'Panel öffnen',
+      'Witaj ponownie': 'Willkommen zurück',
+      'Strona główna': 'Startseite',
+      'Powiadomienia': 'Benachrichtigungen'
+    },
+    es: {
+      'Wróć do panelu': 'Volver al panel',
+      'Plan lekcji': 'Plan de lecciones',
+      'Wybierz sekcję': 'Elige una sección',
+      'Wróć do ostatniej lekcji': 'Volver a la última lección',
+      'Ostatnio oglądana lekcja:': 'Última lección vista:',
+      'Brak zapisanej ostatniej lekcji': 'No hay última lección guardada',
+      'Sekcja:': 'Sección:',
+      'Zapisano:': 'Guardado:',
+      'Wróć do:': 'Volver a:',
+      'Źródło:': 'Fuente:',
+      'Postęp sekcji': 'Progreso de la sección',
+      'Postęp': 'Progreso',
+      'Ukończona': 'Completada',
+      'Do obejrzenia': 'Por ver',
+      'Lekcja #': 'Lección #',
+      '← Wróć': '← Volver',
+      'Czat': 'Chat',
+      'Otwórz panel': 'Abrir panel',
+      'Witaj ponownie': 'Bienvenido de nuevo',
+      'Strona główna': 'Inicio',
+      'Powiadomienia': 'Notificaciones'
+    },
+    ua: {
+      'Wróć do panelu': 'Повернутися до панелі',
+      'Plan lekcji': 'План уроків',
+      'Wybierz sekcję': 'Виберіть розділ',
+      'Wróć do ostatniej lekcji': 'Повернутися до останнього уроку',
+      'Ostatnio oglądana lekcja:': 'Останній переглянутий урок:',
+      'Brak zapisanej ostatniej lekcji': 'Немає збереженого останнього уроку',
+      'Sekcja:': 'Розділ:',
+      'Zapisano:': 'Збережено:',
+      'Wróć do:': 'Повернутися до:',
+      'Źródło:': 'Джерело:',
+      'Postęp sekcji': 'Прогрес розділу',
+      'Postęp': 'Прогрес',
+      'Ukończona': 'Завершено',
+      'Do obejrzenia': 'До перегляду',
+      'Lekcja #': 'Урок #',
+      '← Wróć': '← Назад',
+      'Czat': 'Чат',
+      'Otwórz panel': 'Відкрити панель',
+      'Witaj ponownie': 'З поверненням',
+      'Strona główna': 'Головна',
+      'Powiadomienia': 'Сповіщення'
+    }
+  };
+
+  function sKey(key) { return PREFIX + key; }
+  function save(key, value) { try { localStorage.setItem(sKey(key), JSON.stringify(value)); } catch (err) {} }
+  function clean(value) { return String(value || '').replace(/\s+/g, ' ').trim(); }
+  function lower(value) { return clean(value).toLowerCase(); }
+
+  function injectCss() {
+    if (document.getElementById('pt-layout-v20-style')) return;
+    var style = document.createElement('style');
+    style.id = 'pt-layout-v20-style';
+    style.textContent = ''
+      + 'html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy.pt-v20-thulium-opening{opacity:0!important;visibility:hidden!important;pointer-events:none!important;}'
+      + 'html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy.pt-v20-thulium-ready{opacity:1!important;visibility:visible!important;pointer-events:auto!important;}'
+      + 'html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy #wtl-thulium-native-loading{display:none!important;visibility:hidden!important;}'
+      + 'html.wtl-layout-mode .thulium-chat-wrapper:not(#wtl-thulium-native-mount .thulium-chat-wrapper),html.wtl-layout-mode .thulium-chat-frame-wrapper:not(#wtl-thulium-native-mount .thulium-chat-frame-wrapper),html.wtl-layout-mode body>iframe[title="Thulium Click2Contact"]{opacity:0!important;visibility:hidden!important;pointer-events:none!important;left:-99999px!important;right:auto!important;bottom:auto!important;transform:scale(.01)!important;}'
+      + 'html.wtl-layout-mode #wtl-thulium-native-mount iframe[title="Thulium Click2Contact"],html.wtl-layout-mode #wtl-thulium-native-mount .thulium-chat-wrapper,html.wtl-layout-mode #wtl-thulium-native-mount .thulium-chat-frame-wrapper{display:block!important;opacity:1!important;visibility:visible!important;pointer-events:auto!important;}';
+    document.head.appendChild(style);
+  }
+
+  function getPanel() { return document.getElementById('wtl-assistant-panel'); }
+  function getMount() { return document.getElementById('wtl-thulium-native-mount'); }
+  function getFrame() { var mount = getMount(); return mount ? mount.querySelector('iframe[title="Thulium Click2Contact"]') : null; }
+
+  function ensureTcQueue() {
+    if (!window._tc || typeof window._tc !== 'function') {
+      window._tc = function () { (window._tc.q = window._tc.q || []).push(arguments); };
+    }
+  }
+
+  function callTc(method, arg) {
+    try {
+      if (window._tc && typeof window._tc[method] === 'function') {
+        if (typeof arg !== 'undefined') window._tc[method](arg);
+        else window._tc[method]();
+        return true;
+      }
+    } catch (err) {}
+    try {
+      if (typeof window._tc === 'function') {
+        if (typeof arg !== 'undefined') window._tc(method, arg);
+        else window._tc(method);
+        return true;
+      }
+    } catch (err2) {}
+    return false;
+  }
+
+  function clickEl(el) {
+    if (!el) return false;
+    try { el.click(); return true; } catch (err) {}
+    try {
+      var evt = document.createEvent('MouseEvents');
+      evt.initMouseEvent('click', true, true, window, 1, 0, 0, 0, 0, false, false, false, false, 0, null);
+      el.dispatchEvent(evt);
+      return true;
+    } catch (err2) {}
+    return false;
+  }
+
+  function hideLooseThulium() {
+    if (!document.documentElement.classList.contains('wtl-layout-mode')) return;
+    var mount = getMount();
+    var nodes = document.querySelectorAll('.thulium-chat-wrapper,.thulium-chat-frame-wrapper,iframe[title="Thulium Click2Contact"]');
+    for (var i = 0; i < nodes.length; i++) {
+      var node = nodes[i];
+      if (!node || (mount && mount.contains(node))) continue;
+      try {
+        node.style.setProperty('opacity', '0', 'important');
+        node.style.setProperty('visibility', 'hidden', 'important');
+        node.style.setProperty('pointer-events', 'none', 'important');
+        node.style.setProperty('left', '-99999px', 'important');
+        node.style.setProperty('right', 'auto', 'important');
+        node.style.setProperty('bottom', 'auto', 'important');
+        node.style.setProperty('transform', 'scale(.01)', 'important');
+      } catch (err) {}
+    }
+  }
+
+  function fitThulium() {
+    var panel = getPanel();
+    var mount = getMount();
+    var frame = getFrame();
+    if (!panel || !mount) return;
+
+    try {
+      panel.classList.add('pt-layout-thulium-proxy');
+      panel.classList.remove('wtl-hidden');
+      mount.style.setProperty('height', '520px', 'important');
+      mount.style.setProperty('min-height', '520px', 'important');
+      mount.style.setProperty('max-height', '520px', 'important');
+      mount.style.setProperty('margin', '0', 'important');
+      mount.style.setProperty('border-top', '0', 'important');
+      mount.style.setProperty('overflow', 'hidden', 'important');
+      mount.style.setProperty('background', '#070707', 'important');
+    } catch (err) {}
+
+    if (frame) {
+      try {
+        frame.style.setProperty('position', 'absolute', 'important');
+        frame.style.setProperty('left', '-4px', 'important');
+        frame.style.setProperty('top', '-72px', 'important');
+        frame.style.setProperty('width', 'calc(100% + 8px)', 'important');
+        frame.style.setProperty('height', '750px', 'important');
+        frame.style.setProperty('min-height', '750px', 'important');
+        frame.style.setProperty('max-height', 'none', 'important');
+        frame.style.setProperty('display', 'block', 'important');
+        frame.style.setProperty('opacity', '1', 'important');
+        frame.style.setProperty('visibility', 'visible', 'important');
+        frame.style.setProperty('pointer-events', 'auto', 'important');
+        frame.style.setProperty('z-index', '10', 'important');
+        frame.style.setProperty('border', '0', 'important');
+        frame.style.setProperty('transform', 'none', 'important');
+      } catch (err2) {}
+    }
+  }
+
+  function isFrameVisible() {
+    var frame = getFrame();
+    if (!frame) return false;
+    try {
+      var rect = frame.getBoundingClientRect();
+      var cs = window.getComputedStyle(frame);
+      return rect.width > 160 && rect.height > 160 && cs.display !== 'none' && cs.visibility !== 'hidden' && Number(cs.opacity) !== 0;
+    } catch (err) { return false; }
+  }
+
+  function markReady() {
+    var panel = getPanel();
+    if (!panel) return;
+    hadVisibleThulium = true;
+    lastVisibleAt = Date.now();
+    panel.classList.add('pt-layout-thulium-proxy');
+    panel.classList.remove('pt-v19-thulium-opening');
+    panel.classList.remove('pt-thulium-preload');
+    panel.classList.remove('pt-v20-thulium-opening');
+    panel.classList.add('pt-v19-thulium-ready');
+    panel.classList.add('pt-thulium-ready');
+    panel.classList.add('pt-v20-thulium-ready');
+    panel.classList.remove('wtl-hidden');
+    fitThulium();
+  }
+
+  function markOpening() {
+    var panel = getPanel();
+    if (!panel) return;
+    panel.classList.remove('wtl-hidden');
+    panel.classList.remove('pt-layout-ai-proxy');
+    panel.classList.add('pt-layout-thulium-proxy');
+    panel.classList.add('pt-v20-thulium-opening');
+    panel.classList.add('pt-v19-thulium-opening');
+    panel.classList.add('pt-thulium-preload');
+    panel.classList.remove('pt-v20-thulium-ready');
+    panel.classList.remove('pt-v19-thulium-ready');
+    panel.classList.remove('pt-thulium-ready');
+  }
+
+  function resetClosedWindow() {
+    var panel = getPanel();
+    if (!panel) return;
+    panel.classList.remove('pt-layout-thulium-proxy');
+    panel.classList.remove('pt-v20-thulium-opening');
+    panel.classList.remove('pt-v20-thulium-ready');
+    panel.classList.remove('pt-v19-thulium-opening');
+    panel.classList.remove('pt-v19-thulium-ready');
+    panel.classList.remove('pt-thulium-preload');
+    panel.classList.remove('pt-thulium-ready');
+    if (document.documentElement.classList.contains('wtl-layout-mode')) panel.classList.add('wtl-hidden');
+  }
+
+  function ensureThuliumScript() {
+    ensureTcQueue();
+    callTc('set_container', 'wtl-thulium-native-mount');
+    if (document.querySelector('script[src*="cdn.thulium.com/apps/chat-widget/chat-loader.js"]')) return;
+    try {
+      var script = document.createElement('script');
+      script.async = true;
+      script.src = THULIUM_SRC + '&ptV20=' + Date.now();
+      document.head.appendChild(script);
+    } catch (err) {}
+  }
+
+  function invokeIntent(intent, attempt) {
+    ensureTcQueue();
+    callTc('set_container', 'wtl-thulium-native-mount');
+    if (intent === 'email') {
+      callTc('open_email');
+      callTc('open_email_form');
+      callTc('open_message');
+      callTc('open_message_form');
+      callTc('open_contact_form');
+      callTc('open_contact');
+      if (attempt <= 4 || attempt % 8 === 0) {
+        var emailBtn = document.querySelector('#wtl-assistant-panel [data-wtl-thulium-intent="email"]');
+        clickEl(emailBtn);
+      }
+    } else {
+      callTc('open_chat');
+      callTc('open_chat_form');
+      callTc('chat');
+      if (attempt <= 4 || attempt % 8 === 0) {
+        var chatBtn = document.querySelector('#wtl-assistant-panel [data-wtl-thulium-intent="chat"]');
+        clickEl(chatBtn);
+      }
+    }
+  }
+
+  function openLayoutThulium(intent) {
+    if (intent !== 'email') intent = 'chat';
+    lastIntent = intent;
+    hadVisibleThulium = false;
+    lastVisibleAt = 0;
+    injectCss();
+
+    var aiClose = document.getElementById('pt-layout-ai-proxy-close');
+    if (aiClose) clickEl(aiClose);
+
+    ensureThuliumScript();
+    markOpening();
+    hideLooseThulium();
+    fitThulium();
+
+    var tab = document.querySelector('#wtl-assistant-panel [data-wtl-tab="thulium"]');
+    clickEl(tab);
+
+    var attempt = 0;
+    if (openTimer) clearInterval(openTimer);
+    openTimer = setInterval(function () {
+      attempt++;
+      if (!document.documentElement.classList.contains('wtl-layout-mode')) {
+        clearInterval(openTimer);
+        openTimer = null;
+        return;
+      }
+
+      markOpening();
+      hideLooseThulium();
+      fitThulium();
+      invokeIntent(intent, attempt);
+
+      if (isFrameVisible()) {
+        markReady();
+        clearInterval(openTimer);
+        openTimer = null;
+        startMonitor();
+        return;
+      }
+
+      if (attempt === 38 && !getFrame()) {
+        try {
+          var scripts = document.querySelectorAll('script[src*="cdn.thulium.com/apps/chat-widget/chat-loader.js"]');
+          for (var i = 0; i < scripts.length; i++) if (scripts[i].parentNode) scripts[i].parentNode.removeChild(scripts[i]);
+        } catch (err) {}
+        ensureThuliumScript();
+      }
+
+      if (attempt > 95) {
+        clearInterval(openTimer);
+        openTimer = null;
+        if (isFrameVisible()) markReady();
+        else resetClosedWindow();
+      }
+    }, 95);
+  }
+
+  function startMonitor() {
+    if (monitorTimer) clearInterval(monitorTimer);
+    monitorTimer = setInterval(function () {
+      if (!document.documentElement.classList.contains('wtl-layout-mode')) return;
+      var panel = getPanel();
+      if (!panel || !panel.classList.contains('pt-layout-thulium-proxy')) return;
+      hideLooseThulium();
+      fitThulium();
+      if (isFrameVisible()) {
+        markReady();
+        return;
+      }
+      if (hadVisibleThulium && lastVisibleAt && Date.now() - lastVisibleAt > 700) resetClosedWindow();
+    }, 120);
+  }
+
+  function bindThuliumButtons() {
+    var buttons = document.querySelectorAll('[data-pt-layout-thulium], [data-pt-v19-thulium], [data-pt-v20-thulium]');
+    for (var i = 0; i < buttons.length; i++) {
+      var old = buttons[i];
+      var intent = old.getAttribute('data-pt-v20-thulium') || old.getAttribute('data-pt-v19-thulium') || old.getAttribute('data-pt-layout-thulium') || 'chat';
+      if (old.__ptV20Bound) continue;
+      var clone = old.cloneNode(true);
+      clone.removeAttribute('data-pt-layout-thulium');
+      clone.removeAttribute('data-pt-v19-thulium');
+      clone.setAttribute('data-pt-v20-thulium', intent);
+      clone.__ptV20Bound = true;
+      clone.addEventListener('click', function (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        ev.stopImmediatePropagation();
+        openLayoutThulium(this.getAttribute('data-pt-v20-thulium') || 'chat');
+      }, true);
+      if (old.parentNode) old.parentNode.replaceChild(clone, old);
+    }
+  }
+
+  function detectLanguageFromUrl() {
+    var params;
+    try { params = new URLSearchParams(location.search); } catch (err) { return ''; }
+    var locale = lower(params.get('locale') || params.get('_locale') || params.get('lang') || params.get('language') || '');
+    if (locale.indexOf('en') === 0) return 'en';
+    if (locale.indexOf('de') === 0) return 'de';
+    if (locale.indexOf('es') === 0) return 'es';
+    if (locale.indexOf('ua') === 0 || locale.indexOf('uk') === 0) return 'ua';
+    if (locale.indexOf('pl') === 0) return 'pl';
+    return '';
+  }
+
+  function detectLanguageFromMenu() {
+    var nodes = [];
+    var selectors = [
+      '.nav-menu-list-item[menu="languages"] span',
+      '.nav-menu-list-item[menu="languages"]',
+      '.nav-menu-list[menu="languages"] .active',
+      '.nav-menu-list[menu="languages"] [aria-current="true"]',
+      '.nav-menu-list[menu="languages"] a[href*="locale="]',
+      'a[href*="locale="]'
+    ];
+    for (var s = 0; s < selectors.length; s++) {
+      var found = document.querySelectorAll(selectors[s]);
+      for (var i = 0; i < found.length; i++) nodes.push(found[i]);
+    }
+    for (var n = 0; n < nodes.length; n++) {
+      var el = nodes[n];
+      var text = lower((el.textContent || '') + ' ' + (el.getAttribute('href') || '') + ' ' + (el.getAttribute('title') || '') + ' ' + (el.getAttribute('aria-label') || ''));
+      if (text.indexOf('language: english') !== -1 || text.indexOf('english') !== -1 || /locale=en\b/.test(text) || /[?&]lang=en\b/.test(text)) return 'en';
+      if (text.indexOf('language: deutsch') !== -1 || text.indexOf('deutsch') !== -1 || /locale=de\b/.test(text) || /[?&]lang=de\b/.test(text)) return 'de';
+      if (text.indexOf('language: espanol') !== -1 || text.indexOf('language: español') !== -1 || text.indexOf('espanol') !== -1 || text.indexOf('español') !== -1 || /locale=es\b/.test(text) || /[?&]lang=es\b/.test(text)) return 'es';
+      if (text.indexOf('language: ua') !== -1 || text.indexOf('укра') !== -1 || /locale=ua\b/.test(text) || /locale=uk\b/.test(text) || /[?&]lang=ua\b/.test(text) || /[?&]lang=uk\b/.test(text)) return 'ua';
+      if (text.indexOf('language: polski') !== -1 || text.indexOf('polski') !== -1 || /locale=pl\b/.test(text) || /[?&]lang=pl\b/.test(text)) return 'pl';
+    }
+    return '';
+  }
+
+  function detectLanguageFromStorage() {
+    try {
+      var keys = [];
+      for (var i = 0; i < localStorage.length; i++) keys.push(localStorage.key(i));
+      for (var k = 0; k < keys.length; k++) {
+        var key = keys[k];
+        if (!/(locale|language|lang)/i.test(key)) continue;
+        var value = lower(localStorage.getItem(key) || '');
+        if (/\ben\b|english/.test(value)) return 'en';
+        if (/\bde\b|deutsch/.test(value)) return 'de';
+        if (/\bes\b|espanol|español/.test(value)) return 'es';
+        if (/\bua\b|\buk\b|укра/.test(value)) return 'ua';
+        if (/\bpl\b|polski/.test(value)) return 'pl';
+      }
+    } catch (err) {}
+    return '';
+  }
+
+  function detectLanguageFromHtml() {
+    var lang = lower(document.documentElement.getAttribute('lang') || '');
+    if (lang.indexOf('en') === 0) return 'en';
+    if (lang.indexOf('de') === 0) return 'de';
+    if (lang.indexOf('es') === 0) return 'es';
+    if (lang.indexOf('ua') === 0 || lang.indexOf('uk') === 0) return 'ua';
+    if (lang.indexOf('pl') === 0) return 'pl';
+    return '';
+  }
+
+  function getLanguage() {
+    var lang = detectLanguageFromUrl() || detectLanguageFromMenu() || detectLanguageFromStorage() || detectLanguageFromHtml() || 'pl';
+    save('ui_language_detected', lang);
+    try {
+      document.documentElement.setAttribute('data-pt-assistant-lang', lang);
+    } catch (err) {}
+    return lang;
+  }
+
+  function replaceText(text, map) {
+    var out = text;
+    var keys = Object.keys(map || {}).sort(function (a, b) { return b.length - a.length; });
+    for (var i = 0; i < keys.length; i++) {
+      var key = keys[i];
+      out = out.split(key).join(map[key]);
+    }
+    return out;
+  }
+
+  function localize() {
+    var lang = getLanguage();
+    if (lang === 'pl') return;
+    var map = DICT[lang] || DICT.en;
+    var roots = [document.getElementById('wtl-assistant-panel'), document.getElementById('wtl-mini'), document.getElementById('wtl-bottom-bar'), document.getElementById('pt-layout-root'), document.getElementById('pt-layout-topbar'), document.getElementById('pt-layout-left'), document.getElementById('pt-layout-bottom')];
+    for (var r = 0; r < roots.length; r++) {
+      var root = roots[r];
+      if (!root) continue;
+      var walker;
+      try { walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null); } catch (err) { continue; }
+      var node;
+      while ((node = walker.nextNode())) {
+        var oldText = node.nodeValue;
+        if (!oldText || !clean(oldText)) continue;
+        var newText = replaceText(oldText, map);
+        if (newText !== oldText) node.nodeValue = newText;
+      }
+      var attrs = root.querySelectorAll('[title],[aria-label],input[placeholder],button[value]');
+      for (var a = 0; a < attrs.length; a++) {
+        var el = attrs[a];
+        var names = ['title', 'aria-label', 'placeholder', 'value'];
+        for (var n = 0; n < names.length; n++) {
+          var attr = names[n];
+          var val = el.getAttribute(attr);
+          if (!val) continue;
+          var nv = replaceText(val, map);
+          if (nv !== val) el.setAttribute(attr, nv);
+        }
+      }
+    }
+  }
+
+  function startObserver() {
+    if (observer || !window.MutationObserver || !document.body) return;
+    var timer = null;
+    observer = new MutationObserver(function () {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(function () {
+        bindThuliumButtons();
+        localize();
+      }, 80);
+    });
+    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+  }
+
+  function init() {
+    injectCss();
+    bindThuliumButtons();
+    localize();
+    startObserver();
+    startMonitor();
+    if (localeTimer) clearInterval(localeTimer);
+    localeTimer = setInterval(function () {
+      bindThuliumButtons();
+      localize();
+      if (document.documentElement.classList.contains('wtl-layout-mode')) hideLooseThulium();
+    }, 700);
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();

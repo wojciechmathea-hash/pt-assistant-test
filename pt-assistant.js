@@ -6946,3 +6946,563 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
 })();
+
+/* PT Assistant Layout V25 Stability Hotfix
+   Base: V24. No feature cuts.
+   Fixes:
+   - stable instant translation after panel/Layout rerenders without hiding UI,
+   - prevents Polish/old-language fallback by normalizing PL/EN/ES/DE/UA to current locked language,
+   - restores Thulium Chat/E-mail buttons in PANEL after native Thulium close,
+   - keeps repair loops bounded and non-invasive.
+*/
+(function () {
+  'use strict';
+  if (window.__PT_LAYOUT_V25_STABILITY_HOTFIX__) return;
+  window.__PT_LAYOUT_V25_STABILITY_HOTFIX__ = true;
+
+  var PREFIX = 'pt_assistant_v60_';
+  var LANG_KEY = PREFIX + 'ui_language_lock_v25';
+  var applying = false;
+  var raf = null;
+  var tickTimer = null;
+  var observer = null;
+
+  function clean(v) { return String(v || '').replace(/\s+/g, ' ').trim(); }
+  function lower(v) { return clean(v).toLowerCase(); }
+  function readRaw(k) { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } }
+  function writeRaw(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  function readJson(k) { try { var v = localStorage.getItem(PREFIX + k); return v ? JSON.parse(v) : ''; } catch (e) { return ''; } }
+  function saveJson(k, v) { try { localStorage.setItem(PREFIX + k, JSON.stringify(v)); } catch (e) {} }
+
+  var TOKEN_TO_LANG = {
+    en: /(^|\b)(en|eng|english|angielski)(\b|$)/i,
+    pl: /(^|\b)(pl|polski|polish)(\b|$)/i,
+    de: /(^|\b)(de|deutsch|german|niemiecki)(\b|$)/i,
+    es: /(^|\b)(es|espa[nñ]ol|spanish|hiszpa)(\b|$)/i,
+    ua: /(^|\b)(ua|uk|українська|украинский|ukrainian|ukrain)(\b|$)/i
+  };
+
+  function langFromText(text) {
+    var t = lower(text);
+    if (!t) return '';
+    if (/language\s*:\s*english|język\s*:\s*english|language\s*:\s*angielski/.test(t)) return 'en';
+    if (/language\s*:\s*polski|language\s*:\s*polish|język\s*:\s*polski/.test(t)) return 'pl';
+    if (/language\s*:\s*deutsch|language\s*:\s*german|język\s*:\s*deutsch/.test(t)) return 'de';
+    if (/language\s*:\s*espa[nñ]ol|language\s*:\s*spanish|język\s*:\s*espa[nñ]ol/.test(t)) return 'es';
+    if (/language\s*:\s*(ua|uk|укра)|język\s*:\s*(ua|uk|укра)/.test(t)) return 'ua';
+    return '';
+  }
+
+  function detectPlatformLanguage() {
+    var selectors = [
+      '.nav-menu-avatar .nav-menu-list[menu="main"] .nav-menu-list-item[menu="languages"] span',
+      '.nav-menu-avatar .nav-menu-list[menu="main"] .nav-menu-list-item[menu="languages"]',
+      '.nav-menu-list.active[menu="main"] [menu="languages"] span',
+      '.nav-menu-list.active[menu="main"] [menu="languages"]'
+    ];
+    for (var i = 0; i < selectors.length; i++) {
+      var nodes = document.querySelectorAll(selectors[i]);
+      for (var j = 0; j < nodes.length; j++) {
+        var lang = langFromText(nodes[j].textContent || nodes[j].innerText || '');
+        if (lang) return lang;
+      }
+    }
+
+    try {
+      var params = new URLSearchParams(location.search || '');
+      var explicit = params.get('locale') || params.get('_locale') || params.get('lang') || params.get('language') || '';
+      if (TOKEN_TO_LANG.en.test(explicit)) return 'en';
+      if (TOKEN_TO_LANG.pl.test(explicit)) return 'pl';
+      if (TOKEN_TO_LANG.de.test(explicit)) return 'de';
+      if (TOKEN_TO_LANG.es.test(explicit)) return 'es';
+      if (TOKEN_TO_LANG.ua.test(explicit)) return 'ua';
+    } catch (e) {}
+
+    var stored = [
+      readRaw(LANG_KEY),
+      readJson('ui_language_lock_v24'),
+      readJson('ui_language_locked_v22'),
+      readJson('ui_language_detected_v21'),
+      readJson('ui_language_detected'),
+      readRaw(PREFIX + 'ui_language_lock_v25')
+    ];
+    for (var s = 0; s < stored.length; s++) {
+      var val = String(stored[s] || '').replace(/["']/g, '');
+      if (/^(en|pl|de|es|ua)$/.test(val)) return val;
+    }
+
+    var htmlLang = (document.documentElement.getAttribute('lang') || '').slice(0, 2).toLowerCase();
+    if (htmlLang === 'uk') return 'ua';
+    if (/^(en|pl|de|es)$/.test(htmlLang)) return htmlLang;
+
+    return 'pl';
+  }
+
+  function currentLang() {
+    var lang = detectPlatformLanguage();
+    if (!/^(en|pl|de|es|ua)$/.test(lang)) lang = 'pl';
+    writeRaw(LANG_KEY, lang);
+    saveJson('ui_language_lock_v24', lang);
+    saveJson('ui_language_locked_v22', lang);
+    saveJson('ui_language_detected_v21', lang);
+    saveJson('ui_language_detected', lang);
+    try { document.documentElement.setAttribute('data-pt-ui-language', lang); } catch (e) {}
+    return lang;
+  }
+
+  var TO_EN = {
+    // Polish -> English
+    'Witaj ponownie': 'Welcome back',
+    'Możesz sprawdzić plan lekcji, użyć AI Agenta albo skontaktować się przez Thulium.': 'You can check the lesson plan, use the AI Agent or contact us via Thulium.',
+    'Plan lekcji': 'Lesson plan',
+    'Wybierz sekcję': 'Choose a section',
+    'Panel zczytuje lekcje bezpośrednio z listy lekcji na platformie.': 'The panel reads lessons directly from the lesson list on the platform.',
+    'Layout zczytuje lekcje bezpośrednio z listy lekcji na platformie i używa tych samych fallbacków co panel.': 'Layout reads lessons directly from the lesson list on the platform and uses the same fallbacks as the panel.',
+    'Wróć do ostatniej lekcji': 'Return to last lesson',
+    'Ostatnio oglądana lekcja:': 'Last watched lesson:',
+    'Brak zapisanej ostatniej lekcji': 'No saved last lesson',
+    'Wejdź na dowolną lekcję, a panel automatycznie zapamięta jej tytuł, link oraz sekcję.': 'Open any lesson and the panel will automatically save its title, link and section.',
+    'Wejdź na dowolną lekcję, a Layout automatycznie pokaże ostatni materiał.': 'Open any lesson and Layout will automatically show your last material.',
+    'Sekcja:': 'Section:',
+    'Zapisano:': 'Saved:',
+    'Aktualnie oglądasz tę lekcję': 'You are currently watching this lesson',
+    'Wróć do:': 'Return to:',
+    'Wróć do panelu': 'Back to panel',
+    '← Wróć': '← Back',
+    'Wróć': 'Back',
+    'Źródło:': 'Source:',
+    'Postęp sekcji': 'Section progress',
+    'Postęp': 'Progress',
+    'Ukończona': 'Completed',
+    'Do obejrzenia': 'To watch',
+    'Lekcja #': 'Lesson #',
+    'lekcji': 'lessons',
+    'ukończone': 'completed',
+    'Ładowanie...': 'Loading...',
+    'Ładowanie lekcji...': 'Loading lessons...',
+    'Pobieram tytuły i status ukończenia.': 'Fetching titles and completion status.',
+    'Czat': 'Chat',
+    'Wybierz formę kontaktu. Przycisk rozbudzi widget i uruchomi odpowiednie okno Thulium.': 'Choose a contact method. The button will wake the widget and open the right Thulium window.',
+    'Nie musisz klikać natywnej ikonki Thulium — wybierz opcję poniżej.': 'You do not need to click the native Thulium icon — choose an option below.',
+    'Otwieranie Thulium...': 'Opening Thulium...',
+    'Profitable Assistant jest na pasku': 'Profitable Assistant is on the bar',
+    'Kliknij, aby przywrócić panel.': 'Click to restore the panel.',
+    'Otwórz panel': 'Open panel',
+    'Strona główna': 'Home',
+    'Powiadomienia': 'Notifications',
+    'Moje konto': 'My account',
+    'Szukaj': 'Search',
+    'sprawdzam...': 'checking...',
+    'aktywne': 'active',
+    'nieaktywne': 'inactive',
+    'nieznane': 'unknown',
+    'Start / Wprowadzenie': 'Start / Introduction',
+    'Platformy handlowe': 'Trading platforms',
+    'Podstawy handlu': 'Trading basics',
+    'Strategia PSND': 'PSND strategy',
+    'PSND na żywo!': 'PSND live!',
+    'Strategia PAC': 'PAC strategy',
+    'PAC na żywo!': 'PAC live!',
+    'Pierwsze lekcje, które klient powinien obejrzeć na start.': 'The first lessons the client should watch at the start.',
+    'Lekcje dotyczące platform i środowiska tradingowego.': 'Lessons about platforms and the trading environment.',
+    'Podstawowe materiały dla początkującego tradera.': 'Basic materials for a beginner trader.',
+    'Główna ścieżka nauki strategii PSND.': 'Main learning path for the PSND strategy.',
+    'Nagrania sesji live dla strategii PSND.': 'Live session recordings for the PSND strategy.',
+    'Pełna ścieżka strategii PAC, workflow oraz setupy.': 'Full PAC strategy path, workflow and setups.',
+    'Nagrania sesji live dla strategii PAC.': 'Live session recordings for the PAC strategy.',
+
+    // Spanish -> English (normalizes already-translated stale text)
+    'Bienvenido de nuevo': 'Welcome back',
+    'Ya puedes comprobar el plan de clases, usar el AI Agent or contact us via Thulium.': 'You can check the lesson plan, use the AI Agent or contact us via Thulium.',
+    'Ya puedes comprobar el plan de clases, usar the AI Agent or contact us via Thulium.': 'You can check the lesson plan, use the AI Agent or contact us via Thulium.',
+    'Ya puedes comprobar el plan de clases, usar el AI Agent o contactar con Thulium.': 'You can check the lesson plan, use the AI Agent or contact us via Thulium.',
+    'Plan de lecciones': 'Lesson plan',
+    'Elige una sección': 'Choose a section',
+    'Volver a la última lección': 'Return to last lesson',
+    'Última lección vista:': 'Last watched lesson:',
+    'No hay última lección guardada': 'No saved last lesson',
+    'Sección:': 'Section:',
+    'Guardado:': 'Saved:',
+    'Volver a:': 'Return to:',
+    'Volver al panel': 'Back to panel',
+    '← Volver': '← Back',
+    'Volver': 'Back',
+    'Fuente:': 'Source:',
+    'Progreso de la sección': 'Section progress',
+    'Progreso': 'Progress',
+    'Completada': 'Completed',
+    'Por ver': 'To watch',
+    'Lección #': 'Lesson #',
+    'lecciones': 'lessons',
+    'completadas': 'completed',
+    'Cargando...': 'Loading...',
+    'Cargando lecciones...': 'Loading lessons...',
+    'Abriendo Thulium...': 'Opening Thulium...',
+    'Abrir panel': 'Open panel',
+    'Inicio': 'Home',
+    'Notificaciones': 'Notifications',
+    'activo': 'active',
+    'inactivo': 'inactive',
+    'desconocido': 'unknown',
+
+    // German -> English
+    'Willkommen zurück': 'Welcome back',
+    'Lektionsplan': 'Lesson plan',
+    'Abschnitt wählen': 'Choose a section',
+    'Zur letzten Lektion zurück': 'Return to last lesson',
+    'Zuletzt angesehene Lektion:': 'Last watched lesson:',
+    'Keine gespeicherte letzte Lektion': 'No saved last lesson',
+    'Abschnitt:': 'Section:',
+    'Gespeichert:': 'Saved:',
+    'Zurück zu:': 'Return to:',
+    'Zurück zum Panel': 'Back to panel',
+    '← Zurück': '← Back',
+    'Zurück': 'Back',
+    'Quelle:': 'Source:',
+    'Abschnittsfortschritt': 'Section progress',
+    'Fortschritt': 'Progress',
+    'Abgeschlossen': 'Completed',
+    'Ansehen': 'To watch',
+    'Lektion #': 'Lesson #',
+    'Lektionen': 'lessons',
+    'abgeschlossen': 'completed',
+    'Laden...': 'Loading...',
+    'Lektionen werden geladen...': 'Loading lessons...',
+    'Thulium wird geöffnet...': 'Opening Thulium...',
+    'Panel öffnen': 'Open panel',
+    'Startseite': 'Home',
+    'Benachrichtigungen': 'Notifications',
+    'aktiv': 'active',
+    'unbekannt': 'unknown',
+
+    // Ukrainian -> English
+    'З поверненням': 'Welcome back',
+    'План уроків': 'Lesson plan',
+    'Виберіть розділ': 'Choose a section',
+    'Повернутися до останнього уроку': 'Return to last lesson',
+    'Останній переглянутий урок:': 'Last watched lesson:',
+    'Немає збереженого останнього уроку': 'No saved last lesson',
+    'Розділ:': 'Section:',
+    'Збережено:': 'Saved:',
+    'Повернутися до:': 'Return to:',
+    'Повернутися до панелі': 'Back to panel',
+    '← Назад': '← Back',
+    'Назад': 'Back',
+    'Джерело:': 'Source:',
+    'Прогрес розділу': 'Section progress',
+    'Прогрес': 'Progress',
+    'Завершено': 'Completed',
+    'До перегляду': 'To watch',
+    'Урок #': 'Lesson #',
+    'уроків': 'lessons',
+    'завершено': 'completed',
+    'Завантаження...': 'Loading...',
+    'Завантаження уроків...': 'Loading lessons...',
+    'Відкриття Thulium...': 'Opening Thulium...',
+    'Відкрити панель': 'Open panel',
+    'Головна': 'Home',
+    'Сповіщення': 'Notifications',
+    'активно': 'active',
+    'неактивно': 'inactive',
+    'невідомо': 'unknown'
+  };
+
+  var EN_TO = {
+    en: {},
+    pl: {
+      'Welcome back': 'Witaj ponownie',
+      'You can check the lesson plan, use the AI Agent or contact us via Thulium.': 'Możesz sprawdzić plan lekcji, użyć AI Agenta albo skontaktować się przez Thulium.',
+      'Lesson plan': 'Plan lekcji', 'Choose a section': 'Wybierz sekcję',
+      'The panel reads lessons directly from the lesson list on the platform.': 'Panel zczytuje lekcje bezpośrednio z listy lekcji na platformie.',
+      'Layout reads lessons directly from the lesson list on the platform and uses the same fallbacks as the panel.': 'Layout zczytuje lekcje bezpośrednio z listy lekcji na platformie i używa tych samych fallbacków co panel.',
+      'Return to last lesson': 'Wróć do ostatniej lekcji', 'Last watched lesson:': 'Ostatnio oglądana lekcja:', 'No saved last lesson': 'Brak zapisanej ostatniej lekcji',
+      'Open any lesson and the panel will automatically save its title, link and section.': 'Wejdź na dowolną lekcję, a panel automatycznie zapamięta jej tytuł, link oraz sekcję.',
+      'Open any lesson and Layout will automatically show your last material.': 'Wejdź na dowolną lekcję, a Layout automatycznie pokaże ostatni materiał.',
+      'Section:': 'Sekcja:', 'Saved:': 'Zapisano:', 'You are currently watching this lesson': 'Aktualnie oglądasz tę lekcję', 'Return to:': 'Wróć do:', 'Back to panel': 'Wróć do panelu', '← Back': '← Wróć', 'Back': 'Wróć',
+      'Source:': 'Źródło:', 'Section progress': 'Postęp sekcji', 'Progress': 'Postęp', 'Completed': 'Ukończona', 'To watch': 'Do obejrzenia', 'Lesson #': 'Lekcja #', 'lessons': 'lekcji', 'completed': 'ukończone',
+      'Loading...': 'Ładowanie...', 'Loading lessons...': 'Ładowanie lekcji...', 'Fetching titles and completion status.': 'Pobieram tytuły i status ukończenia.', 'Chat': 'Czat',
+      'Choose a contact method. The button will wake the widget and open the right Thulium window.': 'Wybierz formę kontaktu. Przycisk rozbudzi widget i uruchomi odpowiednie okno Thulium.',
+      'You do not need to click the native Thulium icon — choose an option below.': 'Nie musisz klikać natywnej ikonki Thulium — wybierz opcję poniżej.', 'Opening Thulium...': 'Otwieranie Thulium...',
+      'Profitable Assistant is on the bar': 'Profitable Assistant jest na pasku', 'Click to restore the panel.': 'Kliknij, aby przywrócić panel.', 'Open panel': 'Otwórz panel', 'Home': 'Strona główna', 'Notifications': 'Powiadomienia', 'My account': 'Moje konto', 'Search': 'Szukaj',
+      'checking...': 'sprawdzam...', 'active': 'aktywne', 'inactive': 'nieaktywne', 'unknown': 'nieznane',
+      'Start / Introduction': 'Start / Wprowadzenie', 'Trading platforms': 'Platformy handlowe', 'Trading basics': 'Podstawy handlu', 'PSND strategy': 'Strategia PSND', 'PSND live!': 'PSND na żywo!', 'PAC strategy': 'Strategia PAC', 'PAC live!': 'PAC na żywo!'
+    },
+    de: {
+      'Welcome back': 'Willkommen zurück', 'Lesson plan': 'Lektionsplan', 'Choose a section': 'Abschnitt wählen', 'Return to last lesson': 'Zur letzten Lektion zurück', 'Last watched lesson:': 'Zuletzt angesehene Lektion:', 'No saved last lesson': 'Keine gespeicherte letzte Lektion',
+      'Section:': 'Abschnitt:', 'Saved:': 'Gespeichert:', 'Return to:': 'Zurück zu:', 'Back to panel': 'Zurück zum Panel', '← Back': '← Zurück', 'Back': 'Zurück', 'Source:': 'Quelle:', 'Section progress': 'Abschnittsfortschritt', 'Progress': 'Fortschritt', 'Completed': 'Abgeschlossen', 'To watch': 'Ansehen', 'Lesson #': 'Lektion #', 'lessons': 'Lektionen', 'completed': 'abgeschlossen', 'Loading...': 'Laden...', 'Loading lessons...': 'Lektionen werden geladen...', 'Chat': 'Chat', 'Opening Thulium...': 'Thulium wird geöffnet...', 'Open panel': 'Panel öffnen', 'Home': 'Startseite', 'Notifications': 'Benachrichtigungen', 'active': 'aktiv', 'inactive': 'inaktiv', 'unknown': 'unbekannt'
+    },
+    es: {
+      'Welcome back': 'Bienvenido de nuevo', 'Lesson plan': 'Plan de lecciones', 'Choose a section': 'Elige una sección', 'Return to last lesson': 'Volver a la última lección', 'Last watched lesson:': 'Última lección vista:', 'No saved last lesson': 'No hay última lección guardada',
+      'Section:': 'Sección:', 'Saved:': 'Guardado:', 'Return to:': 'Volver a:', 'Back to panel': 'Volver al panel', '← Back': '← Volver', 'Back': 'Volver', 'Source:': 'Fuente:', 'Section progress': 'Progreso de la sección', 'Progress': 'Progreso', 'Completed': 'Completada', 'To watch': 'Por ver', 'Lesson #': 'Lección #', 'lessons': 'lecciones', 'completed': 'completadas', 'Loading...': 'Cargando...', 'Loading lessons...': 'Cargando lecciones...', 'Chat': 'Chat', 'Opening Thulium...': 'Abriendo Thulium...', 'Open panel': 'Abrir panel', 'Home': 'Inicio', 'Notifications': 'Notificaciones', 'active': 'activo', 'inactive': 'inactivo', 'unknown': 'desconocido'
+    },
+    ua: {
+      'Welcome back': 'З поверненням', 'Lesson plan': 'План уроків', 'Choose a section': 'Виберіть розділ', 'Return to last lesson': 'Повернутися до останнього уроку', 'Last watched lesson:': 'Останній переглянутий урок:', 'No saved last lesson': 'Немає збереженого останнього уроку',
+      'Section:': 'Розділ:', 'Saved:': 'Збережено:', 'Return to:': 'Повернутися до:', 'Back to panel': 'Повернутися до панелі', '← Back': '← Назад', 'Back': 'Назад', 'Source:': 'Джерело:', 'Section progress': 'Прогрес розділу', 'Progress': 'Прогрес', 'Completed': 'Завершено', 'To watch': 'До перегляду', 'Lesson #': 'Урок #', 'lessons': 'уроків', 'completed': 'завершено', 'Loading...': 'Завантаження...', 'Loading lessons...': 'Завантаження уроків...', 'Chat': 'Чат', 'Opening Thulium...': 'Відкриття Thulium...', 'Open panel': 'Відкрити панель', 'Home': 'Головна', 'Notifications': 'Сповіщення', 'active': 'активно', 'inactive': 'неактивно', 'unknown': 'невідомо'
+    }
+  };
+
+  function normalizeToEnglish(text) {
+    var out = String(text || '');
+    var keys = Object.keys(TO_EN).sort(function (a, b) { return b.length - a.length; });
+    for (var i = 0; i < keys.length; i++) {
+      if (out.indexOf(keys[i]) !== -1) out = out.split(keys[i]).join(TO_EN[keys[i]]);
+    }
+    return out;
+  }
+
+  function translate(text, lang) {
+    if (!text) return text;
+    var out = normalizeToEnglish(text);
+    var map = EN_TO[lang] || {};
+    var keys = Object.keys(map).sort(function (a, b) { return b.length - a.length; });
+    for (var i = 0; i < keys.length; i++) {
+      if (out.indexOf(keys[i]) !== -1) out = out.split(keys[i]).join(map[keys[i]]);
+    }
+    return out;
+  }
+
+  function shouldSkipNode(node) {
+    if (!node) return true;
+    var el = node.nodeType === 3 ? node.parentNode : node;
+    if (!el || !el.closest) return true;
+    if (el.closest('script,style,textarea,input,iframe,#wtl-ai-frame,#pt-layout-ai-host,#pt-layout-ai-window,#wtl-thulium-native-mount')) return true;
+    if (!el.closest('#wtl-assistant-panel,#wtl-mini,#wtl-bottom-bar,#pt-layout-root,#pt-layout-topbar,#pt-layout-left,#pt-layout-bottom,#pt-layout-bottom-actions')) return true;
+    return false;
+  }
+
+  function translateTextNodes(root, lang) {
+    if (!root) return;
+    var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode: function (node) {
+        if (shouldSkipNode(node)) return NodeFilter.FILTER_REJECT;
+        if (!clean(node.nodeValue)) return NodeFilter.FILTER_REJECT;
+        return NodeFilter.FILTER_ACCEPT;
+      }
+    });
+    var nodes = [];
+    var n;
+    while ((n = walker.nextNode())) nodes.push(n);
+    for (var i = 0; i < nodes.length; i++) {
+      var oldText = nodes[i].nodeValue;
+      var newText = translate(oldText, lang);
+      if (newText !== oldText) nodes[i].nodeValue = newText;
+    }
+  }
+
+  function translateAttributes(root, lang) {
+    if (!root || !root.querySelectorAll) return;
+    var nodes = root.querySelectorAll('[title],[aria-label],[placeholder],input[value],button[value]');
+    var attrs = ['title', 'aria-label', 'placeholder', 'value'];
+    for (var i = 0; i < nodes.length; i++) {
+      var el = nodes[i];
+      if (el.closest && el.closest('iframe,#wtl-ai-frame,#wtl-thulium-native-mount')) continue;
+      for (var a = 0; a < attrs.length; a++) {
+        var attr = attrs[a];
+        if (!el.hasAttribute || !el.hasAttribute(attr)) continue;
+        var val = el.getAttribute(attr);
+        var nv = translate(val, lang);
+        if (nv !== val) el.setAttribute(attr, nv);
+      }
+    }
+  }
+
+  function translateRoot(root) {
+    if (!root) return;
+    var lang = currentLang();
+    translateTextNodes(root, lang);
+    translateAttributes(root, lang);
+  }
+
+  function translateAll() {
+    if (applying) return;
+    applying = true;
+    try {
+      document.documentElement.classList.remove('pt-v21-language-updating');
+      var roots = [
+        document.getElementById('wtl-assistant-panel'),
+        document.getElementById('wtl-mini'),
+        document.getElementById('wtl-bottom-bar'),
+        document.getElementById('pt-layout-root'),
+        document.getElementById('pt-layout-topbar'),
+        document.getElementById('pt-layout-left'),
+        document.getElementById('pt-layout-bottom'),
+        document.getElementById('pt-layout-bottom-actions')
+      ];
+      for (var i = 0; i < roots.length; i++) translateRoot(roots[i]);
+    } catch (e) {}
+    applying = false;
+  }
+
+  function scheduleFastTranslate() {
+    if (applying) return;
+    if (raf) return;
+    raf = requestAnimationFrame(function () {
+      raf = null;
+      translateAll();
+    });
+  }
+
+  function isLayoutMode() {
+    return document.documentElement.classList.contains('wtl-layout-mode');
+  }
+
+  function thuliumFrameVisible() {
+    var frame = document.querySelector('#wtl-thulium-native-mount iframe[title="Thulium Click2Contact"], iframe[title="Thulium Click2Contact"]');
+    if (!frame) return false;
+    try {
+      var rect = frame.getBoundingClientRect();
+      var cs = window.getComputedStyle(frame);
+      return rect.width > 80 && rect.height > 80 && cs.display !== 'none' && cs.visibility !== 'hidden' && Number(cs.opacity) !== 0;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function rebuildThuliumChoice() {
+    var choice = document.getElementById('wtl-thulium-choice');
+    if (!choice) return;
+    var lang = currentLang();
+    var hint = translate('You do not need to click the native Thulium icon — choose an option below.', lang);
+    var chat = translate('Chat', lang);
+    choice.innerHTML = ''
+      + '<div class="wtl-choice-text">' + hint + '</div>'
+      + '<div class="wtl-choice-row">'
+      + '<button type="button" class="wtl-thulium-action" data-wtl-thulium-intent="chat">' + chat + '</button>'
+      + '<button type="button" class="wtl-thulium-action" data-wtl-thulium-intent="email">E-mail</button>'
+      + '</div>';
+  }
+
+  function restorePanelThuliumButtonsHard() {
+    var panel = document.getElementById('wtl-assistant-panel');
+    var choice = document.getElementById('wtl-thulium-choice');
+    if (!panel || !choice) return;
+
+    var layout = isLayoutMode();
+    var hasVisibleFrame = thuliumFrameVisible();
+    var hasButtons = !!choice.querySelector('[data-wtl-thulium-intent="chat"]') && !!choice.querySelector('[data-wtl-thulium-intent="email"]');
+
+    if (!layout && !hasVisibleFrame) {
+      panel.classList.remove(
+        'wtl-thulium-expanded',
+        'wtl-thulium-window-open',
+        'pt-layout-thulium-proxy',
+        'pt-v22-thulium-opening',
+        'pt-v22-thulium-ready',
+        'pt-v21-thulium-opening',
+        'pt-v21-thulium-ready',
+        'pt-v20-thulium-opening',
+        'pt-v20-thulium-ready',
+        'pt-v19-thulium-opening',
+        'pt-v19-thulium-ready',
+        'pt-thulium-preload',
+        'pt-thulium-ready'
+      );
+      if (!hasButtons) rebuildThuliumChoice();
+      choice.style.setProperty('display', 'block', 'important');
+      choice.style.setProperty('visibility', 'visible', 'important');
+      choice.style.setProperty('opacity', '1', 'important');
+      var row = choice.querySelector('.wtl-choice-row');
+      if (row) {
+        row.style.setProperty('display', 'grid', 'important');
+        row.style.setProperty('visibility', 'visible', 'important');
+        row.style.setProperty('opacity', '1', 'important');
+      }
+      var back = document.getElementById('wtl-thulium-back');
+      if (back) back.style.removeProperty('display');
+      var mount = document.getElementById('wtl-thulium-native-mount');
+      if (mount) {
+        mount.style.removeProperty('height');
+        mount.style.removeProperty('min-height');
+        mount.style.removeProperty('max-height');
+        mount.style.removeProperty('margin');
+        mount.style.removeProperty('border-top');
+      }
+    }
+
+    translateRoot(choice);
+  }
+
+  function bindPanelThuliumRepair() {
+    var body = document.getElementById('wtl-body');
+    if (body && !body.__ptV25ThuliumRepairBound) {
+      body.__ptV25ThuliumRepairBound = true;
+      body.addEventListener('click', function (ev) {
+        var btn = ev.target && ev.target.closest ? ev.target.closest('[data-wtl-thulium-intent]') : null;
+        if (!btn) return;
+        setTimeout(restorePanelThuliumButtonsHard, 1200);
+        setTimeout(restorePanelThuliumButtonsHard, 2400);
+      }, true);
+    }
+  }
+
+  function startObservers() {
+    if (!observer && window.MutationObserver && document.body) {
+      observer = new MutationObserver(function (mutations) {
+        if (applying) return;
+        var relevant = false;
+        for (var i = 0; i < mutations.length; i++) {
+          var m = mutations[i];
+          if (m.type === 'characterData') {
+            if (!shouldSkipNode(m.target)) { relevant = true; break; }
+          } else if (m.type === 'childList') {
+            for (var a = 0; a < m.addedNodes.length; a++) {
+              var node = m.addedNodes[a];
+              if (node.nodeType === 1 && node.querySelector && (
+                node.matches('#wtl-assistant-panel,#wtl-mini,#wtl-bottom-bar,#pt-layout-root,#pt-layout-topbar,#pt-layout-left,#pt-layout-bottom,#pt-layout-bottom-actions') ||
+                node.querySelector('#wtl-assistant-panel,#wtl-mini,#wtl-bottom-bar,#pt-layout-root,#pt-layout-topbar,#pt-layout-left,#pt-layout-bottom,#pt-layout-bottom-actions')
+              )) { relevant = true; break; }
+              if (node.nodeType === 3 && !shouldSkipNode(node)) { relevant = true; break; }
+            }
+            if (relevant) break;
+          }
+        }
+        if (relevant) {
+          scheduleFastTranslate();
+          setTimeout(restorePanelThuliumButtonsHard, 60);
+        }
+      });
+      observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+    }
+
+    if (!document.__ptV25InstantTranslateBound) {
+      document.__ptV25InstantTranslateBound = true;
+      document.addEventListener('click', function () {
+        currentLang();
+        scheduleFastTranslate();
+        setTimeout(translateAll, 0);
+        setTimeout(translateAll, 35);
+        setTimeout(restorePanelThuliumButtonsHard, 80);
+        setTimeout(translateAll, 140);
+      }, true);
+    }
+  }
+
+  function init() {
+    currentLang();
+    translateAll();
+    restorePanelThuliumButtonsHard();
+    bindPanelThuliumRepair();
+    startObservers();
+
+    setTimeout(translateAll, 0);
+    setTimeout(translateAll, 80);
+    setTimeout(translateAll, 220);
+    setTimeout(translateAll, 650);
+    setTimeout(translateAll, 1400);
+    setTimeout(restorePanelThuliumButtonsHard, 400);
+    setTimeout(restorePanelThuliumButtonsHard, 1500);
+
+    if (tickTimer) clearInterval(tickTimer);
+    var ticks = 0;
+    tickTimer = setInterval(function () {
+      ticks++;
+      try { document.documentElement.classList.remove('pt-v21-language-updating'); } catch (e) {}
+      bindPanelThuliumRepair();
+      restorePanelThuliumButtonsHard();
+      if (ticks <= 80 || ticks % 5 === 0) translateAll();
+    }, 250);
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();

@@ -4398,3 +4398,149 @@
     initPatch();
   }
 })();
+
+/* PT Assistant Layout V17 Animations Safe Patch
+   Bazuje na stabilnym V16. Dodaje wyłącznie animacje przejść Panel <-> Layout,
+   bez ingerowania w działające mechanizmy AI Agenta, Thulium, lekcji i nawigacji.
+*/
+(function () {
+  'use strict';
+  if (window.__PT_LAYOUT_V17_ANIMATIONS_SAFE__) return;
+  window.__PT_LAYOUT_V17_ANIMATIONS_SAFE__ = true;
+
+  var animInUntil = 0;
+  var animOutUntil = 0;
+  var lastMode = document.documentElement.classList.contains('wtl-layout-mode');
+
+  function injectAnimationCss() {
+    if (document.getElementById('pt-layout-v17-animation-style')) return;
+
+    var css = ''
+      + '.pt-anim-ghost{position:fixed!important;box-sizing:border-box!important;z-index:2147483647!important;pointer-events:none!important;margin:0!important;transform-origin:center center!important;filter:drop-shadow(0 28px 60px rgba(0,0,0,.42))!important;}'
+      + '.pt-anim-panel-ghost{animation:ptPanelFlyToLayout .58s cubic-bezier(.22,1,.36,1) forwards!important;border-radius:20px!important;overflow:hidden!important;}'
+      + '.pt-anim-panel-return-ghost{animation:ptPanelReturnFromLayout .54s cubic-bezier(.22,1,.36,1) forwards!important;border-radius:20px!important;overflow:hidden!important;}'
+      + '.pt-anim-topbar-ghost{animation:ptTopbarMeltOut .46s cubic-bezier(.55,.06,.68,.19) forwards!important;}'
+      + '.pt-anim-sidebar-ghost{animation:ptSidebarMeltOut .50s cubic-bezier(.55,.06,.68,.19) forwards!important;}'
+      + '@keyframes ptPanelFlyToLayout{0%{opacity:1;transform:translate3d(0,0,0) scale(1);filter:blur(0) drop-shadow(0 24px 60px rgba(0,0,0,.42));}55%{opacity:.78;transform:translate3d(calc(100vw - 460px),-20px,0) scale(.72);filter:blur(.15px) drop-shadow(0 20px 50px rgba(239,68,68,.22));}100%{opacity:0;transform:translate3d(calc(100vw - 360px),-54px,0) scale(.32);filter:blur(1.2px) drop-shadow(0 0 28px rgba(239,68,68,.18));}}'
+      + '@keyframes ptPanelReturnFromLayout{0%{opacity:0;transform:translate3d(calc(100vw - 360px),-54px,0) scale(.32);filter:blur(1.2px) drop-shadow(0 0 28px rgba(239,68,68,.18));}38%{opacity:.72;transform:translate3d(42px,-22px,0) scale(.78);filter:blur(.2px) drop-shadow(0 20px 50px rgba(239,68,68,.18));}100%{opacity:1;transform:translate3d(0,0,0) scale(1);filter:blur(0) drop-shadow(0 24px 60px rgba(0,0,0,.42));}}'
+      + '@keyframes ptTopbarSlideIn{0%{opacity:0;transform:translate3d(0,-78px,0);filter:blur(6px);}68%{opacity:1;transform:translate3d(0,3px,0);filter:blur(0);}100%{opacity:1;transform:translate3d(0,0,0);filter:blur(0);}}'
+      + '@keyframes ptSidebarSlideIn{0%{opacity:0;transform:translate3d(-336px,0,0);filter:blur(6px);}68%{opacity:1;transform:translate3d(5px,0,0);filter:blur(0);}100%{opacity:1;transform:translate3d(0,0,0);filter:blur(0);}}'
+      + '@keyframes ptActionsRiseIn{0%{opacity:0;transform:translate3d(0,34px,0) scale(.96);filter:blur(5px);}70%{opacity:1;transform:translate3d(0,-3px,0) scale(1);filter:blur(0);}100%{opacity:1;transform:translate3d(0,0,0) scale(1);filter:blur(0);}}'
+      + '@keyframes ptTopbarMeltOut{0%{opacity:1;transform:translate3d(0,0,0);filter:blur(0);}100%{opacity:0;transform:translate3d(0,-66px,0);filter:blur(8px);}}'
+      + '@keyframes ptSidebarMeltOut{0%{opacity:1;transform:translate3d(0,0,0);filter:blur(0);}100%{opacity:0;transform:translate3d(-326px,0,0);filter:blur(8px);}}'
+      + '@keyframes ptPanelSoftPop{0%{opacity:0;transform:translate3d(18px,-18px,0) scale(.94);filter:blur(5px);}70%{opacity:1;transform:translate3d(-2px,2px,0) scale(1.01);filter:blur(0);}100%{opacity:1;transform:translate3d(0,0,0) scale(1);filter:blur(0);}}'
+      + 'html.pt-layout-anim-in #pt-layout-topbar{animation:ptTopbarSlideIn .58s cubic-bezier(.22,1,.36,1) both!important;}'
+      + 'html.pt-layout-anim-in #pt-layout-left{animation:ptSidebarSlideIn .62s cubic-bezier(.22,1,.36,1) both!important;}'
+      + 'html.pt-layout-anim-in #pt-layout-bottom-actions{animation:ptActionsRiseIn .56s cubic-bezier(.22,1,.36,1) .08s both!important;}'
+      + 'html.pt-layout-anim-in #pt-layout-left-toggle{animation:ptSidebarSlideIn .62s cubic-bezier(.22,1,.36,1) .04s both!important;}'
+      + 'html.pt-layout-panel-return #wtl-assistant-panel:not(.wtl-hidden){animation:ptPanelSoftPop .42s cubic-bezier(.22,1,.36,1) both!important;}'
+      + '@media (prefers-reduced-motion: reduce){.pt-anim-ghost,html.pt-layout-anim-in #pt-layout-topbar,html.pt-layout-anim-in #pt-layout-left,html.pt-layout-anim-in #pt-layout-bottom-actions,html.pt-layout-anim-in #pt-layout-left-toggle,html.pt-layout-panel-return #wtl-assistant-panel:not(.wtl-hidden){animation:none!important;}}';
+
+    var s = document.createElement('style');
+    s.id = 'pt-layout-v17-animation-style';
+    s.type = 'text/css';
+    s.appendChild(document.createTextNode(css));
+    document.head.appendChild(s);
+  }
+
+  function rectVisible(el) {
+    if (!el) return null;
+    try {
+      var r = el.getBoundingClientRect();
+      if (!r || r.width < 20 || r.height < 20) return null;
+      var cs = window.getComputedStyle(el);
+      if (!cs || cs.display === 'none' || cs.visibility === 'hidden' || Number(cs.opacity) === 0) return null;
+      return r;
+    } catch (err) {
+      return null;
+    }
+  }
+
+  function removeAfter(el, ms) {
+    setTimeout(function () {
+      try { if (el && el.parentNode) el.parentNode.removeChild(el); } catch (err) {}
+    }, ms || 700);
+  }
+
+  function cloneGhost(el, cls, rectOverride) {
+    var r = rectOverride || rectVisible(el);
+    if (!el || !r) return null;
+    var ghost = el.cloneNode(true);
+    ghost.className = (ghost.className ? ghost.className + ' ' : '') + 'pt-anim-ghost ' + cls;
+    ghost.removeAttribute('id');
+    ghost.style.left = r.left + 'px';
+    ghost.style.top = r.top + 'px';
+    ghost.style.width = r.width + 'px';
+    ghost.style.height = r.height + 'px';
+    ghost.style.right = 'auto';
+    ghost.style.bottom = 'auto';
+    ghost.style.display = 'block';
+    ghost.style.visibility = 'visible';
+    ghost.style.opacity = '1';
+    document.body.appendChild(ghost);
+    removeAfter(ghost, 760);
+    return ghost;
+  }
+
+  function animateEnterStart() {
+    animInUntil = Date.now() + 900;
+    document.documentElement.classList.remove('pt-layout-panel-return');
+
+    var panel = document.getElementById('wtl-assistant-panel');
+    var r = rectVisible(panel);
+    if (r) cloneGhost(panel, 'pt-anim-panel-ghost', r);
+  }
+
+  function animateLayoutIn() {
+    if (Date.now() > animInUntil) return;
+    document.documentElement.classList.add('pt-layout-anim-in');
+    setTimeout(function () {
+      document.documentElement.classList.remove('pt-layout-anim-in');
+    }, 780);
+  }
+
+  function animateExitStart() {
+    animOutUntil = Date.now() + 900;
+    var top = document.getElementById('pt-layout-topbar');
+    var left = document.getElementById('pt-layout-left');
+    cloneGhost(top, 'pt-anim-topbar-ghost');
+    if (!document.documentElement.classList.contains('wtl-layout-nav-hidden')) {
+      cloneGhost(left, 'pt-anim-sidebar-ghost');
+    }
+  }
+
+  function animatePanelReturn() {
+    if (Date.now() > animOutUntil) return;
+    document.documentElement.classList.add('pt-layout-panel-return');
+    setTimeout(function () {
+      document.documentElement.classList.remove('pt-layout-panel-return');
+    }, 620);
+  }
+
+  function bindAnimationTriggers() {
+    document.addEventListener('click', function (ev) {
+      var t = ev.target;
+      if (!t || !t.closest) return;
+      if (t.closest('#wtl-layout-enter')) animateEnterStart();
+      if (t.closest('#pt-layout-restore')) animateExitStart();
+    }, true);
+
+    var mo = new MutationObserver(function () {
+      var mode = document.documentElement.classList.contains('wtl-layout-mode');
+      if (mode !== lastMode) {
+        lastMode = mode;
+        if (mode) animateLayoutIn();
+        else animatePanelReturn();
+      }
+    });
+    mo.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+  }
+
+  function init() {
+    injectAnimationCss();
+    bindAnimationTriggers();
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();

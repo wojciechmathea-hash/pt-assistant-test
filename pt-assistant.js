@@ -1,14 +1,14 @@
-/* PT Assistant V36 EARLY LOCKED NAVIGATION LOADER
-   Cel: loader ma pojawic sie przed zmiana URL, utrzymac ekran na starej stronie,
-   zapisac blokade w storage/cookie i zgasnac dopiero po gotowym panelu/layoutcie na nowej stronie.
+/* PT Assistant V37 EARLY LOCKED NAVIGATION LOADER
+   Cel: zakryc stara strone przed zmiana URL, utrzymac ekran przez przeladowanie,
+   a na nowej stronie zgasic dopiero po gotowym panelu/layoutcie.
 
    WAZNE: ten blok musi byc na samej gorze pliku/tagu i odpalany jako GTM Initialization / Consent Initialization - All Pages.
 */
 (function () {
   'use strict';
 
-  if (window.__PT_V36_LOCKED_NAV_LOADER__) return;
-  window.__PT_V36_LOCKED_NAV_LOADER__ = true;
+  if (window.__PT_V37_LOCKED_NAV_LOADER__) return;
+  window.__PT_V37_LOCKED_NAV_LOADER__ = true;
 
   var HOST = 'edu.profitabletrader.ai';
   if (location.hostname !== HOST) return;
@@ -17,17 +17,17 @@
   var BG_URL = 'https://edu.profitabletrader.ai/uploads/media/12510/5/T%C5%81O_PT__1_.png?_t=1777481120';
   var PREFIX = 'pt_assistant_v60_';
 
-  var FLAG = 'pt_v36_loader_lock';
-  var FROM = 'pt_v36_loader_from';
-  var TO = 'pt_v36_loader_to';
-  var AT = 'pt_v36_loader_at';
-  var COOKIE = 'pt_v36_loader_lock';
+  var FLAG = 'pt_v37_loader_lock';
+  var FROM = 'pt_v37_loader_from';
+  var TO = 'pt_v37_loader_to';
+  var AT = 'pt_v37_loader_at';
+  var COOKIE = 'pt_v37_loader_lock';
 
-  var NAV_DELAY_MS = 320;
+  var NAV_DELAY_MS = 360;
   var MIN_VISIBLE_MS = 900;
   var READY_STABLE_TICKS = 12;
   var POLL_MS = 80;
-  var SAFETY_MS = 18000;
+  var NEW_PAGE_SAFETY_MS = 18000;
   var OLD_PAGE_FAILSAFE_MS = 14000;
   var SLOW_SKIP_MS = 8500;
 
@@ -41,6 +41,7 @@
   var lastUrl = location.href;
 
   function now() { return Date.now ? Date.now() : new Date().getTime(); }
+  function raf(fn) { if (window.requestAnimationFrame) requestAnimationFrame(fn); else setTimeout(fn, 16); }
   function ssSet(k, v) { try { sessionStorage.setItem(k, String(v)); } catch (e) {} }
   function ssGet(k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } }
   function ssDel(k) { try { sessionStorage.removeItem(k); } catch (e) {} }
@@ -50,47 +51,39 @@
   function lsJson(key, fallback) { try { var v = localStorage.getItem(PREFIX + key); return v ? JSON.parse(v) : fallback; } catch (e) { return fallback; } }
 
   function setCookieLock() {
-    try {
-      document.cookie = COOKIE + '=1; path=/; max-age=45; SameSite=Lax';
-    } catch (e) {}
+    try { document.cookie = COOKIE + '=1; path=/; max-age=50; SameSite=Lax'; } catch (e) {}
   }
 
   function clearCookieLock() {
-    try {
-      document.cookie = COOKIE + '=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
-    } catch (e) {}
+    try { document.cookie = COOKIE + '=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax'; } catch (e) {}
   }
 
   function hasCookieLock() {
-    try {
-      return document.cookie.indexOf(COOKIE + '=1') !== -1;
-    } catch (e) {
-      return false;
-    }
+    try { return document.cookie.indexOf(COOKIE + '=1') !== -1; } catch (e) { return false; }
   }
 
   try { new Image().src = LOGO_URL; new Image().src = BG_URL; } catch (e) {}
 
-  function targetRoot() { return document.body || document.documentElement; }
+  function mountRoot() { return document.body || document.documentElement; }
 
   function injectCss() {
-    if (document.getElementById('pt-v36-loader-style')) return;
+    if (document.getElementById('pt-v37-loader-style')) return;
     var css = ''
-      + '#pt-v36-loader{position:fixed!important;inset:0!important;z-index:2147483647!important;background:#000 url("' + BG_URL + '") center center/cover no-repeat!important;display:flex!important;align-items:center!important;justify-content:center!important;opacity:0!important;visibility:hidden!important;pointer-events:none!important;overflow:hidden!important;transform:translateZ(0)!important;contain:layout paint!important;}'
-      + '#pt-v36-loader.pt-v36-visible,#pt-v36-loader.pt-v36-blocking{opacity:1!important;visibility:visible!important;}'
-      + '#pt-v36-loader.pt-v36-visible{pointer-events:none!important;}'
-      + '#pt-v36-loader.pt-v36-blocking{pointer-events:all!important;}'
-      + '#pt-v36-loader.pt-v36-closing{opacity:0!important;visibility:visible!important;pointer-events:none!important;transition:opacity .22s ease!important;}'
-      + '#pt-v36-loader-inner{text-align:center!important;transform:translateY(-4px)!important;}'
-      + '#pt-v36-loader-logo{width:min(560px,74vw)!important;height:auto!important;display:block!important;margin:0 auto 30px!important;filter:drop-shadow(0 0 16px rgba(255,255,255,.18))!important;}'
-      + '#pt-v36-loader-bar{position:relative!important;width:min(420px,60vw)!important;height:5px!important;background:rgba(255,255,255,.14)!important;border-radius:999px!important;overflow:hidden!important;margin:0 auto!important;box-shadow:0 0 18px rgba(255,255,255,.12)!important;}'
-      + '#pt-v36-loader-progress{position:absolute!important;left:-46%!important;top:0!important;height:100%!important;width:46%!important;background:#fff!important;border-radius:999px!important;box-shadow:0 0 14px rgba(255,255,255,.75)!important;animation:pt-v36-loader-slide 1.05s cubic-bezier(.65,0,.35,1) infinite!important;will-change:left,width!important;}'
-      + '#pt-v36-loader-note{margin-top:18px!important;color:rgba(255,255,255,.58)!important;font:800 11px Inter,Arial,sans-serif!important;letter-spacing:.02em!important;}'
-      + '#pt-v36-loader-skip{position:absolute!important;right:14px!important;bottom:12px!important;border:1px solid rgba(255,255,255,.18)!important;border-radius:12px!important;background:rgba(0,0,0,.34)!important;color:rgba(255,255,255,.62)!important;font:800 11px Inter,Arial,sans-serif!important;padding:8px 10px!important;cursor:pointer!important;opacity:0!important;pointer-events:none!important;transition:opacity .2s ease!important;}'
-      + '#pt-v36-loader.pt-v36-slow #pt-v36-loader-skip{opacity:1!important;pointer-events:auto!important;}'
-      + '@keyframes pt-v36-loader-slide{0%{left:-46%;width:30%}45%{width:64%}100%{left:112%;width:30%}}';
+      + '#pt-v37-loader{position:fixed!important;inset:0!important;z-index:2147483647!important;background:#000 url("' + BG_URL + '") center center/cover no-repeat!important;display:flex!important;align-items:center!important;justify-content:center!important;opacity:0!important;visibility:hidden!important;pointer-events:none!important;overflow:hidden!important;transform:translateZ(0)!important;contain:layout paint!important;}'
+      + '#pt-v37-loader.pt-v37-visible,#pt-v37-loader.pt-v37-blocking{opacity:1!important;visibility:visible!important;}'
+      + '#pt-v37-loader.pt-v37-visible{pointer-events:none!important;}'
+      + '#pt-v37-loader.pt-v37-blocking{pointer-events:all!important;}'
+      + '#pt-v37-loader.pt-v37-closing{opacity:0!important;visibility:visible!important;pointer-events:none!important;transition:opacity .22s ease!important;}'
+      + '#pt-v37-loader-inner{text-align:center!important;transform:translateY(-4px)!important;}'
+      + '#pt-v37-loader-logo{width:min(560px,74vw)!important;height:auto!important;display:block!important;margin:0 auto 30px!important;filter:drop-shadow(0 0 16px rgba(255,255,255,.18))!important;}'
+      + '#pt-v37-loader-bar{position:relative!important;width:min(420px,60vw)!important;height:5px!important;background:rgba(255,255,255,.14)!important;border-radius:999px!important;overflow:hidden!important;margin:0 auto!important;box-shadow:0 0 18px rgba(255,255,255,.12)!important;}'
+      + '#pt-v37-loader-progress{position:absolute!important;left:-46%!important;top:0!important;height:100%!important;width:46%!important;background:#fff!important;border-radius:999px!important;box-shadow:0 0 14px rgba(255,255,255,.75)!important;animation:pt-v37-loader-slide 1.05s cubic-bezier(.65,0,.35,1) infinite!important;will-change:left,width!important;}'
+      + '#pt-v37-loader-note{margin-top:18px!important;color:rgba(255,255,255,.58)!important;font:800 11px Inter,Arial,sans-serif!important;letter-spacing:.02em!important;}'
+      + '#pt-v37-loader-skip{position:absolute!important;right:14px!important;bottom:12px!important;border:1px solid rgba(255,255,255,.18)!important;border-radius:12px!important;background:rgba(0,0,0,.34)!important;color:rgba(255,255,255,.62)!important;font:800 11px Inter,Arial,sans-serif!important;padding:8px 10px!important;cursor:pointer!important;opacity:0!important;pointer-events:none!important;transition:opacity .2s ease!important;}'
+      + '#pt-v37-loader.pt-v37-slow #pt-v37-loader-skip{opacity:1!important;pointer-events:auto!important;}'
+      + '@keyframes pt-v37-loader-slide{0%{left:-46%;width:30%}45%{width:64%}100%{left:112%;width:30%}}';
     var style = document.createElement('style');
-    style.id = 'pt-v36-loader-style';
+    style.id = 'pt-v37-loader-style';
     style.type = 'text/css';
     style.appendChild(document.createTextNode(css));
     (document.head || document.documentElement).appendChild(style);
@@ -98,22 +91,22 @@
 
   function ensureLoader() {
     injectCss();
-    var loader = document.getElementById('pt-v36-loader');
+    var loader = document.getElementById('pt-v37-loader');
     if (loader) return loader;
 
     loader = document.createElement('div');
-    loader.id = 'pt-v36-loader';
+    loader.id = 'pt-v37-loader';
     loader.innerHTML = ''
-      + '<div id="pt-v36-loader-inner">'
-      + '<img id="pt-v36-loader-logo" src="' + LOGO_URL + '" alt="Profitable Trader">'
-      + '<div id="pt-v36-loader-bar"><div id="pt-v36-loader-progress"></div></div>'
-      + '<div id="pt-v36-loader-note">Ladowanie panelu...</div>'
+      + '<div id="pt-v37-loader-inner">'
+      + '<img id="pt-v37-loader-logo" src="' + LOGO_URL + '" alt="Profitable Trader">'
+      + '<div id="pt-v37-loader-bar"><div id="pt-v37-loader-progress"></div></div>'
+      + '<div id="pt-v37-loader-note">Ladowanie panelu...</div>'
       + '</div>'
-      + '<button type="button" id="pt-v36-loader-skip">Pomin ladowanie</button>';
+      + '<button type="button" id="pt-v37-loader-skip">Pomin ladowanie</button>';
 
-    targetRoot().appendChild(loader);
+    mountRoot().appendChild(loader);
 
-    var skip = document.getElementById('pt-v36-loader-skip');
+    var skip = document.getElementById('pt-v37-loader-skip');
     if (skip) {
       skip.onclick = function (e) {
         if (e) { e.preventDefault(); e.stopPropagation(); }
@@ -133,21 +126,21 @@
     lsSet(FLAG, '1');
     lsSet(AT, t);
     setCookieLock();
-    try { window.name = String(window.name || '').replace(/\|PTV36LOCK:\d+/g, '') + '|PTV36LOCK:' + t; } catch (e) {}
+    try { window.name = String(window.name || '').replace(/\|PTV37LOCK:\d+/g, '') + '|PTV37LOCK:' + t; } catch (e) {}
   }
 
   function clearLock() {
     ssDel(FLAG); ssDel(FROM); ssDel(TO); ssDel(AT);
     lsDel(FLAG); lsDel(AT);
     clearCookieLock();
-    try { window.name = String(window.name || '').replace(/\|PTV36LOCK:\d+/g, ''); } catch (e) {}
+    try { window.name = String(window.name || '').replace(/\|PTV37LOCK:\d+/g, ''); } catch (e) {}
   }
 
   function lockAge() {
     var t = parseInt(ssGet(AT) || lsGet(AT) || '0', 10);
     if (!t) {
       try {
-        var m = String(window.name || '').match(/PTV36LOCK:(\d+)/);
+        var m = String(window.name || '').match(/PTV37LOCK:(\d+)/);
         if (m && m[1]) t = parseInt(m[1], 10);
       } catch (e) {}
     }
@@ -158,33 +151,33 @@
     var locked = ssGet(FLAG) === '1' || lsGet(FLAG) === '1' || hasCookieLock();
     if (!locked) return false;
     var age = lockAge();
-    if (age && age > 45000) {
+    if (age && age > 50000) {
       clearLock();
       return false;
     }
     return true;
   }
 
-  function show(reason, blocking) {
+  function show(reason, blockingMode) {
     var loader = ensureLoader();
     if (!loader) return;
     if (!visible) shownAt = now();
     visible = true;
 
     if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
-    loader.className = blocking ? 'pt-v36-blocking' : 'pt-v36-visible';
+    loader.className = blockingMode ? 'pt-v37-blocking' : 'pt-v37-visible';
 
     if (slowTimer) clearTimeout(slowTimer);
     slowTimer = setTimeout(function () {
-      var l = document.getElementById('pt-v36-loader');
-      if (l) l.classList.add('pt-v36-slow');
+      var l = document.getElementById('pt-v37-loader');
+      if (l) l.classList.add('pt-v37-slow');
     }, SLOW_SKIP_MS);
 
     startWatcher(reason || 'show');
   }
 
   function forceHide(reason) {
-    var loader = document.getElementById('pt-v36-loader');
+    var loader = document.getElementById('pt-v37-loader');
     if (watchTimer) { clearInterval(watchTimer); watchTimer = null; }
     if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
     if (failTimer) { clearTimeout(failTimer); failTimer = null; }
@@ -193,7 +186,7 @@
     navigating = false;
     clearLock();
     if (!loader) return;
-    loader.className = 'pt-v36-closing';
+    loader.className = 'pt-v37-closing';
     setTimeout(function () {
       if (loader && loader.parentNode) loader.parentNode.removeChild(loader);
     }, 260);
@@ -262,7 +255,7 @@
         return;
       }
 
-      if (now() - started > SAFETY_MS) {
+      if (now() - started > NEW_PAGE_SAFETY_MS) {
         forceHide('safety');
       }
     }, POLL_MS);
@@ -273,7 +266,7 @@
     return !!target.closest(
       '#wtl-assistant-panel,#wtl-mini,#wtl-bottom-bar,#wtl-site-switcher,' +
       '#pt-layout-topbar,#pt-layout-left,#pt-layout-left-toggle,#pt-layout-bottom-actions,#pt-layout-ai-window,' +
-      '#pt-v36-loader,.thulium-chat-wrapper,.thulium-chat-frame-wrapper,iframe[title="Thulium Click2Contact"]'
+      '#pt-v37-loader,.thulium-chat-wrapper,.thulium-chat-frame-wrapper,iframe[title="Thulium Click2Contact"]'
     );
   }
 
@@ -292,7 +285,7 @@
     return u.href;
   }
 
-  function shouldLetBrowserHandleModifiedClick(e) {
+  function modifiedClick(e) {
     return !!(e && (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button === 1));
   }
 
@@ -309,10 +302,8 @@
       }
     }, OLD_PAGE_FAILSAFE_MS);
 
-    /* Dwie klatki + maly delay: najpierw przegladarka musi namalowac loader,
-       dopiero potem robimy realna zmiane URL. */
-    requestAnimationFrame(function () {
-      requestAnimationFrame(function () {
+    raf(function () {
+      raf(function () {
         setTimeout(function () {
           try { window.location.assign(url); }
           catch (e) { window.location.href = url; }
@@ -323,7 +314,7 @@
 
   function installHooks() {
     document.addEventListener('click', function (e) {
-      if (shouldLetBrowserHandleModifiedClick(e)) return;
+      if (modifiedClick(e)) return;
       var url = internalUrlFromTarget(e.target);
       if (!url) return;
       e.preventDefault();
@@ -341,7 +332,6 @@
 
     window.addEventListener('beforeunload', function () {
       writeLock(ssGet(TO) || 'beforeunload');
-      show('beforeunload', true);
     });
 
     window.addEventListener('pagehide', function () {
@@ -390,6 +380,7 @@
     }, { once: true });
   }
 })();
+(function () {
   'use strict';
 
   if (window.__PT_ASSISTANT_GTM_MAIN_V60_SUBSCRIPTION_FIX__) return;

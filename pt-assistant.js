@@ -6037,3 +6037,546 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
 })();
+
+/* PT Assistant Layout V21
+   - Smooth Thulium opening in Layout: the proxy window stays invisible until the real form/frame is ready.
+   - Stable language lock: no alternating Polish/selected language during rendering.
+   - Broader UI translations for panel and Layout based on the language selected in WTL.
+*/
+(function () {
+  'use strict';
+  if (window.__PT_LAYOUT_V21_SMOOTH_LANG_FIX__) return;
+  window.__PT_LAYOUT_V21_SMOOTH_LANG_FIX__ = true;
+
+  var PREFIX = 'pt_assistant_v60_';
+  var AI_SRC = 'https://app.multitools.ai/chat-embed-host.html?assistantId=83ab6507-f2b6-402d-8ffd-4ab42aa1e9b2';
+  var THULIUM_SRC = 'https://cdn.thulium.com/apps/chat-widget/chat-loader.js?hash=eliteexpertclub-4cb69311-31a0-4960-9608-ef51bf61693b';
+  var openTimer = null;
+  var readyTimer = null;
+  var guardTimer = null;
+  var languageTimer = null;
+  var observer = null;
+  var lockedLang = '';
+  var lastUrlLangKey = '';
+
+  function clean(v) { return String(v || '').replace(/\s+/g, ' ').trim(); }
+  function lower(v) { return clean(v).toLowerCase(); }
+  function sKey(key) { return PREFIX + key; }
+  function save(key, value) { try { localStorage.setItem(sKey(key), JSON.stringify(value)); } catch (e) {} }
+  function read(key, fallback) { try { var v = localStorage.getItem(sKey(key)); return v ? JSON.parse(v) : fallback; } catch (e) { return fallback; } }
+
+  var PHRASES = [
+    { pl:'Wróć do panelu', en:'Back to panel', de:'Zurück zum Panel', es:'Volver al panel', ua:'Повернутися до панелі' },
+    { pl:'Wroc do panelu', en:'Back to panel', de:'Zurück zum Panel', es:'Volver al panel', ua:'Повернутися до панелі' },
+    { pl:'Panel', en:'Panel', de:'Panel', es:'Panel', ua:'Панель' },
+    { pl:'Plan lekcji', en:'Lesson plan', de:'Lektionsplan', es:'Plan de lecciones', ua:'План уроків' },
+    { pl:'Wybierz sekcję', en:'Choose a section', de:'Abschnitt wählen', es:'Elige una sección', ua:'Виберіть розділ' },
+    { pl:'Wybierz sekcje', en:'Choose a section', de:'Abschnitt wählen', es:'Elige una sección', ua:'Виберіть розділ' },
+    { pl:'Panel zczytuje lekcje bezpośrednio z listy lekcji na platformie.', en:'The panel reads lessons directly from the lesson list on the platform.', de:'Das Panel liest Lektionen direkt aus der Lektionsliste der Plattform.', es:'El panel lee las lecciones directamente desde la lista de la plataforma.', ua:'Панель читає уроки безпосередньо зі списку уроків на платформі.' },
+    { pl:'Panel zczytuje lekcje bezposrednio z listy lekcji na platformie.', en:'The panel reads lessons directly from the lesson list on the platform.', de:'Das Panel liest Lektionen direkt aus der Lektionsliste der Plattform.', es:'El panel lee las lecciones directamente desde la lista de la plataforma.', ua:'Панель читає уроки безпосередньо зі списку уроків на платформі.' },
+    { pl:'Wróć do ostatniej lekcji', en:'Return to last lesson', de:'Zur letzten Lektion zurückkehren', es:'Volver a la última lección', ua:'Повернутися до останнього уроку' },
+    { pl:'Wroc do ostatniej lekcji', en:'Return to last lesson', de:'Zur letzten Lektion zurückkehren', es:'Volver a la última lección', ua:'Повернутися до останнього уроку' },
+    { pl:'Ostatnio oglądana lekcja:', en:'Last watched lesson:', de:'Zuletzt angesehene Lektion:', es:'Última lección vista:', ua:'Останній переглянутий урок:' },
+    { pl:'Ostatnio ogladana lekcja:', en:'Last watched lesson:', de:'Zuletzt angesehene Lektion:', es:'Última lección vista:', ua:'Останній переглянутий урок:' },
+    { pl:'Brak zapisanej ostatniej lekcji', en:'No saved last lesson', de:'Keine zuletzt gespeicherte Lektion', es:'No hay última lección guardada', ua:'Немає збереженого останнього уроку' },
+    { pl:'Wejdź na dowolną lekcję, a panel automatycznie zapamięta jej tytuł, link oraz sekcję.', en:'Open any lesson and the panel will automatically save its title, link and section.', de:'Öffne eine beliebige Lektion und das Panel speichert automatisch Titel, Link und Abschnitt.', es:'Abre cualquier lección y el panel guardará automáticamente su título, enlace y sección.', ua:'Відкрийте будь-який урок, і панель автоматично збереже його назву, посилання та розділ.' },
+    { pl:'Wejdz na dowolna lekcje, a panel automatycznie zapamieta jej tytul, link oraz sekcje.', en:'Open any lesson and the panel will automatically save its title, link and section.', de:'Öffne eine beliebige Lektion und das Panel speichert automatisch Titel, Link und Abschnitt.', es:'Abre cualquier lección y el panel guardará automáticamente su título, enlace y sección.', ua:'Відкрийте будь-який урок, і панель автоматично збереже його назву, посилання та розділ.' },
+    { pl:'Wejdź na dowolną lekcję, a Layout automatycznie pokaże ostatni materiał.', en:'Open any lesson and Layout will automatically show your last material.', de:'Öffne eine beliebige Lektion und Layout zeigt automatisch dein letztes Material.', es:'Abre cualquier lección y Layout mostrará automáticamente tu último material.', ua:'Відкрийте будь-який урок, і Layout автоматично покаже останній матеріал.' },
+    { pl:'Wejdz na dowolna lekcje, a Layout automatycznie pokaze ostatni material.', en:'Open any lesson and Layout will automatically show your last material.', de:'Öffne eine beliebige Lektion und Layout zeigt automatisch dein letztes Material.', es:'Abre cualquier lección y Layout mostrará automáticamente tu último material.', ua:'Відкрийте будь-який урок, і Layout автоматично покаже останній матеріал.' },
+    { pl:'Sekcja:', en:'Section:', de:'Abschnitt:', es:'Sección:', ua:'Розділ:' },
+    { pl:'Zapisano:', en:'Saved:', de:'Gespeichert:', es:'Guardado:', ua:'Збережено:' },
+    { pl:'Zapisano', en:'Saved', de:'Gespeichert', es:'Guardado', ua:'Збережено' },
+    { pl:'Aktualnie oglądasz tę lekcję', en:'You are currently watching this lesson', de:'Du siehst diese Lektion gerade an', es:'Actualmente estás viendo esta lección', ua:'Ви зараз переглядаєте цей урок' },
+    { pl:'Aktualnie ogladasz te lekcje', en:'You are currently watching this lesson', de:'Du siehst diese Lektion gerade an', es:'Actualmente estás viendo esta lección', ua:'Ви зараз переглядаєте цей урок' },
+    { pl:'Wróć do:', en:'Return to:', de:'Zurück zu:', es:'Volver a:', ua:'Повернутися до:' },
+    { pl:'Wroc do:', en:'Return to:', de:'Zurück zu:', es:'Volver a:', ua:'Повернутися до:' },
+    { pl:'Źródło:', en:'Source:', de:'Quelle:', es:'Fuente:', ua:'Джерело:' },
+    { pl:'Zrodlo:', en:'Source:', de:'Quelle:', es:'Fuente:', ua:'Джерело:' },
+    { pl:'Postęp sekcji', en:'Section progress', de:'Abschnittsfortschritt', es:'Progreso de la sección', ua:'Прогрес розділу' },
+    { pl:'Postep sekcji', en:'Section progress', de:'Abschnittsfortschritt', es:'Progreso de la sección', ua:'Прогрес розділу' },
+    { pl:'Postęp', en:'Progress', de:'Fortschritt', es:'Progreso', ua:'Прогрес' },
+    { pl:'Postep', en:'Progress', de:'Fortschritt', es:'Progreso', ua:'Прогрес' },
+    { pl:'Ukończona', en:'Completed', de:'Abgeschlossen', es:'Completada', ua:'Завершено' },
+    { pl:'Ukonczona', en:'Completed', de:'Abgeschlossen', es:'Completada', ua:'Завершено' },
+    { pl:'Do obejrzenia', en:'To watch', de:'Anzusehen', es:'Por ver', ua:'До перегляду' },
+    { pl:'Lekcja #', en:'Lesson #', de:'Lektion #', es:'Lección #', ua:'Урок #' },
+    { pl:'Lekcja', en:'Lesson', de:'Lektion', es:'Lección', ua:'Урок' },
+    { pl:'lekcji', en:'lessons', de:'Lektionen', es:'lecciones', ua:'уроків' },
+    { pl:'ukończone', en:'completed', de:'abgeschlossen', es:'completadas', ua:'завершено' },
+    { pl:'ukonczone', en:'completed', de:'abgeschlossen', es:'completadas', ua:'завершено' },
+    { pl:'Ładowanie lekcji...', en:'Loading lessons...', de:'Lektionen werden geladen...', es:'Cargando lecciones...', ua:'Завантаження уроків...' },
+    { pl:'Ladowanie lekcji...', en:'Loading lessons...', de:'Lektionen werden geladen...', es:'Cargando lecciones...', ua:'Завантаження уроків...' },
+    { pl:'Ładowanie...', en:'Loading...', de:'Wird geladen...', es:'Cargando...', ua:'Завантаження...' },
+    { pl:'Ladowanie...', en:'Loading...', de:'Wird geladen...', es:'Cargando...', ua:'Завантаження...' },
+    { pl:'Pobieram tytuły i status ukończenia.', en:'Fetching titles and completion status.', de:'Titel und Abschlussstatus werden geladen.', es:'Obteniendo títulos y estado de finalización.', ua:'Отримання назв і статусу завершення.' },
+    { pl:'Pobieram tytuly i status ukonczenia.', en:'Fetching titles and completion status.', de:'Titel und Abschlussstatus werden geladen.', es:'Obteniendo títulos y estado de finalización.', ua:'Отримання назв і статусу завершення.' },
+    { pl:'Brak znalezionych lekcji w tej sekcji', en:'No lessons found in this section', de:'Keine Lektionen in diesem Abschnitt gefunden', es:'No se encontraron lecciones en esta sección', ua:'У цьому розділі уроків не знайдено' },
+    { pl:'Panel nie znalazł linków lekcji w tej części platformy.', en:'The panel did not find lesson links in this part of the platform.', de:'Das Panel hat in diesem Bereich der Plattform keine Lektionslinks gefunden.', es:'El panel no encontró enlaces de lecciones en esta parte de la plataforma.', ua:'Панель не знайшла посилань на уроки в цій частині платформи.' },
+    { pl:'← Wróć', en:'← Back', de:'← Zurück', es:'← Volver', ua:'← Назад' },
+    { pl:'← Wroc', en:'← Back', de:'← Zurück', es:'← Volver', ua:'← Назад' },
+    { pl:'AI Agent', en:'AI Agent', de:'KI-Agent', es:'Agente de IA', ua:'AI-агент' },
+    { pl:'Zadaj pytanie Agentowi AI bezpośrednio w panelu.', en:'Ask the AI Agent a question directly in the panel.', de:'Stelle dem KI-Agenten direkt im Panel eine Frage.', es:'Haz una pregunta al Agente de IA directamente en el panel.', ua:'Поставте запитання AI-агенту прямо в панелі.' },
+    { pl:'Zadaj pytanie Agentowi AI bezposrednio w panelu.', en:'Ask the AI Agent a question directly in the panel.', de:'Stelle dem KI-Agenten direkt im Panel eine Frage.', es:'Haz una pregunta al Agente de IA directamente en el panel.', ua:'Поставте запитання AI-агенту прямо в панелі.' },
+    { pl:'Wybierz formę kontaktu. Przycisk rozbudzi widget i uruchomi odpowiednie okno Thulium.', en:'Choose a contact method. The button will wake the widget and open the right Thulium window.', de:'Wähle eine Kontaktmethode. Der Button weckt das Widget und öffnet das passende Thulium-Fenster.', es:'Elige una forma de contacto. El botón activará el widget y abrirá la ventana correspondiente de Thulium.', ua:'Оберіть спосіб контакту. Кнопка активує віджет і відкриє відповідне вікно Thulium.' },
+    { pl:'Nie musisz klikać natywnej ikonki Thulium — wybierz opcję poniżej.', en:'You do not need to click the native Thulium icon — choose an option below.', de:'Du musst nicht auf das native Thulium-Symbol klicken — wähle unten eine Option.', es:'No necesitas hacer clic en el icono nativo de Thulium: elige una opción abajo.', ua:'Не потрібно натискати нативну іконку Thulium — оберіть опцію нижче.' },
+    { pl:'Nie musisz klikac natywnej ikonki Thulium - wybierz opcje ponizej.', en:'You do not need to click the native Thulium icon — choose an option below.', de:'Du musst nicht auf das native Thulium-Symbol klicken — wähle unten eine Option.', es:'No necesitas hacer clic en el icono nativo de Thulium: elige una opción abajo.', ua:'Не потрібно натискати нативну іконку Thulium — оберіть опцію нижче.' },
+    { pl:'Czat', en:'Chat', de:'Chat', es:'Chat', ua:'Чат' },
+    { pl:'E-mail', en:'E-mail', de:'E-Mail', es:'E-mail', ua:'E-mail' },
+    { pl:'Otwieranie Thulium...', en:'Opening Thulium...', de:'Thulium wird geöffnet...', es:'Abriendo Thulium...', ua:'Відкриття Thulium...' },
+    { pl:'Resetuję Thulium i próbuję ponownie...', en:'Resetting Thulium and trying again...', de:'Thulium wird zurückgesetzt und erneut versucht...', es:'Restableciendo Thulium e intentando de nuevo...', ua:'Скидання Thulium і повторна спроба...' },
+    { pl:'Nie udało się załadować Thulium.', en:'Could not load Thulium.', de:'Thulium konnte nicht geladen werden.', es:'No se pudo cargar Thulium.', ua:'Не вдалося завантажити Thulium.' },
+    { pl:'Profitable Assistant jest na pasku', en:'Profitable Assistant is on the bar', de:'Profitable Assistant ist in der Leiste', es:'Profitable Assistant está en la barra', ua:'Profitable Assistant на панелі' },
+    { pl:'Kliknij, aby przywrócić panel.', en:'Click to restore the panel.', de:'Klicken, um das Panel wiederherzustellen.', es:'Haz clic para restaurar el panel.', ua:'Натисніть, щоб відновити панель.' },
+    { pl:'Kliknij, aby przywrocic panel.', en:'Click to restore the panel.', de:'Klicken, um das Panel wiederherzustellen.', es:'Haz clic para restaurar el panel.', ua:'Натисніть, щоб відновити панель.' },
+    { pl:'Otwórz panel', en:'Open panel', de:'Panel öffnen', es:'Abrir panel', ua:'Відкрити панель' },
+    { pl:'Otworz panel', en:'Open panel', de:'Panel öffnen', es:'Abrir panel', ua:'Відкрити панель' },
+    { pl:'Witaj ponownie', en:'Welcome back', de:'Willkommen zurück', es:'Bienvenido de nuevo', ua:'Вітаємо знову' },
+    { pl:'Możesz sprawdzić plan lekcji, użyć AI Agenta albo skontaktować się przez Thulium.', en:'You can check the lesson plan, use the AI Agent or contact us via Thulium.', de:'Du kannst den Lektionsplan prüfen, den KI-Agenten nutzen oder uns über Thulium kontaktieren.', es:'Puedes consultar el plan de lecciones, usar el Agente de IA o contactarnos por Thulium.', ua:'Ви можете перевірити план уроків, скористатися AI-агентом або зв’язатися через Thulium.' },
+    { pl:'Możesz sprawdzic plan lekcji, uzyc AI Agenta albo skontaktowac sie przez Thulium.', en:'You can check the lesson plan, use the AI Agent or contact us via Thulium.', de:'Du kannst den Lektionsplan prüfen, den KI-Agenten nutzen oder uns über Thulium kontaktieren.', es:'Puedes consultar el plan de lecciones, usar el Agente de IA o contactarnos por Thulium.', ua:'Ви можете перевірити план уроків, скористатися AI-агентом або зв’язатися через Thulium.' },
+    { pl:'Strona główna', en:'Home', de:'Startseite', es:'Inicio', ua:'Головна' },
+    { pl:'Strona glowna', en:'Home', de:'Startseite', es:'Inicio', ua:'Головна' },
+    { pl:'Powiadomienia', en:'Notifications', de:'Benachrichtigungen', es:'Notificaciones', ua:'Сповіщення' },
+    { pl:'Moje konto', en:'My account', de:'Mein Konto', es:'Mi cuenta', ua:'Мій акаунт' },
+    { pl:'Sprawdzam', en:'Checking', de:'Prüfe', es:'Comprobando', ua:'Перевірка' },
+    { pl:'sprawdzam...', en:'checking...', de:'prüfe...', es:'comprobando...', ua:'перевірка...' },
+    { pl:'aktywne', en:'active', de:'aktiv', es:'activo', ua:'активний' },
+    { pl:'nieaktywne', en:'inactive', de:'inaktiv', es:'inactivo', ua:'неактивний' },
+    { pl:'nieznane', en:'unknown', de:'unbekannt', es:'desconocido', ua:'невідомо' },
+    { pl:'Start / Wprowadzenie', en:'Start / Introduction', de:'Start / Einführung', es:'Inicio / Introducción', ua:'Старт / Вступ' },
+    { pl:'Platformy handlowe', en:'Trading platforms', de:'Handelsplattformen', es:'Plataformas de trading', ua:'Торгові платформи' },
+    { pl:'Podstawy handlu', en:'Trading basics', de:'Trading-Grundlagen', es:'Conceptos básicos de trading', ua:'Основи торгівлі' },
+    { pl:'Strategia PSND', en:'PSND strategy', de:'PSND-Strategie', es:'Estrategia PSND', ua:'Стратегія PSND' },
+    { pl:'PSND na żywo!', en:'PSND live!', de:'PSND live!', es:'¡PSND en vivo!', ua:'PSND наживо!' },
+    { pl:'Strategia PAC', en:'PAC strategy', de:'PAC-Strategie', es:'Estrategia PAC', ua:'Стратегія PAC' },
+    { pl:'PAC na żywo!', en:'PAC live!', de:'PAC live!', es:'¡PAC en vivo!', ua:'PAC наживо!' },
+    { pl:'Pierwsze lekcje, które klient powinien obejrzeć na start.', en:'The first lessons the client should watch at the start.', de:'Die ersten Lektionen, die der Kunde zu Beginn ansehen sollte.', es:'Las primeras lecciones que el cliente debería ver al empezar.', ua:'Перші уроки, які клієнт має переглянути на старті.' },
+    { pl:'Lekcje dotyczące platform i środowiska tradingowego.', en:'Lessons about platforms and the trading environment.', de:'Lektionen zu Plattformen und Trading-Umgebung.', es:'Lecciones sobre plataformas y entorno de trading.', ua:'Уроки про платформи та торгове середовище.' },
+    { pl:'Podstawowe materiały dla początkującego tradera.', en:'Basic materials for a beginner trader.', de:'Grundmaterialien für einen Trading-Anfänger.', es:'Materiales básicos para un trader principiante.', ua:'Базові матеріали для трейдера-початківця.' },
+    { pl:'Główna ścieżka nauki strategii PSND.', en:'The main learning path for the PSND strategy.', de:'Der Hauptlernweg für die PSND-Strategie.', es:'La ruta principal de aprendizaje de la estrategia PSND.', ua:'Основний шлях навчання стратегії PSND.' },
+    { pl:'Nagrania sesji live dla strategii PSND.', en:'Live session recordings for the PSND strategy.', de:'Live-Session-Aufzeichnungen für die PSND-Strategie.', es:'Grabaciones de sesiones en vivo para la estrategia PSND.', ua:'Записи live-сесій для стратегії PSND.' },
+    { pl:'Pełna ścieżka strategii PAC, workflow oraz setupy.', en:'Full PAC strategy path, workflow and setups.', de:'Vollständiger PAC-Strategiepfad, Workflow und Setups.', es:'Ruta completa de estrategia PAC, flujo de trabajo y setups.', ua:'Повний шлях стратегії PAC, workflow та сетапи.' },
+    { pl:'Nagrania sesji live dla strategii PAC.', en:'Live session recordings for the PAC strategy.', de:'Live-Session-Aufzeichnungen für die PAC-Strategie.', es:'Grabaciones de sesiones en vivo para la estrategia PAC.', ua:'Записи live-сесій для стратегії PAC.' }
+  ];
+
+  function injectCss() {
+    if (document.getElementById('pt-layout-v21-style')) return;
+    var style = document.createElement('style');
+    style.id = 'pt-layout-v21-style';
+    style.textContent = [
+      'html.pt-v21-language-updating #wtl-assistant-panel,html.pt-v21-language-updating #wtl-mini,html.pt-v21-language-updating #wtl-bottom-bar,html.pt-v21-language-updating #pt-layout-root,html.pt-v21-language-updating #pt-layout-topbar,html.pt-v21-language-updating #pt-layout-left,html.pt-v21-language-updating #pt-layout-bottom{opacity:0!important;transition:none!important}',
+      'html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy.pt-v21-thulium-preparing{opacity:0!important;visibility:hidden!important;pointer-events:none!important;transform:translate3d(0,8px,0) scale(.985)!important}',
+      'html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy.pt-v21-thulium-ready{opacity:1!important;visibility:visible!important;pointer-events:auto!important;transform:translate3d(0,0,0) scale(1)!important;transition:opacity .18s ease,transform .18s ease!important}',
+      'html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy.pt-v21-thulium-preparing iframe[title="Thulium Click2Contact"],html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy.pt-v21-thulium-preparing .thulium-chat-wrapper,html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy.pt-v21-thulium-preparing .thulium-chat-frame-wrapper{opacity:0!important;visibility:hidden!important}',
+      'html.wtl-layout-mode .thulium-chat-wrapper:not(#wtl-thulium-native-mount .thulium-chat-wrapper),html.wtl-layout-mode .thulium-chat-frame-wrapper:not(#wtl-thulium-native-mount .thulium-chat-frame-wrapper),html.wtl-layout-mode body>iframe[title="Thulium Click2Contact"]{opacity:0!important;visibility:hidden!important;pointer-events:none!important;left:-99999px!important;right:auto!important;bottom:auto!important;transform:scale(.01)!important}',
+      'html.wtl-layout-mode #wtl-thulium-native-mount iframe[title="Thulium Click2Contact"],html.wtl-layout-mode #wtl-thulium-native-mount .thulium-chat-wrapper,html.wtl-layout-mode #wtl-thulium-native-mount .thulium-chat-frame-wrapper{display:block!important;opacity:1!important;visibility:visible!important;pointer-events:auto!important}',
+      'html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy #wtl-thulium-native-loading{display:none!important;visibility:hidden!important;opacity:0!important}'
+    ].join('');
+    document.head.appendChild(style);
+  }
+
+  function mapLang(value) {
+    value = lower(value);
+    if (!value) return '';
+    if (/\b(en|eng|english)\b/.test(value) || value.indexOf('language: english') !== -1) return 'en';
+    if (/\b(de|deu|ger|german|deutsch)\b/.test(value) || value.indexOf('language: deutsch') !== -1) return 'de';
+    if (/\b(es|esp|spanish|espanol|español)\b/.test(value) || value.indexOf('language: español') !== -1 || value.indexOf('language: espanol') !== -1) return 'es';
+    if (/\b(ua|uk|ukr|ukrainian)\b/.test(value) || value.indexOf('укра') !== -1) return 'ua';
+    if (/\b(pl|pol|polish|polski)\b/.test(value) || value.indexOf('language: polski') !== -1) return 'pl';
+    return '';
+  }
+
+  function detectFromExplicitMenu() {
+    var selectors = [
+      '.nav-menu-list-item[menu="languages"] span',
+      '.nav-menu-list-item[menu="languages"]',
+      '.nav-menu-avatar .nav-menu-list[menu="main"] .nav-menu-list-item[menu="languages"] span',
+      '.nav-menu-avatar .nav-menu-list[menu="main"] .nav-menu-list-item[menu="languages"]'
+    ];
+    for (var i = 0; i < selectors.length; i++) {
+      var nodes = document.querySelectorAll(selectors[i]);
+      for (var n = 0; n < nodes.length; n++) {
+        var txt = clean(nodes[n].textContent || '');
+        if (/language\s*:/i.test(txt)) {
+          var lang = mapLang(txt);
+          if (lang) return lang;
+        }
+      }
+    }
+    return '';
+  }
+
+  function detectFromUrl() {
+    try {
+      var params = new URLSearchParams(location.search || '');
+      return mapLang(params.get('locale') || params.get('_locale') || params.get('lang') || params.get('language') || '');
+    } catch (e) { return ''; }
+  }
+
+  function detectFromStorage() {
+    try {
+      var preferredKeys = ['locale', 'language', 'lang', 'user_locale', 'selected_locale', 'selected_language'];
+      for (var p = 0; p < preferredKeys.length; p++) {
+        var direct = localStorage.getItem(preferredKeys[p]);
+        var lang = mapLang(direct || '');
+        if (lang) return lang;
+      }
+      for (var i = 0; i < localStorage.length; i++) {
+        var key = localStorage.key(i);
+        if (!/(locale|language|lang)/i.test(key || '')) continue;
+        var value = localStorage.getItem(key) || '';
+        var detected = mapLang(value);
+        if (detected) return detected;
+      }
+    } catch (e) {}
+    return '';
+  }
+
+  function detectFromHtml() {
+    return mapLang(document.documentElement.getAttribute('lang') || '');
+  }
+
+  function currentLang() {
+    var urlKey = location.pathname + '|' + location.search;
+    var explicit = detectFromExplicitMenu();
+    var detected = detectFromUrl() || explicit || detectFromStorage() || detectFromHtml() || lockedLang || read('ui_language_detected_v21', '') || read('ui_language_detected', '') || 'pl';
+
+    if (explicit) detected = explicit;
+
+    if (!lockedLang || urlKey !== lastUrlLangKey || explicit) {
+      lockedLang = detected;
+      lastUrlLangKey = urlKey;
+      save('ui_language_detected_v21', lockedLang);
+      save('ui_language_detected', lockedLang);
+    }
+
+    try {
+      document.documentElement.setAttribute('data-pt-assistant-lang', lockedLang);
+      document.documentElement.classList.remove('pt-lang-pl', 'pt-lang-en', 'pt-lang-de', 'pt-lang-es', 'pt-lang-ua');
+      document.documentElement.classList.add('pt-lang-' + lockedLang);
+    } catch (e) {}
+
+    return lockedLang;
+  }
+
+  function phraseVariants(item) {
+    var out = [];
+    var langs = ['pl', 'en', 'de', 'es', 'ua'];
+    for (var i = 0; i < langs.length; i++) {
+      if (item[langs[i]] && out.indexOf(item[langs[i]]) === -1) out.push(item[langs[i]]);
+    }
+    return out.sort(function (a, b) { return b.length - a.length; });
+  }
+
+  function translateText(text, lang) {
+    if (!text || !clean(text)) return text;
+    var out = text;
+    for (var i = 0; i < PHRASES.length; i++) {
+      var target = PHRASES[i][lang] || PHRASES[i].en || PHRASES[i].pl;
+      var vars = phraseVariants(PHRASES[i]);
+      for (var v = 0; v < vars.length; v++) {
+        if (vars[v] && vars[v] !== target && out.indexOf(vars[v]) !== -1) out = out.split(vars[v]).join(target);
+      }
+    }
+    return out;
+  }
+
+  function localizeRoot(root, lang) {
+    if (!root) return;
+    try {
+      var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+        acceptNode: function (node) {
+          if (!node || !clean(node.nodeValue)) return NodeFilter.FILTER_REJECT;
+          var parent = node.parentNode;
+          if (!parent) return NodeFilter.FILTER_REJECT;
+          var tag = String(parent.nodeName || '').toLowerCase();
+          if (tag === 'script' || tag === 'style' || tag === 'textarea') return NodeFilter.FILTER_REJECT;
+          if (parent.closest && parent.closest('iframe')) return NodeFilter.FILTER_REJECT;
+          return NodeFilter.FILTER_ACCEPT;
+        }
+      });
+      var node;
+      while ((node = walker.nextNode())) {
+        var oldValue = node.nodeValue;
+        var newValue = translateText(oldValue, lang);
+        if (newValue !== oldValue) node.nodeValue = newValue;
+      }
+    } catch (e) {}
+
+    try {
+      var attrs = root.querySelectorAll('[title],[aria-label],input[placeholder],button[value],img[alt]');
+      for (var a = 0; a < attrs.length; a++) {
+        var el = attrs[a];
+        var names = ['title', 'aria-label', 'placeholder', 'value', 'alt'];
+        for (var n = 0; n < names.length; n++) {
+          var attr = names[n];
+          var val = el.getAttribute(attr);
+          if (!val) continue;
+          var nv = translateText(val, lang);
+          if (nv !== val) el.setAttribute(attr, nv);
+        }
+      }
+    } catch (e2) {}
+  }
+
+  function localizeAll() {
+    var lang = currentLang();
+    document.documentElement.classList.add('pt-v21-language-updating');
+
+    var roots = [
+      document.getElementById('wtl-assistant-panel'),
+      document.getElementById('wtl-mini'),
+      document.getElementById('wtl-bottom-bar'),
+      document.getElementById('wtl-site-switcher'),
+      document.getElementById('pt-layout-root'),
+      document.getElementById('pt-layout-topbar'),
+      document.getElementById('pt-layout-left'),
+      document.getElementById('pt-layout-bottom'),
+      document.querySelector('.nav-menu-avatar')
+    ];
+
+    for (var i = 0; i < roots.length; i++) localizeRoot(roots[i], lang);
+
+    setTimeout(function () {
+      document.documentElement.classList.remove('pt-v21-language-updating');
+    }, 20);
+  }
+
+  function ensureQueue() {
+    if (!window._tc || typeof window._tc !== 'function') {
+      window._tc = function () { (window._tc.q = window._tc.q || []).push(arguments); };
+    }
+  }
+
+  function callTc(name, arg) {
+    ensureQueue();
+    try {
+      if (window._tc && typeof window._tc[name] === 'function') {
+        if (typeof arg !== 'undefined') window._tc[name](arg);
+        else window._tc[name]();
+        return true;
+      }
+    } catch (e) {}
+    try {
+      if (typeof arg !== 'undefined') window._tc(name, arg);
+      else window._tc(name);
+    } catch (e2) {}
+    return false;
+  }
+
+  function ensureScript() {
+    ensureQueue();
+    callTc('set_container', 'wtl-thulium-native-mount');
+    if (document.querySelector('script[src*="cdn.thulium.com/apps/chat-widget/chat-loader.js"]')) return;
+    var script = document.createElement('script');
+    script.async = true;
+    script.src = THULIUM_SRC + '&ptV21=' + Date.now();
+    document.head.appendChild(script);
+  }
+
+  function panel() { return document.getElementById('wtl-assistant-panel'); }
+  function mount() { return document.getElementById('wtl-thulium-native-mount'); }
+  function frame() { return document.querySelector('#wtl-thulium-native-mount iframe[title="Thulium Click2Contact"]') || document.querySelector('#wtl-thulium-native-mount iframe'); }
+
+  function hideLooseThulium() {
+    try {
+      var nodes = document.querySelectorAll('.thulium-chat-wrapper,.thulium-chat-frame-wrapper,iframe[title="Thulium Click2Contact"]');
+      for (var i = 0; i < nodes.length; i++) {
+        var node = nodes[i];
+        if (!node) continue;
+        if (node.closest && node.closest('#wtl-thulium-native-mount')) continue;
+        node.style.setProperty('opacity', '0', 'important');
+        node.style.setProperty('visibility', 'hidden', 'important');
+        node.style.setProperty('pointer-events', 'none', 'important');
+        node.style.setProperty('left', '-99999px', 'important');
+        node.style.setProperty('right', 'auto', 'important');
+        node.style.setProperty('bottom', 'auto', 'important');
+        node.style.setProperty('transform', 'scale(.01)', 'important');
+      }
+    } catch (e) {}
+  }
+
+  function fitThulium() {
+    var f = frame();
+    if (!f) return false;
+    try {
+      f.style.setProperty('position', 'absolute', 'important');
+      f.style.setProperty('left', '-4px', 'important');
+      f.style.setProperty('top', '-72px', 'important');
+      f.style.setProperty('width', 'calc(100% + 8px)', 'important');
+      f.style.setProperty('height', '750px', 'important');
+      f.style.setProperty('min-height', '750px', 'important');
+      f.style.setProperty('max-height', 'none', 'important');
+      f.style.setProperty('opacity', '1', 'important');
+      f.style.setProperty('visibility', 'visible', 'important');
+      f.style.setProperty('pointer-events', 'auto', 'important');
+      f.style.setProperty('display', 'block', 'important');
+      f.style.setProperty('z-index', '10', 'important');
+      f.style.setProperty('transform', 'none', 'important');
+    } catch (e) {}
+    return true;
+  }
+
+  function frameReady() {
+    var f = frame();
+    if (!f) return false;
+    try {
+      var rect = f.getBoundingClientRect();
+      var cs = window.getComputedStyle(f);
+      return rect.width > 120 && rect.height > 120 && cs.display !== 'none' && cs.visibility !== 'hidden' && Number(cs.opacity) !== 0;
+    } catch (e) { return true; }
+  }
+
+  function markPreparing() {
+    var p = panel();
+    if (!p) return;
+    p.classList.add('pt-layout-thulium-proxy');
+    p.classList.add('pt-v21-thulium-preparing');
+    p.classList.remove('pt-v21-thulium-ready', 'pt-v20-thulium-ready', 'pt-v19-thulium-ready');
+    p.classList.add('pt-v20-thulium-opening');
+  }
+
+  function markReady() {
+    var p = panel();
+    if (!p) return;
+    p.classList.add('pt-layout-thulium-proxy');
+    p.classList.remove('pt-v21-thulium-preparing', 'pt-v20-thulium-opening', 'pt-v19-thulium-opening', 'pt-thulium-preload');
+    p.classList.add('pt-v21-thulium-ready', 'pt-v20-thulium-ready');
+    hideLooseThulium();
+    fitThulium();
+  }
+
+  function openIntent(intent, attempt) {
+    intent = intent === 'email' ? 'email' : 'chat';
+    callTc('set_container', 'wtl-thulium-native-mount');
+    if (intent === 'email') {
+      callTc('open_email');
+      if (attempt % 3 === 0) callTc('open_email_form');
+      if (attempt % 5 === 0) callTc('open_message_form');
+    } else {
+      callTc('open_chat');
+      if (attempt % 3 === 0) callTc('open_chat_form');
+      if (attempt % 5 === 0) callTc('chat');
+    }
+  }
+
+  function openLayoutThuliumV21(intent) {
+    intent = intent === 'email' ? 'email' : 'chat';
+    save('layout_thulium_open', true);
+    save('layout_thulium_intent', intent);
+    try { document.documentElement.classList.add('wtl-layout-mode'); } catch (e) {}
+
+    markPreparing();
+    hideLooseThulium();
+    ensureScript();
+
+    var body = document.getElementById('wtl-body');
+    if (body) {
+      var thPanel = body.querySelector('[data-wtl-panel="thulium"]');
+      var panels = body.querySelectorAll('[data-wtl-panel]');
+      for (var p = 0; p < panels.length; p++) panels[p].classList.toggle('wtl-active', panels[p] === thPanel);
+    }
+
+    if (openTimer) clearInterval(openTimer);
+    if (readyTimer) clearTimeout(readyTimer);
+
+    var attempt = 0;
+    openTimer = setInterval(function () {
+      attempt++;
+      if (!document.documentElement.classList.contains('wtl-layout-mode')) {
+        clearInterval(openTimer);
+        openTimer = null;
+        return;
+      }
+
+      markPreparing();
+      hideLooseThulium();
+      fitThulium();
+      openIntent(intent, attempt);
+
+      if (frameReady()) {
+        clearInterval(openTimer);
+        openTimer = null;
+        readyTimer = setTimeout(function () {
+          if (frameReady()) markReady();
+          startGuard();
+        }, 180);
+        return;
+      }
+
+      if (attempt === 32 && !frame()) ensureScript();
+      if (attempt > 90) {
+        clearInterval(openTimer);
+        openTimer = null;
+        if (frameReady()) markReady();
+        startGuard();
+      }
+    }, 110);
+  }
+
+  function startGuard() {
+    if (guardTimer) return;
+    guardTimer = setInterval(function () {
+      localizeAll();
+      if (!document.documentElement.classList.contains('wtl-layout-mode')) return;
+      hideLooseThulium();
+      var p = panel();
+      if (!p || !p.classList.contains('pt-layout-thulium-proxy')) return;
+      fitThulium();
+      if (frameReady()) markReady();
+    }, 350);
+  }
+
+  function bindThuliumButtons() {
+    var buttons = document.querySelectorAll('[data-pt-layout-thulium], [data-pt-v19-thulium], [data-pt-v20-thulium], [data-pt-v21-thulium]');
+    for (var i = 0; i < buttons.length; i++) {
+      var old = buttons[i];
+      if (old.__ptV21Bound) continue;
+      var intent = old.getAttribute('data-pt-v21-thulium') || old.getAttribute('data-pt-v20-thulium') || old.getAttribute('data-pt-v19-thulium') || old.getAttribute('data-pt-layout-thulium') || 'chat';
+      var clone = old.cloneNode(true);
+      clone.removeAttribute('data-pt-layout-thulium');
+      clone.removeAttribute('data-pt-v19-thulium');
+      clone.removeAttribute('data-pt-v20-thulium');
+      clone.setAttribute('data-pt-v21-thulium', intent);
+      clone.__ptV21Bound = true;
+      clone.addEventListener('click', function (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        ev.stopImmediatePropagation();
+        openLayoutThuliumV21(this.getAttribute('data-pt-v21-thulium') || 'chat');
+      }, true);
+      if (old.parentNode) old.parentNode.replaceChild(clone, old);
+    }
+  }
+
+  function startObserver() {
+    if (observer || !window.MutationObserver || !document.body) return;
+    var timer = null;
+    observer = new MutationObserver(function () {
+      document.documentElement.classList.add('pt-v21-language-updating');
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(function () {
+        bindThuliumButtons();
+        localizeAll();
+        if (document.documentElement.classList.contains('wtl-layout-mode')) hideLooseThulium();
+      }, 0);
+    });
+    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+  }
+
+  function init() {
+    injectCss();
+    currentLang();
+    bindThuliumButtons();
+    localizeAll();
+    startObserver();
+    startGuard();
+    if (languageTimer) clearInterval(languageTimer);
+    languageTimer = setInterval(function () {
+      bindThuliumButtons();
+      localizeAll();
+    }, 1200);
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();

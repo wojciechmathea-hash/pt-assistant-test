@@ -1,31 +1,37 @@
-/* PT Assistant V34 EARLY NAVIGATION LOADER
-   Cel: zaslonic moment przejscia miedzy stronami i poczekac na gotowy panel/layout.
-   Wazne: ten blok musi byc na samej gorze tagu GTM i tag musi dzialac jako Initialization - All Pages.
+/* PT Assistant V35 EARLY CONTINUOUS NAVIGATION LOADER
+   Cel: zaslonic moment przejscia miedzy stronami i czekac na gotowy panel/layout.
+   Wazne: ten blok jest na samej gorze pliku. Tag GTM ustaw jako Initialization albo Consent Initialization - All Pages.
 */
 (function () {
   'use strict';
 
-  if (window.__PT_V34_EARLY_NAV_LOADER__) return;
-  window.__PT_V34_EARLY_NAV_LOADER__ = true;
+  if (window.__PT_V35_EARLY_NAV_LOADER__) return;
+  window.__PT_V35_EARLY_NAV_LOADER__ = true;
+
+  var HOST = 'edu.profitabletrader.ai';
+  if (location.hostname !== HOST) return;
 
   var LOGO_URL = 'https://edu.profitabletrader.ai/uploads/media/12510/5/Obszar_roboczy_9%404x.png?_t=1776253923';
   var BG_URL = 'https://edu.profitabletrader.ai/uploads/media/12510/5/T%C5%81O_PT__1_.png?_t=1777481120';
   var PREFIX = 'pt_assistant_v60_';
-  var FLAG = 'pt_v34_loader_active';
-  var FROM = 'pt_v34_loader_from';
-  var AT = 'pt_v34_loader_at';
+  var FLAG = 'pt_v35_loader_active';
+  var FROM = 'pt_v35_loader_from';
+  var TO = 'pt_v35_loader_to';
+  var AT = 'pt_v35_loader_at';
+
   var MIN_VISIBLE = 900;
-  var MAX_VISIBLE = 15000;
-  var OLD_PAGE_FAILSAFE = 9000;
-  var POLL = 90;
-  var STABLE_NEEDED = 8;
+  var READY_STABLE_TICKS = 10;
+  var POLL_MS = 80;
+  var NEW_PAGE_SAFETY_MS = 16000;
+  var OLD_PAGE_CANCEL_MS = 12000;
 
   var visible = false;
+  var blocking = false;
   var shownAt = 0;
   var watchTimer = null;
   var hideTimer = null;
-  var slowTimer = null;
   var oldPageTimer = null;
+  var slowTimer = null;
   var lastUrl = location.href;
 
   function now() { return Date.now ? Date.now() : new Date().getTime(); }
@@ -34,25 +40,28 @@
   function ssDel(k) { try { sessionStorage.removeItem(k); } catch (e) {} }
   function lsJson(key, fallback) { try { var v = localStorage.getItem(PREFIX + key); return v ? JSON.parse(v) : fallback; } catch (e) { return fallback; } }
 
-  if (location.hostname !== 'edu.profitabletrader.ai') return;
-
   try { new Image().src = LOGO_URL; new Image().src = BG_URL; } catch (e) {}
 
+  function targetRoot() {
+    return document.body || document.documentElement;
+  }
+
   function injectCss() {
-    if (document.getElementById('pt-v34-loader-style')) return;
+    if (document.getElementById('pt-v35-loader-style')) return;
     var css = ''
-      + '#pt-v34-loader{position:fixed!important;inset:0!important;z-index:2147483647!important;background:#000 url("' + BG_URL + '") center center/cover no-repeat!important;display:flex!important;align-items:center!important;justify-content:center!important;opacity:0!important;visibility:hidden!important;pointer-events:none!important;overflow:hidden!important;transform:translateZ(0)!important;}'
-      + '#pt-v34-loader.pt-v34-visible{opacity:1!important;visibility:visible!important;pointer-events:all!important;}'
-      + '#pt-v34-loader.pt-v34-closing{opacity:0!important;visibility:visible!important;pointer-events:none!important;transition:opacity .22s ease!important;}'
-      + '#pt-v34-loader-inner{text-align:center!important;transform:translateY(-4px)!important;}'
-      + '#pt-v34-loader-logo{width:min(560px,74vw)!important;height:auto!important;display:block!important;margin:0 auto 30px!important;filter:drop-shadow(0 0 16px rgba(255,255,255,.18))!important;}'
-      + '#pt-v34-loader-bar{position:relative!important;width:min(420px,60vw)!important;height:5px!important;background:rgba(255,255,255,.14)!important;border-radius:999px!important;overflow:hidden!important;margin:0 auto!important;box-shadow:0 0 18px rgba(255,255,255,.12)!important;}'
-      + '#pt-v34-loader-progress{position:absolute!important;left:-45%!important;top:0!important;height:100%!important;width:45%!important;background:#fff!important;border-radius:999px!important;box-shadow:0 0 14px rgba(255,255,255,.75)!important;animation:pt-v34-loader-move 1.05s cubic-bezier(.65,0,.35,1) infinite!important;}'
-      + '#pt-v34-loader-skip{position:absolute!important;right:14px!important;bottom:12px!important;border:1px solid rgba(255,255,255,.18)!important;border-radius:12px!important;background:rgba(0,0,0,.34)!important;color:rgba(255,255,255,.62)!important;font:800 11px Inter,Arial,sans-serif!important;padding:8px 10px!important;cursor:pointer!important;opacity:0!important;pointer-events:none!important;transition:opacity .2s ease!important;}'
-      + '#pt-v34-loader.pt-v34-slow #pt-v34-loader-skip{opacity:1!important;pointer-events:auto!important;}'
-      + '@keyframes pt-v34-loader-move{0%{left:-45%;width:35%}45%{width:62%}100%{left:110%;width:35%}}';
+      + '#pt-v35-loader{position:fixed!important;inset:0!important;z-index:2147483647!important;background:#000 url("' + BG_URL + '") center center/cover no-repeat!important;display:flex!important;align-items:center!important;justify-content:center!important;opacity:0!important;visibility:hidden!important;pointer-events:none!important;overflow:hidden!important;transform:translateZ(0)!important;}'
+      + '#pt-v35-loader.pt-v35-visible{opacity:1!important;visibility:visible!important;pointer-events:none!important;}'
+      + '#pt-v35-loader.pt-v35-blocking{opacity:1!important;visibility:visible!important;pointer-events:all!important;}'
+      + '#pt-v35-loader.pt-v35-closing{opacity:0!important;visibility:visible!important;pointer-events:none!important;transition:opacity .22s ease!important;}'
+      + '#pt-v35-loader-inner{text-align:center!important;transform:translateY(-4px)!important;}'
+      + '#pt-v35-loader-logo{width:min(560px,74vw)!important;height:auto!important;display:block!important;margin:0 auto 30px!important;filter:drop-shadow(0 0 16px rgba(255,255,255,.18))!important;}'
+      + '#pt-v35-loader-bar{position:relative!important;width:min(420px,60vw)!important;height:5px!important;background:rgba(255,255,255,.14)!important;border-radius:999px!important;overflow:hidden!important;margin:0 auto!important;box-shadow:0 0 18px rgba(255,255,255,.12)!important;}'
+      + '#pt-v35-loader-progress{position:absolute!important;left:-45%!important;top:0!important;height:100%!important;width:45%!important;background:#fff!important;border-radius:999px!important;box-shadow:0 0 14px rgba(255,255,255,.75)!important;animation:pt-v35-loader-move 1.05s cubic-bezier(.65,0,.35,1) infinite!important;}'
+      + '#pt-v35-loader-skip{position:absolute!important;right:14px!important;bottom:12px!important;border:1px solid rgba(255,255,255,.18)!important;border-radius:12px!important;background:rgba(0,0,0,.34)!important;color:rgba(255,255,255,.62)!important;font:800 11px Inter,Arial,sans-serif!important;padding:8px 10px!important;cursor:pointer!important;opacity:0!important;pointer-events:none!important;transition:opacity .2s ease!important;}'
+      + '#pt-v35-loader.pt-v35-slow #pt-v35-loader-skip{opacity:1!important;pointer-events:auto!important;}'
+      + '@keyframes pt-v35-loader-move{0%{left:-45%;width:32%}45%{width:62%}100%{left:110%;width:32%}}';
     var style = document.createElement('style');
-    style.id = 'pt-v34-loader-style';
+    style.id = 'pt-v35-loader-style';
     style.type = 'text/css';
     style.appendChild(document.createTextNode(css));
     (document.head || document.documentElement).appendChild(style);
@@ -60,87 +69,102 @@
 
   function ensureLoader() {
     injectCss();
-    var loader = document.getElementById('pt-v34-loader');
+    var loader = document.getElementById('pt-v35-loader');
     if (loader) return loader;
+
     loader = document.createElement('div');
-    loader.id = 'pt-v34-loader';
+    loader.id = 'pt-v35-loader';
     loader.innerHTML = ''
-      + '<div id="pt-v34-loader-inner">'
-      + '<img id="pt-v34-loader-logo" src="' + LOGO_URL + '" alt="Profitable Trader">'
-      + '<div id="pt-v34-loader-bar"><div id="pt-v34-loader-progress"></div></div>'
+      + '<div id="pt-v35-loader-inner">'
+      + '<img id="pt-v35-loader-logo" src="' + LOGO_URL + '" alt="Profitable Trader">'
+      + '<div id="pt-v35-loader-bar"><div id="pt-v35-loader-progress"></div></div>'
       + '</div>'
-      + '<button type="button" id="pt-v34-loader-skip">Pomin ladowanie</button>';
-    (document.body || document.documentElement).appendChild(loader);
-    var skip = document.getElementById('pt-v34-loader-skip');
+      + '<button type="button" id="pt-v35-loader-skip">Pomin ladowanie</button>';
+
+    targetRoot().appendChild(loader);
+
+    var skip = document.getElementById('pt-v35-loader-skip');
     if (skip) {
       skip.onclick = function (e) {
         if (e) { e.preventDefault(); e.stopPropagation(); }
         forceHide('skip');
       };
     }
+
     return loader;
   }
 
-  function markNavigation() {
+  function markNavigation(toUrl) {
     ssSet(FLAG, '1');
     ssSet(FROM, location.href);
+    ssSet(TO, toUrl || '');
     ssSet(AT, String(now()));
   }
 
   function clearNavigation() {
     ssDel(FLAG);
     ssDel(FROM);
+    ssDel(TO);
     ssDel(AT);
   }
 
-  function shouldResume() {
-    if (ssGet(FLAG) === '1') return true;
+  function shouldResumeOnThisPage() {
+    if (ssGet(FLAG) !== '1') return false;
     var t = parseInt(ssGet(AT) || '0', 10);
-    return !!(t && now() - t < 7000);
+    if (t && now() - t > 30000) {
+      clearNavigation();
+      return false;
+    }
+    return true;
   }
 
-  function show(reason, oldPageUrl) {
+  function show(reason, blockPointer, oldPageUrl) {
     var loader = ensureLoader();
     if (!loader) return;
+
     if (!visible) shownAt = now();
     visible = true;
+    blocking = !!blockPointer;
+
     if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
-    loader.className = 'pt-v34-visible';
+
+    loader.className = blocking ? 'pt-v35-blocking' : 'pt-v35-visible';
 
     if (slowTimer) clearTimeout(slowTimer);
     slowTimer = setTimeout(function () {
-      var l = document.getElementById('pt-v34-loader');
-      if (l) l.classList.add('pt-v34-slow');
-    }, 8000);
+      var l = document.getElementById('pt-v35-loader');
+      if (l) l.classList.add('pt-v35-slow');
+    }, 7000);
 
     if (oldPageTimer) clearTimeout(oldPageTimer);
     if (oldPageUrl) {
       oldPageTimer = setTimeout(function () {
         if (location.href === oldPageUrl && document.visibilityState !== 'hidden') {
-          forceHide('navigation-cancelled');
+          forceHide('old-page-cancelled');
         }
-      }, OLD_PAGE_FAILSAFE);
+      }, OLD_PAGE_CANCEL_MS);
     }
 
     startWatcher(reason || 'show');
   }
 
   function forceHide(reason) {
-    var loader = document.getElementById('pt-v34-loader');
+    var loader = document.getElementById('pt-v35-loader');
     if (watchTimer) { clearInterval(watchTimer); watchTimer = null; }
     if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
-    if (slowTimer) { clearTimeout(slowTimer); slowTimer = null; }
     if (oldPageTimer) { clearTimeout(oldPageTimer); oldPageTimer = null; }
+    if (slowTimer) { clearTimeout(slowTimer); slowTimer = null; }
     visible = false;
+    blocking = false;
     clearNavigation();
     if (!loader) return;
-    loader.className = 'pt-v34-closing';
+    loader.className = 'pt-v35-closing';
     setTimeout(function () {
       if (loader && loader.parentNode) loader.parentNode.removeChild(loader);
     }, 260);
   }
 
-  function hideAfterMinimum() {
+  function hideWhenAllowed() {
     var wait = Math.max(0, MIN_VISIBLE - (now() - shownAt));
     if (hideTimer) clearTimeout(hideTimer);
     hideTimer = setTimeout(function () { forceHide('ready'); }, wait);
@@ -150,15 +174,32 @@
     return document.readyState === 'interactive' || document.readyState === 'complete';
   }
 
+  function isVisibleEnough(el) {
+    if (!el) return false;
+    try {
+      var r = el.getBoundingClientRect();
+      var cs = window.getComputedStyle(el);
+      return r.width > 20 && r.height > 20 && cs.display !== 'none' && cs.visibility !== 'hidden' && Number(cs.opacity) !== 0;
+    } catch (e) {
+      return true;
+    }
+  }
+
   function panelReady() {
     var panel = document.getElementById('wtl-assistant-panel');
     var mini = document.getElementById('wtl-mini');
     var bottom = document.getElementById('wtl-bottom-bar');
-    if (!panel && !mini && !bottom) return false;
     var state = lsJson('state', 'open');
+
     if (state === 'minimized') return !!mini;
     if (state === 'docked') return !!bottom;
-    return !!panel;
+
+    if (!panel) return false;
+
+    /* W trybie layoutu bazowy panel moze byc ukryty, ale musi juz istniec. */
+    if (document.documentElement.classList.contains('wtl-layout-mode')) return true;
+
+    return isVisibleEnough(panel) || panel.classList.contains('wtl-hidden');
   }
 
   function layoutReady() {
@@ -180,24 +221,29 @@
     if (watchTimer) clearInterval(watchTimer);
     var stable = 0;
     var started = now();
+
     watchTimer = setInterval(function () {
       if (appReady()) stable++;
       else stable = 0;
 
-      if (stable >= STABLE_NEEDED) {
-        hideAfterMinimum();
+      if (stable >= READY_STABLE_TICKS) {
+        hideWhenAllowed();
         return;
       }
 
-      if (now() - started > MAX_VISIBLE) {
+      if (now() - started > NEW_PAGE_SAFETY_MS) {
         forceHide('safety');
       }
-    }, POLL);
+    }, POLL_MS);
   }
 
   function insideAssistant(target) {
     if (!target || !target.closest) return false;
-    return !!target.closest('#wtl-assistant-panel,#wtl-mini,#wtl-bottom-bar,#wtl-site-switcher,#pt-layout-topbar,#pt-layout-left,#pt-layout-left-toggle,#pt-layout-bottom-actions,#pt-layout-ai-window,#pt-v34-loader');
+    return !!target.closest(
+      '#wtl-assistant-panel,#wtl-mini,#wtl-bottom-bar,#wtl-site-switcher,' +
+      '#pt-layout-topbar,#pt-layout-left,#pt-layout-left-toggle,#pt-layout-bottom-actions,#pt-layout-ai-window,' +
+      '#pt-v35-loader,.thulium-chat-wrapper,.thulium-chat-frame-wrapper,iframe[title="Thulium Click2Contact"]'
+    );
   }
 
   function internalUrlFromTarget(target) {
@@ -215,104 +261,89 @@
     return u.href;
   }
 
-  function armForNavigation(reason, oldPageUrl) {
-    markNavigation();
-    show(reason, oldPageUrl || location.href);
+  function armNavigation(toUrl, reason, showNow) {
+    markNavigation(toUrl || '');
+    if (showNow) show(reason, false, location.href);
   }
 
   function installHooks() {
     document.addEventListener('pointerdown', function (e) {
       var url = internalUrlFromTarget(e.target);
       if (!url) return;
-      armForNavigation('pointerdown', location.href);
+      /* Nie pokazujemy loadera blokujacego na pointerdown, bo overlay potrafi ukrasc click i zatrzymac nawigacje. */
+      armNavigation(url, 'pointerdown', false);
     }, true);
 
     document.addEventListener('click', function (e) {
       var url = internalUrlFromTarget(e.target);
       if (!url) return;
-      armForNavigation('click', location.href);
-      /* Nie robimy preventDefault. Nawigacja ma zostac w 100% po stronie platformy/przegladarki. */
+      /* Nie preventDefault. Pokazujemy overlay z pointer-events:none, zeby przegladarka mogla normalnie przejsc na link. */
+      armNavigation(url, 'click', true);
     }, true);
 
     document.addEventListener('submit', function (e) {
       if (insideAssistant(e.target)) return;
-      armForNavigation('submit', location.href);
+      markNavigation('form-submit');
+      show('submit', false, location.href);
     }, true);
 
     window.addEventListener('beforeunload', function () {
-      markNavigation();
-      var loader = ensureLoader();
-      if (loader) loader.className = 'pt-v34-visible';
+      markNavigation(ssGet(TO) || 'beforeunload');
+      show('beforeunload', false, location.href);
     });
 
     window.addEventListener('pagehide', function () {
-      markNavigation();
-      var loader = ensureLoader();
-      if (loader) loader.className = 'pt-v34-visible';
+      markNavigation(ssGet(TO) || 'pagehide');
     });
 
     var oldPush = history.pushState;
     var oldReplace = history.replaceState;
 
     history.pushState = function () {
-      var before = location.href;
       var result = oldPush.apply(this, arguments);
-      setTimeout(function () {
-        if (location.href !== before) {
-          markNavigation();
-          show('pushState');
-        }
-      }, 0);
+      if (location.href !== lastUrl) {
+        lastUrl = location.href;
+        markNavigation(location.href);
+        show('pushState', true, null);
+      }
       return result;
     };
 
     history.replaceState = function () {
-      var before = location.href;
       var result = oldReplace.apply(this, arguments);
-      setTimeout(function () {
-        if (location.href !== before) {
-          markNavigation();
-          show('replaceState');
-        }
-      }, 0);
+      if (location.href !== lastUrl) {
+        lastUrl = location.href;
+        markNavigation(location.href);
+        show('replaceState', true, null);
+      }
       return result;
     };
 
     window.addEventListener('popstate', function () {
-      armForNavigation('popstate', lastUrl);
-    }, true);
+      markNavigation(location.href);
+      show('popstate', true, null);
+    });
 
-    setInterval(function () {
-      if (location.href === lastUrl) return;
-      lastUrl = location.href;
-      if (ssGet(FLAG) === '1') show('url-watch');
-    }, 140);
-  }
-
-  function boot() {
-    injectCss();
-    if (shouldResume()) show('resume');
-    installHooks();
+    window.addEventListener('hashchange', function () {
+      if (location.href !== lastUrl) {
+        lastUrl = location.href;
+        markNavigation(location.href);
+        show('hashchange', true, null);
+      }
+    });
   }
 
   injectCss();
+  installHooks();
 
-  if (shouldResume()) {
-    if (document.body) show('resume-immediate');
-    else {
-      var early = setInterval(function () {
-        if (document.body) {
-          clearInterval(early);
-          show('resume-early');
-        }
-      }, 10);
-    }
+  if (shouldResumeOnThisPage()) {
+    show('resume-new-page', true, null);
   }
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', boot, { once: true });
-  } else {
-    boot();
+    document.addEventListener('DOMContentLoaded', function () {
+      if (shouldResumeOnThisPage() && !visible) show('dom-resume', true, null);
+    }, { once: true });
   }
 })();
 (function () {
@@ -8123,41 +8154,55 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
 })();
-/* PT Assistant V34 Thulium close + layout stabilizer
-   Nie resetuje sesji Thulium. Nie przechwytuje X w normalnym panelu, zeby nie chowac calego panelu.
+/* PT Assistant V33 Thulium Layout Stabilizer
+   Ten patch nie resetuje localStorage/sessionStorage Thulium i nie przeładowuje widgetu.
+   Stabilizuje tylko proxy w layoucie oraz zapewnia osobny przycisk zamykania, zeby nie zostawac na czarnym oknie.
 */
 (function () {
   'use strict';
 
-  if (window.__PT_V34_THULIUM_CLOSE_LAYOUT_FIX__) return;
-  window.__PT_V34_THULIUM_CLOSE_LAYOUT_FIX__ = true;
+  if (window.__PT_V33_THULIUM_STABILIZER__) return;
+  window.__PT_V33_THULIUM_STABILIZER__ = true;
 
   var closeBtn = null;
-  var monitor = null;
   var lastFitAt = 0;
   var missingSince = 0;
+  var visibleSince = 0;
+  var monitor = null;
 
-  if (location.hostname !== 'edu.profitabletrader.ai') return;
+  function qs(sel) { return document.querySelector(sel); }
 
   function panel() { return document.getElementById('wtl-assistant-panel'); }
   function mount() { return document.getElementById('wtl-thulium-native-mount'); }
   function frame() {
     var m = mount();
-    return (m && m.querySelector('iframe[title="Thulium Click2Contact"]')) || document.querySelector('iframe[title="Thulium Click2Contact"]');
+    return m ? m.querySelector('iframe[title="Thulium Click2Contact"]') : null;
   }
-  function isLayout() { return document.documentElement.classList.contains('wtl-layout-mode'); }
-  function isLayoutProxy() {
+
+  function isLayout() {
+    return document.documentElement.classList.contains('wtl-layout-mode');
+  }
+
+  function isProxy() {
     var p = panel();
-    return !!(isLayout() && p && p.classList.contains('pt-layout-thulium-proxy'));
+    return !!(p && p.classList.contains('pt-layout-thulium-proxy'));
+  }
+
+  function visibleFrame() {
+    var f = frame();
+    if (!f) return false;
+    try {
+      var r = f.getBoundingClientRect();
+      var cs = window.getComputedStyle(f);
+      return r.width > 120 && r.height > 180 && cs.display !== 'none' && cs.visibility !== 'hidden' && Number(cs.opacity) !== 0;
+    } catch (e) {
+      return true;
+    }
   }
 
   function injectCss() {
-    if (document.getElementById('pt-v34-thulium-style')) return;
+    if (document.getElementById('pt-v35-thulium-style')) return;
     var css = ''
-      /* Wieksze niewidzialne przyciski w zwyklym widoku panelu. */
-      + '#wtl-assistant-panel.wtl-thulium-window-open #wtl-thulium-cover-close{display:block!important;top:0!important;right:0!important;width:72px!important;height:66px!important;z-index:2147483646!important;}'
-      + '#wtl-assistant-panel.wtl-thulium-window-open #wtl-thulium-cover-min{display:block!important;top:0!important;right:58px!important;width:68px!important;height:66px!important;z-index:2147483646!important;}'
-      /* Widok layoutu - stabilne proxy Thulium. */
       + 'html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy{right:14px!important;bottom:68px!important;left:auto!important;top:auto!important;width:420px!important;height:520px!important;max-height:calc(100vh - 84px)!important;max-width:calc(100vw - 28px)!important;overflow:hidden!important;background:#070707!important;border-radius:18px!important;}'
       + 'html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy.pt-thulium-preload{opacity:0!important;visibility:hidden!important;pointer-events:none!important;}'
       + 'html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy.pt-thulium-ready{opacity:1!important;visibility:visible!important;pointer-events:auto!important;}'
@@ -8168,11 +8213,13 @@
       + 'html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy #wtl-thulium-native-loading{display:none!important;visibility:hidden!important;pointer-events:none!important;}'
       + 'html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy #wtl-thulium-native-mount iframe[title="Thulium Click2Contact"],html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy #wtl-thulium-native-mount .thulium-chat-wrapper,html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy #wtl-thulium-native-mount .thulium-chat-frame-wrapper{position:absolute!important;left:-4px!important;top:-72px!important;right:auto!important;bottom:auto!important;width:calc(100% + 8px)!important;height:750px!important;min-height:750px!important;max-height:none!important;opacity:1!important;visibility:visible!important;display:block!important;pointer-events:auto!important;transform:none!important;z-index:10!important;}'
       + 'html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy #wtl-thulium-cover-min,html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy #wtl-thulium-cover-close{display:none!important;visibility:hidden!important;pointer-events:none!important;}'
-      + '#pt-v34-thulium-close{position:fixed!important;right:18px!important;bottom:536px!important;width:78px!important;height:78px!important;z-index:2147483647!important;background:transparent!important;border:0!important;box-shadow:none!important;color:transparent!important;opacity:0!important;cursor:pointer!important;display:none!important;padding:0!important;margin:0!important;}'
-      + 'html.wtl-layout-mode #pt-v34-thulium-close.pt-v34-show{display:block!important;pointer-events:auto!important;}'
+      + '#pt-v35-thulium-close{position:fixed!important;right:10px!important;bottom:510px!important;width:88px!important;height:88px!important;z-index:2147483647!important;background:transparent!important;border:0!important;box-shadow:none!important;color:transparent!important;opacity:0!important;cursor:pointer!important;display:none!important;padding:0!important;margin:0!important;}'
+      + 'html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy.pt-thulium-ready ~ #pt-v35-thulium-close,html.wtl-layout-mode #pt-v35-thulium-close.pt-v35-show{display:block!important;pointer-events:auto!important;}'
+      + '#wtl-assistant-panel.wtl-thulium-window-open #wtl-thulium-cover-close{display:block!important;top:4px!important;right:0!important;width:82px!important;height:70px!important;z-index:2147483647!important;opacity:0!important;background:transparent!important;color:transparent!important;border:0!important;pointer-events:auto!important;}'
+      + '#wtl-assistant-panel.wtl-thulium-window-open #wtl-thulium-cover-min{display:block!important;top:4px!important;right:70px!important;width:70px!important;height:70px!important;z-index:2147483647!important;opacity:0!important;background:transparent!important;color:transparent!important;border:0!important;pointer-events:auto!important;}'
       + 'html.wtl-layout-mode .thulium-chat-wrapper:not(#wtl-thulium-native-mount .thulium-chat-wrapper),html.wtl-layout-mode .thulium-chat-frame-wrapper:not(#wtl-thulium-native-mount .thulium-chat-frame-wrapper),html.wtl-layout-mode body>iframe[title="Thulium Click2Contact"]{opacity:0!important;visibility:hidden!important;pointer-events:none!important;left:-9999px!important;right:auto!important;bottom:auto!important;transform:scale(.01)!important;}';
     var style = document.createElement('style');
-    style.id = 'pt-v34-thulium-style';
+    style.id = 'pt-v35-thulium-style';
     style.type = 'text/css';
     style.appendChild(document.createTextNode(css));
     (document.head || document.documentElement).appendChild(style);
@@ -8180,95 +8227,81 @@
 
   function ensureCloseButton() {
     if (closeBtn && document.body && document.body.contains(closeBtn)) return closeBtn;
-    closeBtn = document.getElementById('pt-v34-thulium-close');
-    if (!closeBtn && document.body) {
+    closeBtn = document.getElementById('pt-v35-thulium-close');
+    if (!closeBtn) {
       closeBtn = document.createElement('button');
       closeBtn.type = 'button';
-      closeBtn.id = 'pt-v34-thulium-close';
+      closeBtn.id = 'pt-v35-thulium-close';
       closeBtn.setAttribute('aria-label', 'Zamknij Thulium');
-      closeBtn.textContent = 'x';
+      closeBtn.textContent = '×';
       document.body.appendChild(closeBtn);
     }
-    if (closeBtn) {
-      closeBtn.onclick = function (e) {
-        if (e) { e.preventDefault(); e.stopPropagation(); }
-        closeLayoutThulium(true);
-        return false;
-      };
-    }
+    closeBtn.onclick = function (e) {
+      if (e) { e.preventDefault(); e.stopPropagation(); }
+      closeThulium(true);
+      return false;
+    };
     return closeBtn;
   }
 
-  function visibleFrame() {
-    var f = frame();
-    if (!f) return false;
-    try {
-      var r = f.getBoundingClientRect();
-      var cs = window.getComputedStyle(f);
-      return r.width > 120 && r.height > 180 && cs.display !== 'none' && cs.visibility !== 'hidden' && Number(cs.opacity) !== 0;
-    } catch (e) { return true; }
-  }
-
-  function setImp(el, prop, value) {
+  function setImportant(el, prop, val) {
     if (!el) return;
-    try { el.style.setProperty(prop, value, 'important'); } catch (e) {}
+    try { el.style.setProperty(prop, val, 'important'); } catch (e) {}
   }
 
-  function fitLayoutOnce() {
+  function fitOnce() {
     var t = Date.now();
-    if (t - lastFitAt < 220) return;
+    if (t - lastFitAt < 180) return;
     lastFitAt = t;
 
     var p = panel();
     var m = mount();
     var f = frame();
-    if (!isLayoutProxy() || !p || !m) return;
+    if (!p || !m || !isLayout() || !p.classList.contains('pt-layout-thulium-proxy')) return;
 
-    setImp(p, 'right', '14px');
-    setImp(p, 'bottom', '68px');
-    setImp(p, 'left', 'auto');
-    setImp(p, 'top', 'auto');
-    setImp(p, 'width', '420px');
-    setImp(p, 'height', '520px');
-    setImp(p, 'max-height', 'calc(100vh - 84px)');
-    setImp(p, 'overflow', 'hidden');
+    setImportant(p, 'right', '14px');
+    setImportant(p, 'bottom', '68px');
+    setImportant(p, 'left', 'auto');
+    setImportant(p, 'top', 'auto');
+    setImportant(p, 'width', '420px');
+    setImportant(p, 'height', '520px');
+    setImportant(p, 'max-height', 'calc(100vh - 84px)');
+    setImportant(p, 'overflow', 'hidden');
 
-    setImp(m, 'position', 'relative');
-    setImp(m, 'height', '520px');
-    setImp(m, 'min-height', '520px');
-    setImp(m, 'max-height', '520px');
-    setImp(m, 'margin', '0');
-    setImp(m, 'border-top', '0');
-    setImp(m, 'overflow', 'hidden');
+    setImportant(m, 'position', 'relative');
+    setImportant(m, 'height', '520px');
+    setImportant(m, 'min-height', '520px');
+    setImportant(m, 'max-height', '520px');
+    setImportant(m, 'margin', '0');
+    setImportant(m, 'border-top', '0');
+    setImportant(m, 'overflow', 'hidden');
 
     if (f) {
-      setImp(f, 'position', 'absolute');
-      setImp(f, 'left', '-4px');
-      setImp(f, 'top', '-72px');
-      setImp(f, 'right', 'auto');
-      setImp(f, 'bottom', 'auto');
-      setImp(f, 'width', 'calc(100% + 8px)');
-      setImp(f, 'height', '750px');
-      setImp(f, 'min-height', '750px');
-      setImp(f, 'max-height', 'none');
-      setImp(f, 'opacity', '1');
-      setImp(f, 'visibility', 'visible');
-      setImp(f, 'display', 'block');
-      setImp(f, 'pointer-events', 'auto');
-      setImp(f, 'transform', 'none');
+      setImportant(f, 'position', 'absolute');
+      setImportant(f, 'left', '-4px');
+      setImportant(f, 'top', '-72px');
+      setImportant(f, 'right', 'auto');
+      setImportant(f, 'bottom', 'auto');
+      setImportant(f, 'width', 'calc(100% + 8px)');
+      setImportant(f, 'height', '750px');
+      setImportant(f, 'min-height', '750px');
+      setImportant(f, 'max-height', 'none');
+      setImportant(f, 'opacity', '1');
+      setImportant(f, 'visibility', 'visible');
+      setImportant(f, 'display', 'block');
+      setImportant(f, 'pointer-events', 'auto');
+      setImportant(f, 'transform', 'none');
     }
   }
 
-  function closeLayoutThulium(closeNative) {
+  function closeThulium(closeNative) {
     var p = panel();
-
     if (closeNative) {
       try {
         if (window._tc && typeof window._tc.close === 'function') window._tc.close();
         else if (typeof window._tc === 'function') window._tc('close');
       } catch (e) {}
     }
-
     if (p) {
       p.classList.remove('pt-layout-thulium-proxy');
       p.classList.remove('pt-thulium-preload');
@@ -8285,10 +8318,10 @@
         p.style.removeProperty('overflow');
       } catch (e2) {}
     }
-
-    if (closeBtn) closeBtn.classList.remove('pt-v34-show');
+    if (closeBtn) closeBtn.classList.remove('pt-v35-show');
     try { localStorage.setItem('pt_assistant_v60_layout_thulium_open', JSON.stringify(false)); } catch (e3) {}
     missingSince = 0;
+    visibleSince = 0;
   }
 
   function monitorTick() {
@@ -8296,46 +8329,62 @@
     ensureCloseButton();
 
     var p = panel();
-    if (!isLayoutProxy() || !p) {
-      if (closeBtn) closeBtn.classList.remove('pt-v34-show');
+    if (!isLayout() || !p || !p.classList.contains('pt-layout-thulium-proxy')) {
+      if (closeBtn) closeBtn.classList.remove('pt-v35-show');
       missingSince = 0;
+      visibleSince = 0;
       return;
     }
 
-    if (visibleFrame()) {
+    var vf = visibleFrame();
+    if (vf) {
+      visibleSince = visibleSince || Date.now();
       missingSince = 0;
       p.classList.remove('pt-thulium-preload');
       p.classList.add('pt-thulium-ready');
       p.classList.remove('wtl-hidden');
-      if (closeBtn) closeBtn.classList.add('pt-v34-show');
-      fitLayoutOnce();
+      if (closeBtn) closeBtn.classList.add('pt-v35-show');
+      fitOnce();
       return;
     }
 
-    if (closeBtn) closeBtn.classList.remove('pt-v34-show');
-    if (!missingSince) missingSince = Date.now();
-    if (Date.now() - missingSince > 1400) closeLayoutThulium(false);
+    if (closeBtn) closeBtn.classList.remove('pt-v35-show');
+
+    if (p.classList.contains('pt-thulium-ready')) {
+      if (!missingSince) missingSince = Date.now();
+      if (Date.now() - missingSince > 900) {
+        closeThulium(false);
+      }
+      return;
+    }
+
+    if (!visibleSince) {
+      if (!missingSince) missingSince = Date.now();
+      if (Date.now() - missingSince > 4500) {
+        closeThulium(false);
+      }
+    }
   }
 
   document.addEventListener('click', function (e) {
     var t = e.target;
     if (!t) return;
 
-    if (t.id === 'pt-v34-thulium-close') {
+    if (t.id === 'pt-v35-thulium-close') {
       e.preventDefault();
       e.stopPropagation();
       e.stopImmediatePropagation();
-      closeLayoutThulium(true);
+      closeThulium(true);
       return false;
     }
 
-    /* Wazne: X z oryginalnego panelu przechwytujemy tylko w layout proxy.
-       W normalnym widoku panelu zostawiamy go bazowemu kodowi, bo inaczej chowa caly panel. */
-    if ((t.id === 'wtl-thulium-cover-close' || t.id === 'wtl-thulium-cover-min') && isLayoutProxy()) {
+    /* Nie przechwytujemy X/minimalizacji w zwyklym panelu, bo oryginalny kod panelu
+       ma wtedy wykonac resetThuliumChoice(), a nie ukrywac caly panel. */
+    if ((t.id === 'wtl-thulium-cover-close' || t.id === 'wtl-thulium-cover-min') && inLayoutProxy()) {
       e.preventDefault();
       e.stopPropagation();
       e.stopImmediatePropagation();
-      closeLayoutThulium(true);
+      closeThulium(true);
       return false;
     }
   }, true);
@@ -8344,7 +8393,7 @@
     injectCss();
     ensureCloseButton();
     if (monitor) clearInterval(monitor);
-    monitor = setInterval(monitorTick, 240);
+    monitor = setInterval(monitorTick, 220);
     if (window.MutationObserver && document.body) {
       var pending = null;
       var obs = new MutationObserver(function () {
@@ -8352,7 +8401,7 @@
         pending = setTimeout(function () {
           pending = null;
           monitorTick();
-        }, 140);
+        }, 120);
       });
       obs.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style'] });
     }

@@ -1,385 +1,3 @@
-/* PT Assistant V37 EARLY LOCKED NAVIGATION LOADER
-   Cel: zakryc stara strone przed zmiana URL, utrzymac ekran przez przeladowanie,
-   a na nowej stronie zgasic dopiero po gotowym panelu/layoutcie.
-
-   WAZNE: ten blok musi byc na samej gorze pliku/tagu i odpalany jako GTM Initialization / Consent Initialization - All Pages.
-*/
-(function () {
-  'use strict';
-
-  if (window.__PT_V37_LOCKED_NAV_LOADER__) return;
-  window.__PT_V37_LOCKED_NAV_LOADER__ = true;
-
-  var HOST = 'edu.profitabletrader.ai';
-  if (location.hostname !== HOST) return;
-
-  var LOGO_URL = 'https://edu.profitabletrader.ai/uploads/media/12510/5/Obszar_roboczy_9%404x.png?_t=1776253923';
-  var BG_URL = 'https://edu.profitabletrader.ai/uploads/media/12510/5/T%C5%81O_PT__1_.png?_t=1777481120';
-  var PREFIX = 'pt_assistant_v60_';
-
-  var FLAG = 'pt_v37_loader_lock';
-  var FROM = 'pt_v37_loader_from';
-  var TO = 'pt_v37_loader_to';
-  var AT = 'pt_v37_loader_at';
-  var COOKIE = 'pt_v37_loader_lock';
-
-  var NAV_DELAY_MS = 360;
-  var MIN_VISIBLE_MS = 900;
-  var READY_STABLE_TICKS = 12;
-  var POLL_MS = 80;
-  var NEW_PAGE_SAFETY_MS = 18000;
-  var OLD_PAGE_FAILSAFE_MS = 14000;
-  var SLOW_SKIP_MS = 8500;
-
-  var visible = false;
-  var navigating = false;
-  var shownAt = 0;
-  var watchTimer = null;
-  var hideTimer = null;
-  var failTimer = null;
-  var slowTimer = null;
-  var lastUrl = location.href;
-
-  function now() { return Date.now ? Date.now() : new Date().getTime(); }
-  function raf(fn) { if (window.requestAnimationFrame) requestAnimationFrame(fn); else setTimeout(fn, 16); }
-  function ssSet(k, v) { try { sessionStorage.setItem(k, String(v)); } catch (e) {} }
-  function ssGet(k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } }
-  function ssDel(k) { try { sessionStorage.removeItem(k); } catch (e) {} }
-  function lsSet(k, v) { try { localStorage.setItem(k, String(v)); } catch (e) {} }
-  function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
-  function lsDel(k) { try { localStorage.removeItem(k); } catch (e) {} }
-  function lsJson(key, fallback) { try { var v = localStorage.getItem(PREFIX + key); return v ? JSON.parse(v) : fallback; } catch (e) { return fallback; } }
-
-  function setCookieLock() {
-    try { document.cookie = COOKIE + '=1; path=/; max-age=50; SameSite=Lax'; } catch (e) {}
-  }
-
-  function clearCookieLock() {
-    try { document.cookie = COOKIE + '=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax'; } catch (e) {}
-  }
-
-  function hasCookieLock() {
-    try { return document.cookie.indexOf(COOKIE + '=1') !== -1; } catch (e) { return false; }
-  }
-
-  try { new Image().src = LOGO_URL; new Image().src = BG_URL; } catch (e) {}
-
-  function mountRoot() { return document.body || document.documentElement; }
-
-  function injectCss() {
-    if (document.getElementById('pt-v37-loader-style')) return;
-    var css = ''
-      + '#pt-v37-loader{position:fixed!important;inset:0!important;z-index:2147483647!important;background:#000 url("' + BG_URL + '") center center/cover no-repeat!important;display:flex!important;align-items:center!important;justify-content:center!important;opacity:0!important;visibility:hidden!important;pointer-events:none!important;overflow:hidden!important;transform:translateZ(0)!important;contain:layout paint!important;}'
-      + '#pt-v37-loader.pt-v37-visible,#pt-v37-loader.pt-v37-blocking{opacity:1!important;visibility:visible!important;}'
-      + '#pt-v37-loader.pt-v37-visible{pointer-events:none!important;}'
-      + '#pt-v37-loader.pt-v37-blocking{pointer-events:all!important;}'
-      + '#pt-v37-loader.pt-v37-closing{opacity:0!important;visibility:visible!important;pointer-events:none!important;transition:opacity .22s ease!important;}'
-      + '#pt-v37-loader-inner{text-align:center!important;transform:translateY(-4px)!important;}'
-      + '#pt-v37-loader-logo{width:min(560px,74vw)!important;height:auto!important;display:block!important;margin:0 auto 30px!important;filter:drop-shadow(0 0 16px rgba(255,255,255,.18))!important;}'
-      + '#pt-v37-loader-bar{position:relative!important;width:min(420px,60vw)!important;height:5px!important;background:rgba(255,255,255,.14)!important;border-radius:999px!important;overflow:hidden!important;margin:0 auto!important;box-shadow:0 0 18px rgba(255,255,255,.12)!important;}'
-      + '#pt-v37-loader-progress{position:absolute!important;left:-46%!important;top:0!important;height:100%!important;width:46%!important;background:#fff!important;border-radius:999px!important;box-shadow:0 0 14px rgba(255,255,255,.75)!important;animation:pt-v37-loader-slide 1.05s cubic-bezier(.65,0,.35,1) infinite!important;will-change:left,width!important;}'
-      + '#pt-v37-loader-note{margin-top:18px!important;color:rgba(255,255,255,.58)!important;font:800 11px Inter,Arial,sans-serif!important;letter-spacing:.02em!important;}'
-      + '#pt-v37-loader-skip{position:absolute!important;right:14px!important;bottom:12px!important;border:1px solid rgba(255,255,255,.18)!important;border-radius:12px!important;background:rgba(0,0,0,.34)!important;color:rgba(255,255,255,.62)!important;font:800 11px Inter,Arial,sans-serif!important;padding:8px 10px!important;cursor:pointer!important;opacity:0!important;pointer-events:none!important;transition:opacity .2s ease!important;}'
-      + '#pt-v37-loader.pt-v37-slow #pt-v37-loader-skip{opacity:1!important;pointer-events:auto!important;}'
-      + '@keyframes pt-v37-loader-slide{0%{left:-46%;width:30%}45%{width:64%}100%{left:112%;width:30%}}';
-    var style = document.createElement('style');
-    style.id = 'pt-v37-loader-style';
-    style.type = 'text/css';
-    style.appendChild(document.createTextNode(css));
-    (document.head || document.documentElement).appendChild(style);
-  }
-
-  function ensureLoader() {
-    injectCss();
-    var loader = document.getElementById('pt-v37-loader');
-    if (loader) return loader;
-
-    loader = document.createElement('div');
-    loader.id = 'pt-v37-loader';
-    loader.innerHTML = ''
-      + '<div id="pt-v37-loader-inner">'
-      + '<img id="pt-v37-loader-logo" src="' + LOGO_URL + '" alt="Profitable Trader">'
-      + '<div id="pt-v37-loader-bar"><div id="pt-v37-loader-progress"></div></div>'
-      + '<div id="pt-v37-loader-note">Ladowanie panelu...</div>'
-      + '</div>'
-      + '<button type="button" id="pt-v37-loader-skip">Pomin ladowanie</button>';
-
-    mountRoot().appendChild(loader);
-
-    var skip = document.getElementById('pt-v37-loader-skip');
-    if (skip) {
-      skip.onclick = function (e) {
-        if (e) { e.preventDefault(); e.stopPropagation(); }
-        forceHide('skip');
-      };
-    }
-
-    return loader;
-  }
-
-  function writeLock(toUrl) {
-    var t = String(now());
-    ssSet(FLAG, '1');
-    ssSet(FROM, location.href);
-    ssSet(TO, toUrl || '');
-    ssSet(AT, t);
-    lsSet(FLAG, '1');
-    lsSet(AT, t);
-    setCookieLock();
-    try { window.name = String(window.name || '').replace(/\|PTV37LOCK:\d+/g, '') + '|PTV37LOCK:' + t; } catch (e) {}
-  }
-
-  function clearLock() {
-    ssDel(FLAG); ssDel(FROM); ssDel(TO); ssDel(AT);
-    lsDel(FLAG); lsDel(AT);
-    clearCookieLock();
-    try { window.name = String(window.name || '').replace(/\|PTV37LOCK:\d+/g, ''); } catch (e) {}
-  }
-
-  function lockAge() {
-    var t = parseInt(ssGet(AT) || lsGet(AT) || '0', 10);
-    if (!t) {
-      try {
-        var m = String(window.name || '').match(/PTV37LOCK:(\d+)/);
-        if (m && m[1]) t = parseInt(m[1], 10);
-      } catch (e) {}
-    }
-    return t ? now() - t : 0;
-  }
-
-  function shouldResume() {
-    var locked = ssGet(FLAG) === '1' || lsGet(FLAG) === '1' || hasCookieLock();
-    if (!locked) return false;
-    var age = lockAge();
-    if (age && age > 50000) {
-      clearLock();
-      return false;
-    }
-    return true;
-  }
-
-  function show(reason, blockingMode) {
-    var loader = ensureLoader();
-    if (!loader) return;
-    if (!visible) shownAt = now();
-    visible = true;
-
-    if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
-    loader.className = blockingMode ? 'pt-v37-blocking' : 'pt-v37-visible';
-
-    if (slowTimer) clearTimeout(slowTimer);
-    slowTimer = setTimeout(function () {
-      var l = document.getElementById('pt-v37-loader');
-      if (l) l.classList.add('pt-v37-slow');
-    }, SLOW_SKIP_MS);
-
-    startWatcher(reason || 'show');
-  }
-
-  function forceHide(reason) {
-    var loader = document.getElementById('pt-v37-loader');
-    if (watchTimer) { clearInterval(watchTimer); watchTimer = null; }
-    if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
-    if (failTimer) { clearTimeout(failTimer); failTimer = null; }
-    if (slowTimer) { clearTimeout(slowTimer); slowTimer = null; }
-    visible = false;
-    navigating = false;
-    clearLock();
-    if (!loader) return;
-    loader.className = 'pt-v37-closing';
-    setTimeout(function () {
-      if (loader && loader.parentNode) loader.parentNode.removeChild(loader);
-    }, 260);
-  }
-
-  function hideWhenReady() {
-    var wait = Math.max(0, MIN_VISIBLE_MS - (now() - shownAt));
-    if (hideTimer) clearTimeout(hideTimer);
-    hideTimer = setTimeout(function () { forceHide('ready'); }, wait);
-  }
-
-  function pageReady() {
-    return document.readyState === 'interactive' || document.readyState === 'complete';
-  }
-
-  function isVisibleEnough(el) {
-    if (!el) return false;
-    try {
-      var r = el.getBoundingClientRect();
-      var cs = window.getComputedStyle(el);
-      return r.width > 20 && r.height > 20 && cs.display !== 'none' && cs.visibility !== 'hidden' && Number(cs.opacity) !== 0;
-    } catch (e) {
-      return true;
-    }
-  }
-
-  function panelReady() {
-    var panel = document.getElementById('wtl-assistant-panel');
-    var mini = document.getElementById('wtl-mini');
-    var bottom = document.getElementById('wtl-bottom-bar');
-    var state = lsJson('state', 'open');
-
-    if (state === 'minimized') return !!mini;
-    if (state === 'docked') return !!bottom;
-    if (!panel) return false;
-    if (document.documentElement.classList.contains('wtl-layout-mode')) return true;
-    return isVisibleEnough(panel) || panel.classList.contains('wtl-hidden');
-  }
-
-  function layoutReady() {
-    var wantsLayout = !!lsJson('layout_mode', false) || document.documentElement.classList.contains('wtl-layout-mode');
-    if (!wantsLayout) return true;
-    return !!(
-      document.documentElement.classList.contains('wtl-layout-mode') &&
-      document.getElementById('pt-layout-topbar') &&
-      document.getElementById('pt-layout-left') &&
-      document.getElementById('pt-layout-bottom-actions')
-    );
-  }
-
-  function appReady() {
-    return pageReady() && panelReady() && layoutReady();
-  }
-
-  function startWatcher(reason) {
-    if (watchTimer) clearInterval(watchTimer);
-    var stable = 0;
-    var started = now();
-
-    watchTimer = setInterval(function () {
-      if (appReady()) stable++;
-      else stable = 0;
-
-      if (stable >= READY_STABLE_TICKS) {
-        hideWhenReady();
-        return;
-      }
-
-      if (now() - started > NEW_PAGE_SAFETY_MS) {
-        forceHide('safety');
-      }
-    }, POLL_MS);
-  }
-
-  function insideAssistant(target) {
-    if (!target || !target.closest) return false;
-    return !!target.closest(
-      '#wtl-assistant-panel,#wtl-mini,#wtl-bottom-bar,#wtl-site-switcher,' +
-      '#pt-layout-topbar,#pt-layout-left,#pt-layout-left-toggle,#pt-layout-bottom-actions,#pt-layout-ai-window,' +
-      '#pt-v37-loader,.thulium-chat-wrapper,.thulium-chat-frame-wrapper,iframe[title="Thulium Click2Contact"]'
-    );
-  }
-
-  function internalUrlFromTarget(target) {
-    if (!target || !target.closest || insideAssistant(target)) return '';
-    var a = target.closest('a[href]');
-    if (!a) return '';
-    var href = a.getAttribute('href') || '';
-    if (!href) return '';
-    if (a.target === '_blank' || a.hasAttribute('download')) return '';
-    if (/^(#|mailto:|tel:|javascript:)/i.test(href)) return '';
-    var u;
-    try { u = new URL(a.href, location.href); } catch (e) { return ''; }
-    if (u.hostname !== location.hostname) return '';
-    if (u.href === location.href) return '';
-    return u.href;
-  }
-
-  function modifiedClick(e) {
-    return !!(e && (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button === 1));
-  }
-
-  function performLockedNavigation(url) {
-    if (!url || navigating) return;
-    navigating = true;
-    writeLock(url);
-    show('locked-click', true);
-
-    if (failTimer) clearTimeout(failTimer);
-    failTimer = setTimeout(function () {
-      if (location.href === lastUrl && document.visibilityState !== 'hidden') {
-        forceHide('old-page-failsafe');
-      }
-    }, OLD_PAGE_FAILSAFE_MS);
-
-    raf(function () {
-      raf(function () {
-        setTimeout(function () {
-          try { window.location.assign(url); }
-          catch (e) { window.location.href = url; }
-        }, NAV_DELAY_MS);
-      });
-    });
-  }
-
-  function installHooks() {
-    document.addEventListener('click', function (e) {
-      if (modifiedClick(e)) return;
-      var url = internalUrlFromTarget(e.target);
-      if (!url) return;
-      e.preventDefault();
-      e.stopPropagation();
-      e.stopImmediatePropagation();
-      performLockedNavigation(url);
-      return false;
-    }, true);
-
-    document.addEventListener('submit', function (e) {
-      if (insideAssistant(e.target)) return;
-      writeLock('form-submit');
-      show('submit', true);
-    }, true);
-
-    window.addEventListener('beforeunload', function () {
-      writeLock(ssGet(TO) || 'beforeunload');
-    });
-
-    window.addEventListener('pagehide', function () {
-      writeLock(ssGet(TO) || 'pagehide');
-    });
-
-    var oldPush = history.pushState;
-    var oldReplace = history.replaceState;
-
-    history.pushState = function () {
-      var result = oldPush.apply(this, arguments);
-      if (location.href !== lastUrl) {
-        lastUrl = location.href;
-        writeLock(location.href);
-        show('pushState', true);
-      }
-      return result;
-    };
-
-    history.replaceState = function () {
-      var result = oldReplace.apply(this, arguments);
-      if (location.href !== lastUrl) {
-        lastUrl = location.href;
-        writeLock(location.href);
-        show('replaceState', true);
-      }
-      return result;
-    };
-
-    window.addEventListener('popstate', function () {
-      writeLock(location.href);
-      show('popstate', true);
-    });
-  }
-
-  injectCss();
-  installHooks();
-
-  if (shouldResume()) {
-    show('resume', true);
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function () {
-      if (shouldResume() && !visible) show('dom-resume', true);
-    }, { once: true });
-  }
-})();
 (function () {
   'use strict';
 
@@ -8188,6 +7806,7 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
 })();
+
 /* PT Assistant V33 Thulium Layout Stabilizer
    Ten patch nie resetuje localStorage/sessionStorage Thulium i nie przeładowuje widgetu.
    Stabilizuje tylko proxy w layoucie oraz zapewnia osobny przycisk zamykania, zeby nie zostawac na czarnym oknie.
@@ -8443,4 +8062,562 @@
 
   if (document.body) start();
   else document.addEventListener('DOMContentLoaded', start, { once: true });
+})();
+
+
+
+/* PT Assistant V40 Soft Navigation Loader
+   Cel: panel/layout nie znika przy przejsciu strony, bo unikamy pelnego reloadu tam,
+   gdzie jest to bezpieczne. Kod przechwytuje tylko zwykle linki wewnetrzne poza panelem.
+   Thulium zostaje z poprzedniej stabilnej wersji.
+*/
+(function () {
+  'use strict';
+
+  if (window.__PT_V40_SOFT_NAV_LOADER__) return;
+  window.__PT_V40_SOFT_NAV_LOADER__ = true;
+
+  var HOST = 'edu.profitabletrader.ai';
+  if (location.hostname !== HOST) return;
+
+  var LOGO_URL = 'https://edu.profitabletrader.ai/uploads/media/12510/5/Obszar_roboczy_9%404x.png?_t=1776253923';
+  var BG_URL = 'https://edu.profitabletrader.ai/uploads/media/12510/5/TŁO_PT__1_.png?_t=1777481120';
+
+  var NAV_DELAY = 120;
+  var MIN_VISIBLE = 520;
+  var MAX_WAIT = 6500;
+  var FADE_TIME = 260;
+
+  var navigating = false;
+  var shownAt = 0;
+  var failTimer = null;
+  var hideTimer = null;
+  var currentController = null;
+
+  function now() {
+    return Date.now ? Date.now() : new Date().getTime();
+  }
+
+  function clean(value) {
+    return String(value || '').replace(/\s+/g, ' ').trim();
+  }
+
+  function ensureStyle() {
+    if (document.getElementById('pt-v40-soft-loader-style')) return;
+
+    var css = ''
+      + '#pt-v40-soft-loader{position:fixed;inset:0;z-index:2147483647;'
+      + 'display:flex;align-items:center;justify-content:center;'
+      + 'background:#000 url("' + BG_URL + '") center center/cover no-repeat;'
+      + 'opacity:0;visibility:hidden;pointer-events:none;overflow:hidden;'
+      + 'transition:opacity .16s ease,visibility 0s linear .16s;}'
+      + '#pt-v40-soft-loader.pt-on{opacity:1;visibility:visible;pointer-events:all;transition:opacity .16s ease,visibility 0s linear 0s;}'
+      + '#pt-v40-soft-loader.pt-off{opacity:0;visibility:visible;pointer-events:none;transition:opacity ' + FADE_TIME + 'ms ease;}'
+      + '#pt-v40-soft-loader-inner{text-align:center;transform:translateY(-4px);padding:24px;max-width:92vw;}'
+      + '#pt-v40-soft-loader-logo{width:min(560px,74vw);height:auto;display:block;margin:0 auto 30px;filter:drop-shadow(0 0 16px rgba(255,255,255,.18));}'
+      + '#pt-v40-soft-loader-bar{position:relative;width:min(420px,60vw);height:5px;background:rgba(255,255,255,.14);border-radius:999px;overflow:hidden;margin:0 auto;box-shadow:0 0 18px rgba(255,255,255,.12);}'
+      + '#pt-v40-soft-loader-progress{position:absolute;inset:0 auto 0 0;width:42%;height:100%;background:#fff;border-radius:999px;box-shadow:0 0 14px rgba(255,255,255,.75);transform:translateX(-115%);}'
+      + '#pt-v40-soft-loader.pt-on #pt-v40-soft-loader-progress{animation:ptV40Bar 1.05s cubic-bezier(.65,0,.35,1) infinite;}'
+      + '@keyframes ptV40Bar{0%{transform:translateX(-115%);}55%{transform:translateX(95%);}100%{transform:translateX(250%);}}'
+      + 'html.pt-v40-soft-nav-busy,html.pt-v40-soft-nav-busy body{cursor:wait!important;}'
+      + 'html.pt-v40-soft-nav-busy a,html.pt-v40-soft-nav-busy button{cursor:wait!important;}';
+
+    var style = document.createElement('style');
+    style.id = 'pt-v40-soft-loader-style';
+    style.type = 'text/css';
+    style.appendChild(document.createTextNode(css));
+
+    (document.head || document.documentElement).appendChild(style);
+  }
+
+  function ensureLoader() {
+    ensureStyle();
+
+    var loader = document.getElementById('pt-v40-soft-loader');
+    if (loader) return loader;
+
+    loader = document.createElement('div');
+    loader.id = 'pt-v40-soft-loader';
+    loader.setAttribute('aria-hidden', 'true');
+    loader.innerHTML =
+      '<div id="pt-v40-soft-loader-inner">'
+      + '<img id="pt-v40-soft-loader-logo" src="' + LOGO_URL + '" alt="Profitable Trader">'
+      + '<div id="pt-v40-soft-loader-bar"><div id="pt-v40-soft-loader-progress"></div></div>'
+      + '</div>';
+
+    (document.body || document.documentElement).appendChild(loader);
+    return loader;
+  }
+
+  function showLoader() {
+    var loader = ensureLoader();
+
+    if (hideTimer) {
+      clearTimeout(hideTimer);
+      hideTimer = null;
+    }
+
+    shownAt = now();
+
+    document.documentElement.classList.add('pt-v40-soft-nav-busy');
+    loader.classList.remove('pt-off');
+
+    requestAnimationFrame(function () {
+      loader.classList.add('pt-on');
+    });
+  }
+
+  function hideLoader(force) {
+    var loader = document.getElementById('pt-v40-soft-loader');
+    if (!loader) return;
+
+    var elapsed = now() - shownAt;
+    var wait = force ? 0 : Math.max(0, MIN_VISIBLE - elapsed);
+
+    if (hideTimer) clearTimeout(hideTimer);
+
+    hideTimer = setTimeout(function () {
+      document.documentElement.classList.remove('pt-v40-soft-nav-busy');
+      loader.classList.remove('pt-on');
+      loader.classList.add('pt-off');
+
+      setTimeout(function () {
+        if (!loader.classList.contains('pt-on')) {
+          loader.classList.remove('pt-off');
+          loader.style.visibility = 'hidden';
+        }
+      }, FADE_TIME + 40);
+    }, wait);
+  }
+
+  function hardNavigate(url) {
+    try {
+      sessionStorage.setItem('pt_v40_hard_nav_fallback', '1');
+    } catch (e) {}
+    window.location.href = url;
+  }
+
+  function isInsideAssistant(el) {
+    if (!el || !el.closest) return false;
+
+    return !!el.closest(
+      '#wtl-assistant-panel,' +
+      '#wtl-mini,' +
+      '#wtl-bottom-bar,' +
+      '#wtl-site-switcher,' +
+      '#pt-layout-topbar,' +
+      '#pt-layout-left,' +
+      '#pt-layout-left-toggle,' +
+      '#pt-layout-bottom-actions,' +
+      '#pt-layout-ai-window,' +
+      '#pt-layout-ai-proxy-close,' +
+      '#pt-v40-soft-loader,' +
+      '.thulium-chat-wrapper,' +
+      '.thulium-chat-frame-wrapper,' +
+      'iframe[title="Thulium Click2Contact"],' +
+      '[class*="thulium-chat"],' +
+      '[class*="click2contact"],' +
+      '[id*="click2contact"]'
+    );
+  }
+
+  function getAnchor(target) {
+    var el = target;
+    while (el && el !== document && el.nodeType === 1) {
+      if (el.tagName && String(el.tagName).toLowerCase() === 'a') return el;
+      el = el.parentNode;
+    }
+    return null;
+  }
+
+  function isModifiedClick(e) {
+    return e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0;
+  }
+
+  function sameHashOnly(url) {
+    return url.origin === location.origin &&
+      url.pathname === location.pathname &&
+      url.search === location.search &&
+      url.hash &&
+      url.hash !== location.hash;
+  }
+
+  function blockedPath(path) {
+    path = String(path || '').toLowerCase();
+
+    return (
+      path.indexOf('/logout') !== -1 ||
+      path.indexOf('/login') !== -1 ||
+      path.indexOf('/register') !== -1 ||
+      path.indexOf('/payment') !== -1 ||
+      path.indexOf('/checkout') !== -1 ||
+      path.indexOf('/invoice') !== -1 ||
+      path.indexOf('/download') !== -1 ||
+      path.indexOf('/file') !== -1 ||
+      path.indexOf('/settings/profile') !== -1 ||
+      path.indexOf('/settings/profile/security') !== -1 ||
+      path.indexOf('/account/subscription') !== -1 ||
+      path.indexOf('/account/abonament') !== -1
+    );
+  }
+
+  function getSoftNavUrlFromEvent(e) {
+    if (!e || isModifiedClick(e)) return '';
+
+    var a = getAnchor(e.target);
+    if (!a) return '';
+    if (isInsideAssistant(a)) return '';
+    if (a.target && a.target !== '_self') return '';
+    if (a.hasAttribute('download')) return '';
+
+    var href = a.getAttribute('href');
+    if (!href) return '';
+    if (/^(mailto:|tel:|javascript:)/i.test(href)) return '';
+
+    var url;
+    try {
+      url = new URL(a.href, location.href);
+    } catch (err) {
+      return '';
+    }
+
+    if (url.origin !== location.origin) return '';
+    if (url.href === location.href) return '';
+    if (sameHashOnly(url)) return '';
+    if (blockedPath(url.pathname)) return '';
+
+    return url.href;
+  }
+
+  function scoreNode(node) {
+    if (!node || node.nodeType !== 1) return 0;
+    if (node.id === 'wtl-assistant-panel') return -9999;
+    if (node.querySelector && node.querySelector('#wtl-assistant-panel,#pt-layout-left,#pt-layout-topbar')) return -9999;
+
+    var rect = null;
+    var area = 0;
+
+    try {
+      rect = node.getBoundingClientRect();
+      area = Math.max(0, rect.width) * Math.max(0, rect.height);
+    } catch (e) {}
+
+    var textLen = clean(node.textContent || '').length;
+    var cls = clean((node.id || '') + ' ' + (node.className || '')).toLowerCase();
+
+    var score = 0;
+
+    if (node.tagName && node.tagName.toLowerCase() === 'main') score += 120;
+    if (/\b(content|page|main|lesson|course|body|wrapper)\b/i.test(cls)) score += 50;
+    if (/\b(header|sidebar|footer|menu|nav|modal|popup)\b/i.test(cls)) score -= 120;
+
+    score += Math.min(textLen / 20, 80);
+    score += Math.min(area / 10000, 80);
+
+    return score;
+  }
+
+  function findBestBySelector(doc, selector, isCurrent) {
+    var nodes;
+
+    try {
+      nodes = doc.querySelectorAll(selector);
+    } catch (e) {
+      return null;
+    }
+
+    var best = null;
+    var bestScore = -9999;
+
+    for (var i = 0; i < nodes.length; i++) {
+      var node = nodes[i];
+      if (!node) continue;
+
+      if (isCurrent) {
+        if (node.closest && node.closest('#wtl-assistant-panel,#pt-layout-left,#pt-layout-topbar,#pt-layout-ai-window')) continue;
+        if (node.id && /^wtl-|^pt-layout-|^pt-v40/.test(node.id)) continue;
+      }
+
+      var s = scoreNode(node);
+      if (s > bestScore) {
+        bestScore = s;
+        best = node;
+      }
+    }
+
+    if (bestScore < 20) return null;
+    return best;
+  }
+
+  function findContentPair(newDoc) {
+    var selectors = [
+      'main',
+      '[role="main"]',
+      '#content',
+      '#main',
+      '.main-content',
+      '.page-content',
+      '.content-wrapper',
+      '.content-page',
+      '.content-lesson',
+      '.lesson-content',
+      '.lesson-content-wrapper',
+      '.content',
+      '.main',
+      '.page'
+    ];
+
+    for (var i = 0; i < selectors.length; i++) {
+      var selector = selectors[i];
+      var currentNode = findBestBySelector(document, selector, true);
+      var newNode = findBestBySelector(newDoc, selector, false);
+
+      if (currentNode && newNode) {
+        return {
+          selector: selector,
+          currentNode: currentNode,
+          newNode: newNode
+        };
+      }
+    }
+
+    return null;
+  }
+
+  function copyAttributes(from, to) {
+    if (!from || !to || !from.attributes) return;
+
+    var keepId = to.id;
+    var i;
+
+    try {
+      while (to.attributes.length) {
+        to.removeAttribute(to.attributes[0].name);
+      }
+
+      for (i = 0; i < from.attributes.length; i++) {
+        to.setAttribute(from.attributes[i].name, from.attributes[i].value);
+      }
+
+      if (keepId && /^wtl-|^pt-layout-|^pt-v40/.test(keepId)) {
+        to.id = keepId;
+      }
+    } catch (e) {}
+  }
+
+  function updateBodyClasses(newDoc) {
+    try {
+      var oldClasses = document.body.className || '';
+      var newClasses = newDoc.body ? (newDoc.body.className || '') : '';
+
+      var preserved = [];
+      oldClasses.split(/\s+/).forEach(function (c) {
+        if (!c) return;
+        if (/^(wtl-layout-mode|wtl-layout-nav-hidden|pt-|wtl-thulium-visible)/.test(c)) preserved.push(c);
+      });
+
+      var finalClasses = newClasses.split(/\s+/).filter(Boolean);
+
+      preserved.forEach(function (c) {
+        if (finalClasses.indexOf(c) === -1) finalClasses.push(c);
+      });
+
+      document.body.className = finalClasses.join(' ');
+    } catch (e) {}
+  }
+
+  function updateHeadLight(newDoc) {
+    try {
+      var newTitle = newDoc.querySelector('title');
+      if (newTitle) document.title = newTitle.textContent || document.title;
+    } catch (e) {}
+
+    try {
+      var currentCanonical = document.querySelector('link[rel="canonical"]');
+      var newCanonical = newDoc.querySelector('link[rel="canonical"]');
+
+      if (currentCanonical && newCanonical) currentCanonical.href = newCanonical.href;
+    } catch (e2) {}
+  }
+
+  function notifySoftNavigation(url) {
+    try {
+      window.dispatchEvent(new CustomEvent('pt:soft-navigation', { detail: { url: url } }));
+    } catch (e) {}
+
+    try {
+      window.dispatchEvent(new Event('resize'));
+    } catch (e2) {}
+
+    try {
+      document.dispatchEvent(new Event('readystatechange'));
+    } catch (e3) {}
+
+    setTimeout(function () {
+      try { window.dispatchEvent(new Event('resize')); } catch (e4) {}
+    }, 250);
+  }
+
+  function waitForPanelReady(callback) {
+    var started = now();
+    var stable = 0;
+    var lastSig = '';
+
+    function tick() {
+      var panel = document.getElementById('wtl-assistant-panel');
+      var layout = document.getElementById('pt-layout-left') || document.getElementById('pt-layout-topbar');
+      var body = document.body;
+      var ready = !!body && (!!panel || !!layout);
+
+      var sig = '';
+      try {
+        if (panel) {
+          var r = panel.getBoundingClientRect();
+          sig += 'p:' + Math.round(r.left) + ',' + Math.round(r.top) + ',' + Math.round(r.width) + ',' + Math.round(r.height) + ';';
+        }
+        if (layout) {
+          var lr = layout.getBoundingClientRect();
+          sig += 'l:' + Math.round(lr.left) + ',' + Math.round(lr.top) + ',' + Math.round(lr.width) + ',' + Math.round(lr.height) + ';';
+        }
+        sig += 'u:' + location.href;
+      } catch (e) {
+        sig = location.href;
+      }
+
+      if (ready && sig === lastSig) stable++;
+      else stable = 0;
+
+      lastSig = sig;
+
+      if ((ready && stable >= 3) || now() - started > MAX_WAIT) {
+        callback();
+        return;
+      }
+
+      setTimeout(tick, 120);
+    }
+
+    tick();
+  }
+
+  function abortCurrentFetch() {
+    try {
+      if (currentController && currentController.abort) currentController.abort();
+    } catch (e) {}
+    currentController = null;
+  }
+
+  function softNavigate(url, replace) {
+    if (navigating) return;
+
+    navigating = true;
+    showLoader();
+    abortCurrentFetch();
+
+    if (failTimer) clearTimeout(failTimer);
+    failTimer = setTimeout(function () {
+      if (navigating) hardNavigate(url);
+    }, MAX_WAIT + 1800);
+
+    setTimeout(function () {
+      var controller = null;
+      var signal;
+
+      try {
+        if (window.AbortController) {
+          controller = new AbortController();
+          signal = controller.signal;
+          currentController = controller;
+        }
+      } catch (e) {}
+
+      fetch(url, {
+        method: 'GET',
+        credentials: 'include',
+        cache: 'no-store',
+        headers: {
+          'X-PT-Soft-Navigation': '1'
+        },
+        signal: signal
+      })
+        .then(function (res) {
+          var type = res.headers ? clean(res.headers.get('content-type')).toLowerCase() : '';
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          if (type && type.indexOf('text/html') === -1) throw new Error('Not HTML');
+          return res.text();
+        })
+        .then(function (html) {
+          if (!html || html.length < 200) throw new Error('Empty HTML');
+
+          var newDoc = new DOMParser().parseFromString(html, 'text/html');
+          var pair = findContentPair(newDoc);
+
+          if (!pair || !pair.currentNode || !pair.newNode) {
+            throw new Error('No safe content pair');
+          }
+
+          updateHeadLight(newDoc);
+          updateBodyClasses(newDoc);
+
+          pair.currentNode.innerHTML = pair.newNode.innerHTML;
+          copyAttributes(pair.newNode, pair.currentNode);
+
+          if (replace) history.replaceState({ ptSoftNav: true }, '', url);
+          else history.pushState({ ptSoftNav: true }, '', url);
+
+          notifySoftNavigation(url);
+
+          waitForPanelReady(function () {
+            navigating = false;
+            abortCurrentFetch();
+            if (failTimer) {
+              clearTimeout(failTimer);
+              failTimer = null;
+            }
+            hideLoader(false);
+          });
+        })
+        .catch(function () {
+          navigating = false;
+          abortCurrentFetch();
+          if (failTimer) {
+            clearTimeout(failTimer);
+            failTimer = null;
+          }
+
+          hardNavigate(url);
+        });
+    }, NAV_DELAY);
+  }
+
+  document.addEventListener('click', function (e) {
+    var url = getSoftNavUrlFromEvent(e);
+    if (!url) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    softNavigate(url, false);
+  }, true);
+
+  window.addEventListener('popstate', function () {
+    if (navigating) return;
+
+    var url = location.href;
+    if (blockedPath(location.pathname)) return;
+
+    softNavigate(url, true);
+  });
+
+  window.addEventListener('pageshow', function () {
+    try {
+      if (sessionStorage.getItem('pt_v40_hard_nav_fallback') === '1') {
+        sessionStorage.removeItem('pt_v40_hard_nav_fallback');
+        showLoader();
+        waitForPanelReady(function () {
+          hideLoader(false);
+        });
+      }
+    } catch (e) {}
+  });
 })();

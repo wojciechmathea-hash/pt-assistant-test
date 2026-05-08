@@ -3531,7 +3531,18 @@
       }
     }
 
-    if (!lessons.length) return fallbackGroup(cfg);
+    var fallback = fallbackGroup(cfg);
+    if (!lessons.length) return fallback;
+
+    if (fallback && fallback.lessons && fallback.lessons.length) {
+      for (var fb = 0; fb < fallback.lessons.length; fb++) {
+        var fl = fallback.lessons[fb];
+        if (!fl || !fl.id || seen[fl.id]) continue;
+        seen[fl.id] = true;
+        lessons.push(fl);
+      }
+    }
+
     return { id: cfg.id, title: cfg.title, sourceTitles: cfg.sourceTitles, sourceTitle: (cfg.sourceTitles || []).join(' + '), description: cfg.description, lessons: lessons };
   }
 
@@ -4539,6 +4550,237 @@
   function init() {
     injectAnimationCss();
     bindAnimationTriggers();
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();
+
+
+/* PT Assistant Layout V18 targeted fixes
+   1) Nie animuje lewego nawigatora, jesli byl zwinięty.
+   2) Stabilizuje ponowne otwieranie Thulium w Layout po kilku zamknięciach.
+   3) Zachowuje mapowane lekcje fallback, kiedy automatyczny skan DOM znajdzie tylko część kursu.
+*/
+(function () {
+  'use strict';
+  if (window.__PT_LAYOUT_V18_TARGETED_FIXES__) return;
+  window.__PT_LAYOUT_V18_TARGETED_FIXES__ = true;
+
+  function injectCss() {
+    if (document.getElementById('pt-layout-v18-fix-style')) return;
+    var css = ''
+      + 'html.pt-layout-anim-in.wtl-layout-nav-hidden #pt-layout-left{animation:none!important;transform:translateX(-324px)!important;opacity:1!important;filter:none!important;}'
+      + 'html.pt-layout-anim-in.wtl-layout-nav-hidden #pt-layout-left-toggle{animation:none!important;opacity:1!important;filter:none!important;}'
+      + '@media(max-width:640px){html.pt-layout-anim-in.wtl-layout-nav-hidden #pt-layout-left{transform:translateX(-304px)!important;}}';
+    var s = document.createElement('style');
+    s.id = 'pt-layout-v18-fix-style';
+    s.type = 'text/css';
+    s.appendChild(document.createTextNode(css));
+    document.head.appendChild(s);
+  }
+
+  function clickEl(el) {
+    if (!el) return false;
+    try { el.click(); return true; } catch (err) {}
+    try {
+      var evt = document.createEvent('MouseEvents');
+      evt.initMouseEvent('click', true, true, window, 1, 0, 0, 0, 0, false, false, false, false, 0, null);
+      el.dispatchEvent(evt);
+      return true;
+    } catch (err2) {}
+    return false;
+  }
+
+  function getMountFrame() {
+    var mount = document.getElementById('wtl-thulium-native-mount');
+    return mount ? mount.querySelector('iframe[title="Thulium Click2Contact"]') : null;
+  }
+
+  function frameVisible() {
+    var frame = getMountFrame();
+    if (!frame) return false;
+    try {
+      var r = frame.getBoundingClientRect();
+      var cs = window.getComputedStyle(frame);
+      return !!(r && r.width > 120 && r.height > 160 && cs.display !== 'none' && cs.visibility !== 'hidden' && Number(cs.opacity) !== 0);
+    } catch (err) { return false; }
+  }
+
+  function callTc(intent) {
+    try {
+      if (window._tc && typeof window._tc === 'function') {
+        if (intent === 'email') {
+          window._tc('open_email'); window._tc('open_email_form'); window._tc('open_message'); window._tc('open_contact_form');
+        } else {
+          window._tc('open_chat'); window._tc('open_chat_form'); window._tc('chat');
+        }
+      }
+    } catch (err) {}
+    try {
+      if (window._tc && intent === 'email') {
+        if (typeof window._tc.open_email === 'function') window._tc.open_email();
+        else if (typeof window._tc.open_message === 'function') window._tc.open_message();
+        else if (typeof window._tc.open_contact_form === 'function') window._tc.open_contact_form();
+      } else if (window._tc) {
+        if (typeof window._tc.open_chat === 'function') window._tc.open_chat();
+        else if (typeof window._tc.chat === 'function') window._tc.chat();
+      }
+    } catch (err2) {}
+  }
+
+  function fitLayoutThulium() {
+    var panel = document.getElementById('wtl-assistant-panel');
+    var mount = document.getElementById('wtl-thulium-native-mount');
+    var frame = getMountFrame();
+    if (!panel || !mount) return;
+    try {
+      panel.classList.remove('wtl-hidden');
+      panel.classList.add('pt-layout-thulium-proxy');
+      panel.style.setProperty('right', '14px', 'important');
+      panel.style.setProperty('bottom', '68px', 'important');
+      panel.style.setProperty('left', 'auto', 'important');
+      panel.style.setProperty('top', 'auto', 'important');
+      panel.style.setProperty('width', '420px', 'important');
+      panel.style.setProperty('height', '520px', 'important');
+      panel.style.setProperty('max-height', 'calc(100vh - 84px)', 'important');
+      panel.style.setProperty('overflow', 'hidden', 'important');
+      var header = panel.querySelector('.wtl-header');
+      var frameHead = panel.querySelector('.wtl-frame-head');
+      var tabs = panel.querySelector('.wtl-tabs');
+      var welcome = panel.querySelector('.wtl-welcome');
+      if (header) header.style.setProperty('display', 'none', 'important');
+      if (frameHead) frameHead.style.setProperty('display', 'none', 'important');
+      if (tabs) tabs.style.setProperty('display', 'none', 'important');
+      if (welcome) welcome.style.setProperty('display', 'none', 'important');
+      mount.style.setProperty('height', '520px', 'important');
+      mount.style.setProperty('min-height', '520px', 'important');
+      mount.style.setProperty('max-height', '520px', 'important');
+      mount.style.setProperty('margin', '0', 'important');
+      mount.style.setProperty('border-top', '0', 'important');
+      mount.style.setProperty('overflow', 'hidden', 'important');
+      if (frame) {
+        frame.style.setProperty('position', 'absolute', 'important');
+        frame.style.setProperty('left', '-4px', 'important');
+        frame.style.setProperty('top', '-72px', 'important');
+        frame.style.setProperty('width', 'calc(100% + 8px)', 'important');
+        frame.style.setProperty('height', '750px', 'important');
+        frame.style.setProperty('min-height', '750px', 'important');
+        frame.style.setProperty('max-height', 'none', 'important');
+        frame.style.setProperty('opacity', '1', 'important');
+        frame.style.setProperty('visibility', 'visible', 'important');
+        frame.style.setProperty('display', 'block', 'important');
+        frame.style.setProperty('pointer-events', 'auto', 'important');
+      }
+    } catch (err) {}
+  }
+
+  function hideLooseThulium() {
+    var mount = document.getElementById('wtl-thulium-native-mount');
+    var nodes = document.querySelectorAll('.thulium-chat-wrapper,.thulium-chat-frame-wrapper,iframe[title="Thulium Click2Contact"]');
+    for (var i = 0; i < nodes.length; i++) {
+      if (mount && mount.contains(nodes[i])) continue;
+      try {
+        nodes[i].style.setProperty('opacity', '0', 'important');
+        nodes[i].style.setProperty('visibility', 'hidden', 'important');
+        nodes[i].style.setProperty('pointer-events', 'none', 'important');
+      } catch (err) {}
+    }
+  }
+
+  function ensureTcQueue() {
+    if (!window._tc || typeof window._tc !== 'function') {
+      window._tc = function () { (window._tc.q = window._tc.q || []).push(arguments); };
+    }
+  }
+
+  function reloadThuliumScript() {
+    try {
+      var scripts = document.querySelectorAll('script[src*="cdn.thulium.com/apps/chat-widget/chat-loader.js"]');
+      for (var i = 0; i < scripts.length; i++) if (scripts[i].parentNode) scripts[i].parentNode.removeChild(scripts[i]);
+    } catch (err) {}
+    ensureTcQueue();
+    try { window._tc('set_container', 'wtl-thulium-native-mount'); } catch (err2) {}
+    var src = 'https://cdn.thulium.com/apps/chat-widget/chat-loader.js?hash=eliteexpertclub-4cb69311-31a0-4960-9608-ef51bf61693b&ptV18Reload=' + Date.now();
+    var s = document.createElement('script');
+    s.async = true;
+    s.src = src;
+    document.head.appendChild(s);
+  }
+
+  function robustOpenLayoutThulium(intent) {
+    if (intent !== 'email') intent = 'chat';
+    var panel = document.getElementById('wtl-assistant-panel');
+    if (!panel) return;
+    panel.classList.remove('wtl-hidden');
+    panel.classList.add('pt-layout-thulium-proxy');
+    panel.classList.add('pt-thulium-preload');
+    panel.classList.remove('pt-thulium-ready');
+
+    try { if (window._tc && typeof window._tc === 'function') window._tc('set_container', 'wtl-thulium-native-mount'); } catch (err) {}
+    clickEl(panel.querySelector('[data-wtl-tab="thulium"]'));
+
+    var attempts = 0;
+    var reloaded = false;
+    var timer = setInterval(function () {
+      attempts++;
+      if (!document.documentElement.classList.contains('wtl-layout-mode')) { clearInterval(timer); return; }
+      panel.classList.remove('wtl-hidden');
+      panel.classList.add('pt-layout-thulium-proxy');
+      hideLooseThulium();
+      fitLayoutThulium();
+
+      if (frameVisible()) {
+        panel.classList.remove('pt-thulium-preload');
+        panel.classList.add('pt-thulium-ready');
+        clearInterval(timer);
+        return;
+      }
+
+      if (attempts === 1 || attempts === 2 || attempts === 4 || attempts === 7 || attempts === 11 || attempts === 16 || attempts === 22) {
+        clickEl(panel.querySelector('[data-wtl-thulium-intent="' + intent + '"]'));
+        callTc(intent);
+      }
+
+      if (attempts === 24 && !reloaded) {
+        reloaded = true;
+        reloadThuliumScript();
+      }
+
+      if (attempts > 48) clearInterval(timer);
+    }, 80);
+  }
+
+  function warmPacAndStatus() {
+    try {
+      var key = 'pt_assistant_v60_layout_lesson_status_cache';
+      var raw = localStorage.getItem(key);
+      if (!raw) return;
+      JSON.parse(raw);
+    } catch (err) {}
+  }
+
+  function bind() {
+    document.addEventListener('click', function (ev) {
+      var t = ev.target;
+      if (!t || !t.closest) return;
+      var th = t.closest('[data-pt-layout-thulium]');
+      if (th) {
+        var intent = th.getAttribute('data-pt-layout-thulium') || 'chat';
+        setTimeout(function () { robustOpenLayoutThulium(intent); }, 240);
+        setTimeout(function () { robustOpenLayoutThulium(intent); }, 1400);
+      }
+    }, true);
+
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden) warmPacAndStatus();
+    });
+  }
+
+  function init() {
+    injectCss();
+    bind();
+    warmPacAndStatus();
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);

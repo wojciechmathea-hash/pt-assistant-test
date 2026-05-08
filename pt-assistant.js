@@ -8621,3 +8621,212 @@
     } catch (e) {}
   });
 })();
+
+/* PT Assistant V41 Soft Navigation fixes
+   - Logo w layoucie nie robi juz pelnego reloadu, tylko przechodzi przez soft navigation.
+   - Po soft navigation naprawia miniatury/lazy-load obrazkow oraz relatywne adresy src/srcset.
+*/
+(function () {
+  'use strict';
+
+  if (window.__PT_V41_SOFT_NAV_FIXES__) return;
+  window.__PT_V41_SOFT_NAV_FIXES__ = true;
+
+  function clean(value) {
+    return String(value || '').replace(/\s+/g, ' ').trim();
+  }
+
+  function absUrl(value, baseUrl) {
+    value = clean(value);
+    if (!value) return '';
+    if (/^(data:|blob:|mailto:|tel:|javascript:)/i.test(value)) return value;
+
+    try {
+      return new URL(value, baseUrl || location.href).href;
+    } catch (e) {
+      return value;
+    }
+  }
+
+  function fixSrcset(value, baseUrl) {
+    value = clean(value);
+    if (!value) return '';
+
+    return value.split(',').map(function (part) {
+      part = clean(part);
+      if (!part) return '';
+
+      var bits = part.split(/\s+/);
+      var url = bits.shift();
+      var desc = bits.join(' ');
+      var fixed = absUrl(url, baseUrl);
+
+      return fixed + (desc ? ' ' + desc : '');
+    }).filter(Boolean).join(', ');
+  }
+
+  function looksPlaceholder(value) {
+    value = clean(value).toLowerCase();
+    return !value ||
+      value === '#' ||
+      value.indexOf('data:image/gif') === 0 ||
+      value.indexOf('data:image/svg') === 0 ||
+      value.indexOf('placeholder') !== -1 ||
+      value.indexOf('blank') !== -1 ||
+      value.indexOf('transparent') !== -1;
+  }
+
+  function setAttrUrl(el, attrName, value, baseUrl) {
+    if (!el || !value) return;
+    try {
+      el.setAttribute(attrName, absUrl(value, baseUrl));
+    } catch (e) {}
+  }
+
+  function hydrateImages(root, baseUrl) {
+    root = root || document;
+    baseUrl = baseUrl || location.href;
+
+    try {
+      var base = document.querySelector('base[href]');
+      if (base) baseUrl = base.href || baseUrl;
+    } catch (e) {}
+
+    var i;
+
+    try {
+      var sources = root.querySelectorAll ? root.querySelectorAll('source') : [];
+      for (i = 0; i < sources.length; i++) {
+        var source = sources[i];
+        var ds = source.getAttribute('data-srcset') || source.getAttribute('data-lazy-srcset') || source.getAttribute('data-original-srcset');
+        var ss = source.getAttribute('srcset');
+
+        if (ds) source.setAttribute('srcset', fixSrcset(ds, baseUrl));
+        else if (ss) source.setAttribute('srcset', fixSrcset(ss, baseUrl));
+      }
+    } catch (e1) {}
+
+    try {
+      var imgs = root.querySelectorAll ? root.querySelectorAll('img') : [];
+      for (i = 0; i < imgs.length; i++) {
+        var img = imgs[i];
+        var srcAttr = img.getAttribute('src') || '';
+        var lazySrc = img.getAttribute('data-src') ||
+          img.getAttribute('data-original') ||
+          img.getAttribute('data-lazy-src') ||
+          img.getAttribute('data-src-original') ||
+          img.getAttribute('data-ll-src') ||
+          img.getAttribute('data-defer-src') ||
+          img.getAttribute('data-echo');
+
+        var srcsetAttr = img.getAttribute('srcset') || '';
+        var lazySrcset = img.getAttribute('data-srcset') ||
+          img.getAttribute('data-lazy-srcset') ||
+          img.getAttribute('data-original-srcset');
+
+        if (lazySrc && looksPlaceholder(srcAttr)) {
+          setAttrUrl(img, 'src', lazySrc, baseUrl);
+        } else if (srcAttr && !/^(https?:|data:|blob:)/i.test(srcAttr)) {
+          setAttrUrl(img, 'src', srcAttr, baseUrl);
+        }
+
+        if (lazySrcset) img.setAttribute('srcset', fixSrcset(lazySrcset, baseUrl));
+        else if (srcsetAttr) img.setAttribute('srcset', fixSrcset(srcsetAttr, baseUrl));
+
+        try { img.loading = 'eager'; } catch (e2) {}
+        try { img.decoding = 'async'; } catch (e3) {}
+        try { img.removeAttribute('data-ll-status'); } catch (e4) {}
+
+        try {
+          img.classList.remove('lazyload');
+          img.classList.remove('lazyloading');
+          img.classList.add('lazyloaded');
+        } catch (e5) {}
+
+        try {
+          img.style.opacity = '';
+          img.style.visibility = '';
+          img.style.display = '';
+        } catch (e6) {}
+      }
+    } catch (e7) {}
+
+    try {
+      var bgNodes = root.querySelectorAll ? root.querySelectorAll('[data-bg],[data-background],[data-background-image],[data-bg-src],[data-lazy-background],[data-original-bg]') : [];
+      for (i = 0; i < bgNodes.length; i++) {
+        var node = bgNodes[i];
+        var bg = node.getAttribute('data-bg') ||
+          node.getAttribute('data-background') ||
+          node.getAttribute('data-background-image') ||
+          node.getAttribute('data-bg-src') ||
+          node.getAttribute('data-lazy-background') ||
+          node.getAttribute('data-original-bg');
+
+        if (bg) node.style.backgroundImage = 'url("' + absUrl(bg, baseUrl).replace(/"/g, '%22') + '")';
+      }
+    } catch (e8) {}
+
+    try { window.dispatchEvent(new Event('scroll')); } catch (e9) {}
+    try { window.dispatchEvent(new Event('resize')); } catch (e10) {}
+  }
+
+  function syntheticSoftNavigation(url) {
+    var a = document.createElement('a');
+    a.href = url;
+    a.setAttribute('data-pt-v41-soft-nav-logo', '1');
+    a.style.position = 'fixed';
+    a.style.left = '-9999px';
+    a.style.top = '-9999px';
+    a.style.width = '1px';
+    a.style.height = '1px';
+    a.style.opacity = '0';
+
+    document.body.appendChild(a);
+
+    try {
+      var ev = new MouseEvent('click', {
+        bubbles: true,
+        cancelable: true,
+        view: window,
+        button: 0
+      });
+      a.dispatchEvent(ev);
+    } catch (e) {
+      try { a.click(); } catch (e2) { location.href = url; }
+    }
+
+    setTimeout(function () {
+      try {
+        if (a.parentNode) a.parentNode.removeChild(a);
+      } catch (e3) {}
+    }, 1200);
+  }
+
+  document.addEventListener('click', function (e) {
+    var target = e.target;
+    if (!target || !target.closest) return;
+
+    var home = target.closest('#pt-layout-home,.pt-layout-home');
+    if (!home) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+
+    syntheticSoftNavigation(location.origin + '/next/public/');
+  }, true);
+
+  window.addEventListener('pt:soft-navigation', function (e) {
+    var url = e && e.detail && e.detail.url ? e.detail.url : location.href;
+
+    setTimeout(function () { hydrateImages(document, url); }, 30);
+    setTimeout(function () { hydrateImages(document, url); }, 260);
+    setTimeout(function () { hydrateImages(document, url); }, 900);
+  });
+
+  document.addEventListener('DOMContentLoaded', function () {
+    setTimeout(function () { hydrateImages(document, location.href); }, 250);
+  });
+
+  setTimeout(function () { hydrateImages(document, location.href); }, 900);
+})();

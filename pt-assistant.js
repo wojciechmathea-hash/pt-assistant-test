@@ -1,282 +1,322 @@
-/* PT Loader V32 bootstrap - musi byc NA POCZATKU pliku, przed glownym panelem. */
+/* PT Assistant V33 EARLY CONTINUOUS PAGE LOADER
+   UWAGA: zeby loader realnie zaslanial moment ladowania GTM, ten kod musi byc na samej gorze tagu
+   i tag musi odpalac sie jak najwczesniej: Consent Initialization / Initialization - All Pages.
+*/
 (function () {
   'use strict';
 
-  if (window.__PT_LOADER_V32_BOOTSTRAP__) return;
-  window.__PT_LOADER_V32_BOOTSTRAP__ = true;
-
-  var ALLOWED_HOST = 'edu.profitabletrader.ai';
-  if (location.hostname !== ALLOWED_HOST) return;
+  if (window.__PT_V33_EARLY_LOADER__) return;
+  window.__PT_V33_EARLY_LOADER__ = true;
 
   var LOGO_URL = 'https://edu.profitabletrader.ai/uploads/media/12510/5/Obszar_roboczy_9%404x.png?_t=1776253923';
-  var BG_URL = 'https://edu.profitabletrader.ai/uploads/media/12510/5/TŁO_PT__1_.png?_t=1777481120';
-  var KEY = 'pt_loader_v32_active';
-  var ENTER_TIME = 260;
-  var EXIT_TIME = 360;
+  var BG_URL = 'https://edu.profitabletrader.ai/uploads/media/12510/5/T%C5%81O_PT__1_.png?_t=1777481120';
+  var PREFIX = 'pt_assistant_v60_';
+  var NAV_FLAG = 'pt_v33_loader_active';
+  var NAV_FROM = 'pt_v33_loader_from';
+  var NAV_AT = 'pt_v33_loader_at';
   var MIN_VISIBLE = 850;
-  var MAX_VISIBLE = 13500;
-  var OUTGOING_GRACE = 2800;
+  var MAX_VISIBLE = 14000;
+  var POLL = 100;
+  var REQUIRED_STABLE = 8;
+  var LINK_DELAY = 120;
 
   var visible = false;
-  var closing = false;
   var shownAt = 0;
-  var readyStable = 0;
-  var checkTimer = null;
-  var hardTimer = null;
-  var pendingPointerUrl = '';
-
-  try { (new Image()).src = LOGO_URL; } catch (e) {}
-  try { (new Image()).src = BG_URL; } catch (e2) {}
+  var hideTimer = null;
+  var safetyTimer = null;
+  var watcherTimer = null;
+  var lastUrl = location.href;
+  var internalNavArmed = false;
 
   function now() { return Date.now ? Date.now() : new Date().getTime(); }
+  function ssSet(k, v) { try { sessionStorage.setItem(k, String(v)); } catch (e) {} }
+  function ssGet(k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } }
+  function ssDel(k) { try { sessionStorage.removeItem(k); } catch (e) {} }
+  function lsGetJson(key, fallback) { try { var v = localStorage.getItem(PREFIX + key); return v ? JSON.parse(v) : fallback; } catch (e) { return fallback; } }
 
-  function readState() {
-    try {
-      var raw = sessionStorage.getItem(KEY);
-      return raw ? JSON.parse(raw) : null;
-    } catch (e) { return null; }
+  function isAllowedHost() {
+    return location.hostname === 'edu.profitabletrader.ai';
   }
 
-  function writeState(reason, targetUrl) {
-    try {
-      sessionStorage.setItem(KEY, JSON.stringify({
-        active: true,
-        reason: reason || 'navigation',
-        from: location.href,
-        target: targetUrl || '',
-        startedAt: now()
-      }));
-    } catch (e) {}
-  }
+  if (!isAllowedHost()) return;
 
-  function clearState() {
-    try { sessionStorage.removeItem(KEY); } catch (e) {}
-  }
-
-  function installCss() {
-    if (document.getElementById('pt-loader-v32-style')) return;
+  function injectCss() {
+    if (document.getElementById('pt-v33-loader-style')) return;
     var css = ''
-      + '#pt-loader{position:fixed;inset:0;z-index:2147483647;background:#000 url("' + BG_URL + '") center center/cover no-repeat;display:flex;align-items:center;justify-content:center;transform:scale(.04);opacity:0;visibility:hidden;border-radius:50%;pointer-events:none;overflow:hidden;}'
-      + '#pt-loader.pt-visible{visibility:visible;pointer-events:all;opacity:1;transform:scale(1);border-radius:0;transition:transform ' + ENTER_TIME + 'ms cubic-bezier(.77,0,.18,1),opacity .14s ease,border-radius ' + ENTER_TIME + 'ms ease;}'
-      + '#pt-loader.pt-closing{visibility:visible;pointer-events:none;opacity:0;transform:scale(.04);border-radius:50%;transition:transform ' + EXIT_TIME + 'ms cubic-bezier(.77,0,.18,1),opacity .2s ease,border-radius ' + EXIT_TIME + 'ms ease;}'
-      + '#pt-loader-inner{text-align:center;transform:translateY(-4px);}'
-      + '#pt-loader-logo{width:min(560px,74vw);height:auto;display:block;margin:0 auto 30px;filter:drop-shadow(0 0 16px rgba(255,255,255,.18));}'
-      + '#pt-loader-bar{width:min(420px,60vw);height:5px;background:rgba(255,255,255,.14);border-radius:999px;overflow:hidden;margin:0 auto;box-shadow:0 0 18px rgba(255,255,255,.12);}'
-      + '#pt-loader-progress{height:100%;width:100%;background:#fff;border-radius:999px;box-shadow:0 0 14px rgba(255,255,255,.75);transform:scaleX(0);transform-origin:left center;}'
-      + '#pt-loader.pt-visible #pt-loader-progress{transform:scaleX(1);transition:transform .9s ease-out;}'
-      + 'html.pt-loader-v32-lock,html.pt-loader-v32-lock body{overflow:hidden!important;}';
-
+      + '#pt-v33-loader{position:fixed!important;inset:0!important;z-index:2147483647!important;background:#000 url("' + BG_URL + '") center center/cover no-repeat!important;display:flex!important;align-items:center!important;justify-content:center!important;opacity:0!important;visibility:hidden!important;pointer-events:none!important;overflow:hidden!important;transform:translateZ(0)!important;}'
+      + '#pt-v33-loader.pt-v33-show{opacity:1!important;visibility:visible!important;pointer-events:all!important;}'
+      + '#pt-v33-loader.pt-v33-hide{opacity:0!important;visibility:visible!important;pointer-events:none!important;transition:opacity .22s ease!important;}'
+      + '#pt-v33-loader-inner{text-align:center!important;transform:translateY(-4px)!important;}'
+      + '#pt-v33-loader-logo{width:min(560px,74vw)!important;height:auto!important;display:block!important;margin:0 auto 30px!important;filter:drop-shadow(0 0 16px rgba(255,255,255,.18))!important;}'
+      + '#pt-v33-loader-bar{width:min(420px,60vw)!important;height:5px!important;background:rgba(255,255,255,.14)!important;border-radius:999px!important;overflow:hidden!important;margin:0 auto!important;box-shadow:0 0 18px rgba(255,255,255,.12)!important;}'
+      + '#pt-v33-loader-progress{height:100%!important;width:100%!important;background:#fff!important;border-radius:999px!important;box-shadow:0 0 14px rgba(255,255,255,.75)!important;transform:scaleX(.12)!important;transform-origin:left center!important;animation:pt-v33-loader-progress 1.25s ease-in-out infinite!important;}'
+      + '#pt-v33-loader-skip{position:absolute!important;right:14px!important;bottom:12px!important;border:1px solid rgba(255,255,255,.18)!important;border-radius:12px!important;background:rgba(0,0,0,.34)!important;color:rgba(255,255,255,.62)!important;font:800 11px Inter,Arial,sans-serif!important;padding:8px 10px!important;cursor:pointer!important;opacity:0!important;pointer-events:none!important;transition:opacity .2s ease!important;}'
+      + '#pt-v33-loader.pt-v33-slow #pt-v33-loader-skip{opacity:1!important;pointer-events:auto!important;}'
+      + '@keyframes pt-v33-loader-progress{0%{transform:scaleX(.08)}55%{transform:scaleX(.88)}100%{transform:scaleX(1)}}';
     var style = document.createElement('style');
-    style.id = 'pt-loader-v32-style';
+    style.id = 'pt-v33-loader-style';
     style.type = 'text/css';
     style.appendChild(document.createTextNode(css));
     (document.head || document.documentElement).appendChild(style);
   }
 
-  function createLoader(callback) {
-    installCss();
-
-    function ready() {
-      if (!document.body) {
-        setTimeout(ready, 8);
-        return;
-      }
-
-      var loader = document.getElementById('pt-loader');
-      if (!loader) {
-        loader = document.createElement('div');
-        loader.id = 'pt-loader';
-        loader.innerHTML = '<div id="pt-loader-inner"><img id="pt-loader-logo" src="' + LOGO_URL + '" alt="Profitable Trader"><div id="pt-loader-bar"><div id="pt-loader-progress"></div></div></div>';
-        document.body.appendChild(loader);
-      }
-
-      if (callback) callback(loader);
+  function ensureLoader() {
+    injectCss();
+    var loader = document.getElementById('pt-v33-loader');
+    if (loader) return loader;
+    loader = document.createElement('div');
+    loader.id = 'pt-v33-loader';
+    loader.innerHTML = ''
+      + '<div id="pt-v33-loader-inner">'
+      + '<img id="pt-v33-loader-logo" src="' + LOGO_URL + '" alt="Profitable Trader">'
+      + '<div id="pt-v33-loader-bar"><div id="pt-v33-loader-progress"></div></div>'
+      + '</div>'
+      + '<button type="button" id="pt-v33-loader-skip" aria-label="Zamknij loader">Pomiń ładowanie</button>';
+    (document.body || document.documentElement).appendChild(loader);
+    var skip = document.getElementById('pt-v33-loader-skip');
+    if (skip) {
+      skip.onclick = function (e) {
+        if (e) { e.preventDefault(); e.stopPropagation(); }
+        forceHide('skip');
+      };
     }
-
-    ready();
+    return loader;
   }
 
-  function showLoader() {
-    createLoader(function (loader) {
-      if (visible && !closing) return;
-      visible = true;
-      closing = false;
-      readyStable = 0;
-      shownAt = now();
-      loader.className = '';
-      document.documentElement.classList.add('pt-loader-v32-lock');
-      setTimeout(function () { loader.className = 'pt-visible'; }, 10);
-      startChecking();
-    });
+  function markNavigation() {
+    ssSet(NAV_FLAG, '1');
+    ssSet(NAV_FROM, location.href);
+    ssSet(NAV_AT, String(now()));
   }
 
-  function hideLoader(force) {
-    createLoader(function (loader) {
-      if (!visible || closing) return;
-      var elapsed = now() - shownAt;
-      var wait = force ? 0 : Math.max(0, MIN_VISIBLE - elapsed);
-
-      setTimeout(function () {
-        closing = true;
-        loader.className = 'pt-closing';
-        setTimeout(function () {
-          loader.className = '';
-          visible = false;
-          closing = false;
-          readyStable = 0;
-          document.documentElement.classList.remove('pt-loader-v32-lock');
-          clearState();
-          if (checkTimer) {
-            clearInterval(checkTimer);
-            checkTimer = null;
-          }
-        }, EXIT_TIME + 30);
-      }, wait);
-    });
+  function clearNavigation() {
+    ssDel(NAV_FLAG);
+    ssDel(NAV_FROM);
+    ssDel(NAV_AT);
   }
 
-  function isInsideAssistant(el) {
-    if (!el || !el.closest) return false;
-    return !!el.closest('#wtl-assistant-panel,#wtl-mini,#wtl-bottom-bar,#wtl-site-switcher,#pt-layout-topbar,#pt-layout-left,#pt-layout-left-toggle,#pt-layout-bottom-actions,#pt-layout-ai-window,#pt-layout-ai-proxy-close,#pt-loader');
+  function shouldResumeLoader() {
+    if (ssGet(NAV_FLAG) === '1') return true;
+    var t = parseInt(ssGet(NAV_AT) || '0', 10);
+    if (t && now() - t < 6000) return true;
+    return false;
   }
 
-  function internalUrlFromEventTarget(target) {
-    if (isInsideAssistant(target)) return '';
-    var a = target && target.closest ? target.closest('a[href]') : null;
-    if (!a) return '';
-
-    var href = a.getAttribute('href') || '';
-    if (!href) return '';
-    if (a.target === '_blank' || a.hasAttribute('download')) return '';
-    if (/^(#|mailto:|tel:|javascript:)/i.test(href)) return '';
-
-    var url;
-    try { url = new URL(a.href, location.href); } catch (e) { return ''; }
-    if (url.hostname !== location.hostname) return '';
-    if (url.href === location.href) return '';
-    return url.href;
+  function show(reason) {
+    var loader = ensureLoader();
+    if (!loader) return;
+    if (!visible) shownAt = now();
+    visible = true;
+    if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+    loader.className = 'pt-v33-show';
+    if (safetyTimer) clearTimeout(safetyTimer);
+    safetyTimer = setTimeout(function () {
+      var l = document.getElementById('pt-v33-loader');
+      if (l) l.classList.add('pt-v33-slow');
+    }, 8000);
+    startReadyWatcher(reason || 'show');
   }
 
-  function markAndShow(reason, targetUrl) {
-    writeState(reason, targetUrl || '');
-    showLoader();
+  function hideWhenAllowed() {
+    var elapsed = now() - shownAt;
+    var wait = Math.max(0, MIN_VISIBLE - elapsed);
+    if (hideTimer) clearTimeout(hideTimer);
+    hideTimer = setTimeout(function () {
+      forceHide('ready');
+    }, wait);
   }
 
-  function elementIsUsable(el) {
+  function forceHide(reason) {
+    var loader = document.getElementById('pt-v33-loader');
+    if (watcherTimer) { clearInterval(watcherTimer); watcherTimer = null; }
+    if (safetyTimer) { clearTimeout(safetyTimer); safetyTimer = null; }
+    clearNavigation();
+    visible = false;
+    internalNavArmed = false;
+    if (!loader) return;
+    loader.className = 'pt-v33-hide';
+    setTimeout(function () {
+      if (loader && loader.parentNode) loader.parentNode.removeChild(loader);
+    }, 260);
+  }
+
+  function isElementVisible(el) {
     if (!el) return false;
     try {
-      var cs = window.getComputedStyle(el);
       var r = el.getBoundingClientRect();
-      return cs.display !== 'none' && cs.visibility !== 'hidden' && Number(cs.opacity) !== 0 && r.width > 20 && r.height > 20;
+      var cs = window.getComputedStyle(el);
+      return !!r && r.width > 20 && r.height > 20 && cs.display !== 'none' && cs.visibility !== 'hidden' && Number(cs.opacity) !== 0;
     } catch (e) { return true; }
-  }
-
-  function storageRead(key, fallback) {
-    try {
-      var raw = localStorage.getItem('pt_assistant_v60_' + key);
-      return raw ? JSON.parse(raw) : fallback;
-    } catch (e) { return fallback; }
   }
 
   function panelReady() {
     var panel = document.getElementById('wtl-assistant-panel');
     var mini = document.getElementById('wtl-mini');
     var bottom = document.getElementById('wtl-bottom-bar');
-    var wantsLayout = !!storageRead('layout_mode', false) || document.documentElement.classList.contains('wtl-layout-mode');
+    if (!panel && !mini && !bottom) return false;
 
-    if (wantsLayout) {
-      return !!(
-        document.documentElement.classList.contains('wtl-layout-mode') &&
-        document.getElementById('pt-layout-topbar') &&
-        document.getElementById('pt-layout-left') &&
-        document.getElementById('pt-layout-bottom-actions')
-      );
-    }
-
-    if (panel && elementIsUsable(panel)) return true;
-    if (mini && elementIsUsable(mini)) return true;
-    if (bottom && elementIsUsable(bottom)) return true;
-    return false;
+    var state = lsGetJson('state', 'open');
+    if (state === 'minimized') return !!mini;
+    if (state === 'docked') return !!bottom;
+    return !!panel;
   }
 
-  function pageReadyEnough() {
-    if (!document.body) return false;
-    if (document.readyState !== 'interactive' && document.readyState !== 'complete') return false;
-    return panelReady();
+  function layoutReady() {
+    var wantsLayout = !!lsGetJson('layout_mode', false);
+    if (!wantsLayout && !document.documentElement.classList.contains('wtl-layout-mode')) return true;
+    var topbar = document.getElementById('pt-layout-topbar');
+    var left = document.getElementById('pt-layout-left');
+    var actions = document.getElementById('pt-layout-bottom-actions');
+    if (!topbar || !left || !actions) return false;
+    if (!document.documentElement.classList.contains('wtl-layout-mode')) return false;
+    return true;
   }
 
-  function startChecking() {
-    if (checkTimer) return;
+  function pageReady() {
+    return document.readyState === 'interactive' || document.readyState === 'complete';
+  }
 
-    checkTimer = setInterval(function () {
-      var state = readState();
-      if (!state || !state.active) {
-        if (visible) hideLoader(true);
+  function appReady() {
+    return pageReady() && panelReady() && layoutReady();
+  }
+
+  function startReadyWatcher(reason) {
+    if (watcherTimer) clearInterval(watcherTimer);
+    var stable = 0;
+    var started = now();
+    watcherTimer = setInterval(function () {
+      if (appReady()) stable++;
+      else stable = 0;
+
+      if (stable >= REQUIRED_STABLE) {
+        hideWhenAllowed();
         return;
       }
 
-      var age = now() - (state.startedAt || shownAt || now());
-      var stillOutgoingSameDocument = state.from === location.href && age < OUTGOING_GRACE;
-
-      if (age > MAX_VISIBLE) {
-        hideLoader(true);
-        return;
+      if (now() - started > MAX_VISIBLE) {
+        forceHide('safety');
       }
-
-      if (stillOutgoingSameDocument) return;
-
-      if (pageReadyEnough()) readyStable++;
-      else readyStable = 0;
-
-      if (readyStable >= 8) hideLoader(false);
-    }, 120);
+    }, POLL);
   }
 
-  function bindNavigation() {
+  function isPanelOrLayoutClick(target) {
+    if (!target || !target.closest) return false;
+    return !!target.closest('#wtl-assistant-panel,#wtl-mini,#wtl-bottom-bar,#wtl-site-switcher,#pt-layout-topbar,#pt-layout-left,#pt-layout-left-toggle,#pt-layout-bottom-actions,#pt-layout-ai-window,#pt-v33-loader');
+  }
+
+  function internalUrlFromTarget(target) {
+    if (!target || !target.closest) return '';
+    if (isPanelOrLayoutClick(target)) return '';
+    var a = target.closest('a[href]');
+    if (!a) return '';
+    var href = a.getAttribute('href') || '';
+    if (!href) return '';
+    if (a.target === '_blank' || a.hasAttribute('download')) return '';
+    if (/^(#|mailto:|tel:|javascript:)/i.test(href)) return '';
+    var u;
+    try { u = new URL(a.href, location.href); } catch (e) { return ''; }
+    if (u.hostname !== location.hostname) return '';
+    if (u.href === location.href) return '';
+    return u.href;
+  }
+
+  function installNavHooks() {
     document.addEventListener('pointerdown', function (e) {
-      var url = internalUrlFromEventTarget(e.target);
+      var url = internalUrlFromTarget(e.target);
       if (!url) return;
-      pendingPointerUrl = url;
-      markAndShow('pointerdown', url);
+      internalNavArmed = true;
+      markNavigation();
+      show('pointerdown');
     }, true);
 
     document.addEventListener('click', function (e) {
-      var url = internalUrlFromEventTarget(e.target);
+      var url = internalUrlFromTarget(e.target);
       if (!url) return;
-      markAndShow('click', pendingPointerUrl || url);
+      markNavigation();
+      show('click');
+      if (!e.defaultPrevented) {
+        e.preventDefault();
+        setTimeout(function () { location.href = url; }, LINK_DELAY);
+      }
     }, true);
 
     document.addEventListener('submit', function (e) {
-      if (isInsideAssistant(e.target)) return;
-      markAndShow('submit', '');
+      if (isPanelOrLayoutClick(e.target)) return;
+      markNavigation();
+      show('submit');
     }, true);
 
     window.addEventListener('beforeunload', function () {
-      var state = readState();
-      if (state && state.active) showLoader();
+      markNavigation();
+      ensureLoader();
+      var loader = document.getElementById('pt-v33-loader');
+      if (loader) loader.className = 'pt-v33-show';
     });
 
-    window.addEventListener('pageshow', function () {
-      var state = readState();
-      if (state && state.active) showLoader();
+    window.addEventListener('pagehide', function () {
+      markNavigation();
+      ensureLoader();
+      var loader = document.getElementById('pt-v33-loader');
+      if (loader) loader.className = 'pt-v33-show';
     });
+
+    var oldPush = history.pushState;
+    var oldReplace = history.replaceState;
+    history.pushState = function () {
+      var before = location.href;
+      var result = oldPush.apply(this, arguments);
+      setTimeout(function () {
+        if (location.href !== before && !isPanelOrLayoutClick(document.activeElement)) {
+          markNavigation();
+          show('pushState');
+        }
+      }, 0);
+      return result;
+    };
+    history.replaceState = function () {
+      var before = location.href;
+      var result = oldReplace.apply(this, arguments);
+      setTimeout(function () {
+        if (location.href !== before && !isPanelOrLayoutClick(document.activeElement)) {
+          markNavigation();
+          show('replaceState');
+        }
+      }, 0);
+      return result;
+    };
+
+    window.addEventListener('popstate', function () {
+      markNavigation();
+      show('popstate');
+    }, true);
+
+    setInterval(function () {
+      if (location.href === lastUrl) return;
+      lastUrl = location.href;
+      if (ssGet(NAV_FLAG) === '1') show('url-watch');
+    }, 160);
   }
 
-  installCss();
-  bindNavigation();
-
-  if (readState() && readState().active) {
-    showLoader();
+  function boot() {
+    injectCss();
+    if (shouldResumeLoader()) show('resume');
+    installNavHooks();
   }
 
-  hardTimer = setInterval(function () {
-    var state = readState();
-    if (state && state.active && !visible) showLoader();
-    if (state && state.active) startChecking();
-  }, 300);
+  if (document.body) boot();
+  else {
+    injectCss();
+    if (shouldResumeLoader()) {
+      var early = setInterval(function () {
+        if (document.body) {
+          clearInterval(early);
+          show('resume-early');
+        }
+      }, 10);
+    }
+    document.addEventListener('DOMContentLoaded', boot, { once: true });
+  }
 })();
-
-
 (function () {
   'use strict';
 
@@ -8085,242 +8125,246 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
 })();
-
-
-/* PT Thulium V32 - zamykanie bez czarnego okna + spokojna stabilizacja layoutu. */
+/* PT Assistant V33 Thulium Layout Stabilizer
+   Ten patch nie resetuje localStorage/sessionStorage Thulium i nie przeładowuje widgetu.
+   Stabilizuje tylko proxy w layoucie oraz zapewnia osobny przycisk zamykania, zeby nie zostawac na czarnym oknie.
+*/
 (function () {
   'use strict';
 
-  if (window.__PT_THULIUM_V32_STABLE_CLOSE__) return;
-  window.__PT_THULIUM_V32_STABLE_CLOSE__ = true;
+  if (window.__PT_V33_THULIUM_STABILIZER__) return;
+  window.__PT_V33_THULIUM_STABILIZER__ = true;
 
-  var tickTimer = null;
-  var blackSince = 0;
+  var closeBtn = null;
   var lastFitAt = 0;
-  var lastSignature = '';
+  var missingSince = 0;
+  var visibleSince = 0;
+  var monitor = null;
 
-  function q(sel) { return document.querySelector(sel); }
-  function qa(sel) { return Array.prototype.slice.call(document.querySelectorAll(sel)); }
-  function save(key, value) { try { localStorage.setItem('pt_assistant_v60_' + key, JSON.stringify(value)); } catch (e) {} }
-  function getPanel() { return document.getElementById('wtl-assistant-panel'); }
-  function getMount() { return document.getElementById('wtl-thulium-native-mount'); }
-  function getFrame() { return q('#wtl-thulium-native-mount iframe[title="Thulium Click2Contact"]') || q('iframe[title="Thulium Click2Contact"]'); }
+  function qs(sel) { return document.querySelector(sel); }
 
-  function injectStyle() {
-    if (document.getElementById('pt-thulium-v32-style')) return;
-    var css = [
-      '#wtl-thulium-cover-close,#wtl-thulium-cover-min{display:block!important;visibility:visible!important;opacity:0!important;pointer-events:auto!important;background:transparent!important;color:transparent!important;border:0!important;box-shadow:none!important;z-index:2147483647!important;}',
-      '#wtl-assistant-panel.wtl-thulium-window-open #wtl-thulium-cover-close,#wtl-assistant-panel.wtl-thulium-window-open #wtl-thulium-cover-min{display:block!important;}',
-      'html.wtl-layout-mode #pt-layout-ai-proxy-close:not(.pt-show){display:none!important;visibility:hidden!important;pointer-events:none!important;}',
-      'html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy{right:14px!important;bottom:68px!important;width:420px!important;max-width:calc(100vw - 28px)!important;height:520px!important;max-height:calc(100vh - 84px)!important;overflow:hidden!important;background:#070707!important;border-radius:18px!important;}',
-      'html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy .wtl-body{height:520px!important;max-height:calc(100vh - 84px)!important;overflow:hidden!important;background:#070707!important;padding:0!important;}',
-      'html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy #wtl-thulium-native-mount{display:block!important;visibility:visible!important;opacity:1!important;height:520px!important;min-height:520px!important;max-height:520px!important;margin:0!important;border:0!important;overflow:hidden!important;background:#070707!important;}',
-      'html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy #wtl-thulium-native-loading{display:none!important;visibility:hidden!important;opacity:0!important;}',
-      'html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy iframe[title="Thulium Click2Contact"]{position:absolute!important;left:-4px!important;top:-72px!important;width:calc(100% + 8px)!important;height:750px!important;min-height:750px!important;max-height:none!important;right:auto!important;bottom:auto!important;transform:none!important;opacity:1!important;visibility:visible!important;display:block!important;pointer-events:auto!important;border:0!important;}',
-      '#wtl-assistant-panel.pt-v32-thulium-force-hidden{display:none!important;visibility:hidden!important;pointer-events:none!important;}'
-    ].join('\n');
-    var s = document.createElement('style');
-    s.id = 'pt-thulium-v32-style';
-    s.type = 'text/css';
-    s.appendChild(document.createTextNode(css));
-    (document.head || document.documentElement).appendChild(s);
+  function panel() { return document.getElementById('wtl-assistant-panel'); }
+  function mount() { return document.getElementById('wtl-thulium-native-mount'); }
+  function frame() {
+    var m = mount();
+    return m ? m.querySelector('iframe[title="Thulium Click2Contact"]') : null;
   }
 
-  function frameVisible() {
-    var frame = getFrame();
-    if (!frame) return false;
+  function isLayout() {
+    return document.documentElement.classList.contains('wtl-layout-mode');
+  }
+
+  function isProxy() {
+    var p = panel();
+    return !!(p && p.classList.contains('pt-layout-thulium-proxy'));
+  }
+
+  function visibleFrame() {
+    var f = frame();
+    if (!f) return false;
     try {
-      var r = frame.getBoundingClientRect();
-      var cs = window.getComputedStyle(frame);
-      return r.width > 80 && r.height > 100 && cs.display !== 'none' && cs.visibility !== 'hidden' && Number(cs.opacity) !== 0;
-    } catch (e) { return false; }
-  }
-
-  function callCloseApi() {
-    try {
-      if (window._tc && typeof window._tc.close === 'function') window._tc.close();
-      else if (typeof window._tc === 'function') window._tc('close');
-    } catch (e) {}
-  }
-
-  function restoreChoice() {
-    var choice = document.getElementById('wtl-thulium-choice');
-    if (!choice) return;
-    choice.style.removeProperty('display');
-    choice.style.removeProperty('visibility');
-    choice.style.removeProperty('opacity');
-    if (!choice.querySelector('[data-wtl-thulium-intent="chat"]')) {
-      choice.innerHTML = '<div class="wtl-choice-text">Nie musisz klikać natywnej ikonki Thulium — wybierz opcję poniżej.</div><div class="wtl-choice-row"><button type="button" class="wtl-thulium-action" data-wtl-thulium-intent="chat">Czat</button><button type="button" class="wtl-thulium-action" data-wtl-thulium-intent="email">E-mail</button></div>';
+      var r = f.getBoundingClientRect();
+      var cs = window.getComputedStyle(f);
+      return r.width > 120 && r.height > 180 && cs.display !== 'none' && cs.visibility !== 'hidden' && Number(cs.opacity) !== 0;
+    } catch (e) {
+      return true;
     }
   }
 
-  function closeThuliumWindow() {
-    var panel = getPanel();
-    callCloseApi();
-    save('layout_thulium_open', false);
-    blackSince = 0;
-    lastSignature = '';
+  function injectCss() {
+    if (document.getElementById('pt-v33-thulium-style')) return;
+    var css = ''
+      + 'html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy{right:14px!important;bottom:68px!important;left:auto!important;top:auto!important;width:420px!important;height:520px!important;max-height:calc(100vh - 84px)!important;max-width:calc(100vw - 28px)!important;overflow:hidden!important;background:#070707!important;border-radius:18px!important;}'
+      + 'html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy.pt-thulium-preload{opacity:0!important;visibility:hidden!important;pointer-events:none!important;}'
+      + 'html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy.pt-thulium-ready{opacity:1!important;visibility:visible!important;pointer-events:auto!important;}'
+      + 'html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy .wtl-header,html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy .wtl-welcome,html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy .wtl-tabs,html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy .wtl-frame-head,html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy #wtl-thulium-choice,html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy #wtl-thulium-back{display:none!important;visibility:hidden!important;pointer-events:none!important;}'
+      + 'html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy .wtl-body{padding:0!important;overflow:hidden!important;background:#070707!important;height:520px!important;max-height:calc(100vh - 84px)!important;}'
+      + 'html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy .wtl-card,html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy .wtl-frame-card{margin:0!important;padding:0!important;border:0!important;border-radius:0!important;background:#070707!important;overflow:hidden!important;height:520px!important;}'
+      + 'html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy #wtl-thulium-native-mount{position:relative!important;height:520px!important;min-height:520px!important;max-height:520px!important;margin:0!important;border-top:0!important;background:#070707!important;overflow:hidden!important;}'
+      + 'html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy #wtl-thulium-native-loading{display:none!important;visibility:hidden!important;pointer-events:none!important;}'
+      + 'html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy #wtl-thulium-native-mount iframe[title="Thulium Click2Contact"],html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy #wtl-thulium-native-mount .thulium-chat-wrapper,html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy #wtl-thulium-native-mount .thulium-chat-frame-wrapper{position:absolute!important;left:-4px!important;top:-72px!important;right:auto!important;bottom:auto!important;width:calc(100% + 8px)!important;height:750px!important;min-height:750px!important;max-height:none!important;opacity:1!important;visibility:visible!important;display:block!important;pointer-events:auto!important;transform:none!important;z-index:10!important;}'
+      + 'html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy #wtl-thulium-cover-min,html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy #wtl-thulium-cover-close{display:none!important;visibility:hidden!important;pointer-events:none!important;}'
+      + '#pt-v33-thulium-close{position:fixed!important;right:26px!important;bottom:548px!important;width:46px!important;height:46px!important;z-index:2147483647!important;background:transparent!important;border:0!important;box-shadow:none!important;color:transparent!important;opacity:0!important;cursor:pointer!important;display:none!important;padding:0!important;margin:0!important;}'
+      + 'html.wtl-layout-mode #wtl-assistant-panel.pt-layout-thulium-proxy.pt-thulium-ready ~ #pt-v33-thulium-close,html.wtl-layout-mode #pt-v33-thulium-close.pt-v33-show{display:block!important;pointer-events:auto!important;}'
+      + 'html.wtl-layout-mode .thulium-chat-wrapper:not(#wtl-thulium-native-mount .thulium-chat-wrapper),html.wtl-layout-mode .thulium-chat-frame-wrapper:not(#wtl-thulium-native-mount .thulium-chat-frame-wrapper),html.wtl-layout-mode body>iframe[title="Thulium Click2Contact"]{opacity:0!important;visibility:hidden!important;pointer-events:none!important;left:-9999px!important;right:auto!important;bottom:auto!important;transform:scale(.01)!important;}';
+    var style = document.createElement('style');
+    style.id = 'pt-v33-thulium-style';
+    style.type = 'text/css';
+    style.appendChild(document.createTextNode(css));
+    (document.head || document.documentElement).appendChild(style);
+  }
 
-    if (panel) {
-      panel.classList.remove(
-        'wtl-thulium-expanded',
-        'wtl-thulium-window-open',
-        'pt-layout-thulium-proxy',
-        'pt-thulium-ready',
-        'pt-thulium-preload',
-        'pt-v19-thulium-ready',
-        'pt-v19-thulium-opening',
-        'pt-v20-thulium-ready',
-        'pt-v20-thulium-opening',
-        'pt-v22-thulium-ready',
-        'pt-v22-thulium-opening',
-        'pt-v32-thulium-force-hidden'
-      );
+  function ensureCloseButton() {
+    if (closeBtn && document.body && document.body.contains(closeBtn)) return closeBtn;
+    closeBtn = document.getElementById('pt-v33-thulium-close');
+    if (!closeBtn) {
+      closeBtn = document.createElement('button');
+      closeBtn.type = 'button';
+      closeBtn.id = 'pt-v33-thulium-close';
+      closeBtn.setAttribute('aria-label', 'Zamknij Thulium');
+      closeBtn.textContent = '×';
+      document.body.appendChild(closeBtn);
+    }
+    closeBtn.onclick = function (e) {
+      if (e) { e.preventDefault(); e.stopPropagation(); }
+      closeThulium(true);
+      return false;
+    };
+    return closeBtn;
+  }
 
-      if (document.documentElement.classList.contains('wtl-layout-mode')) {
-        panel.classList.add('wtl-hidden');
+  function setImportant(el, prop, val) {
+    if (!el) return;
+    try { el.style.setProperty(prop, val, 'important'); } catch (e) {}
+  }
+
+  function fitOnce() {
+    var t = Date.now();
+    if (t - lastFitAt < 180) return;
+    lastFitAt = t;
+
+    var p = panel();
+    var m = mount();
+    var f = frame();
+    if (!p || !m || !isLayout() || !p.classList.contains('pt-layout-thulium-proxy')) return;
+
+    setImportant(p, 'right', '14px');
+    setImportant(p, 'bottom', '68px');
+    setImportant(p, 'left', 'auto');
+    setImportant(p, 'top', 'auto');
+    setImportant(p, 'width', '420px');
+    setImportant(p, 'height', '520px');
+    setImportant(p, 'max-height', 'calc(100vh - 84px)');
+    setImportant(p, 'overflow', 'hidden');
+
+    setImportant(m, 'position', 'relative');
+    setImportant(m, 'height', '520px');
+    setImportant(m, 'min-height', '520px');
+    setImportant(m, 'max-height', '520px');
+    setImportant(m, 'margin', '0');
+    setImportant(m, 'border-top', '0');
+    setImportant(m, 'overflow', 'hidden');
+
+    if (f) {
+      setImportant(f, 'position', 'absolute');
+      setImportant(f, 'left', '-4px');
+      setImportant(f, 'top', '-72px');
+      setImportant(f, 'right', 'auto');
+      setImportant(f, 'bottom', 'auto');
+      setImportant(f, 'width', 'calc(100% + 8px)');
+      setImportant(f, 'height', '750px');
+      setImportant(f, 'min-height', '750px');
+      setImportant(f, 'max-height', 'none');
+      setImportant(f, 'opacity', '1');
+      setImportant(f, 'visibility', 'visible');
+      setImportant(f, 'display', 'block');
+      setImportant(f, 'pointer-events', 'auto');
+      setImportant(f, 'transform', 'none');
+    }
+  }
+
+  function closeThulium(closeNative) {
+    var p = panel();
+    if (closeNative) {
+      try {
+        if (window._tc && typeof window._tc.close === 'function') window._tc.close();
+        else if (typeof window._tc === 'function') window._tc('close');
+      } catch (e) {}
+    }
+    if (p) {
+      p.classList.remove('pt-layout-thulium-proxy');
+      p.classList.remove('pt-thulium-preload');
+      p.classList.remove('pt-thulium-ready');
+      p.classList.add('wtl-hidden');
+      try {
+        p.style.removeProperty('right');
+        p.style.removeProperty('bottom');
+        p.style.removeProperty('left');
+        p.style.removeProperty('top');
+        p.style.removeProperty('width');
+        p.style.removeProperty('height');
+        p.style.removeProperty('max-height');
+        p.style.removeProperty('overflow');
+      } catch (e2) {}
+    }
+    if (closeBtn) closeBtn.classList.remove('pt-v33-show');
+    try { localStorage.setItem('pt_assistant_v60_layout_thulium_open', JSON.stringify(false)); } catch (e3) {}
+    missingSince = 0;
+    visibleSince = 0;
+  }
+
+  function monitorTick() {
+    injectCss();
+    ensureCloseButton();
+
+    var p = panel();
+    if (!isLayout() || !p || !p.classList.contains('pt-layout-thulium-proxy')) {
+      if (closeBtn) closeBtn.classList.remove('pt-v33-show');
+      missingSince = 0;
+      visibleSince = 0;
+      return;
+    }
+
+    var vf = visibleFrame();
+    if (vf) {
+      visibleSince = visibleSince || Date.now();
+      missingSince = 0;
+      p.classList.remove('pt-thulium-preload');
+      p.classList.add('pt-thulium-ready');
+      p.classList.remove('wtl-hidden');
+      if (closeBtn) closeBtn.classList.add('pt-v33-show');
+      fitOnce();
+      return;
+    }
+
+    if (closeBtn) closeBtn.classList.remove('pt-v33-show');
+
+    if (p.classList.contains('pt-thulium-ready')) {
+      if (!missingSince) missingSince = Date.now();
+      if (Date.now() - missingSince > 900) {
+        closeThulium(false);
+      }
+      return;
+    }
+
+    if (!visibleSince) {
+      if (!missingSince) missingSince = Date.now();
+      if (Date.now() - missingSince > 4500) {
+        closeThulium(false);
       }
     }
-
-    document.documentElement.classList.remove('wtl-thulium-visible');
-    restoreChoice();
   }
 
-  function bindCloseCovers() {
-    document.addEventListener('click', function (ev) {
-      var t = ev.target;
-      if (!t || !t.closest) return;
-      var close = t.closest('#wtl-thulium-cover-close,#wtl-thulium-cover-min,#wtl-thulium-header-back,#wtl-thulium-back');
-      if (!close) return;
-      var panel = getPanel();
-      if (!panel || (!panel.classList.contains('wtl-thulium-window-open') && !panel.classList.contains('pt-layout-thulium-proxy'))) return;
-      ev.preventDefault();
-      ev.stopPropagation();
-      if (ev.stopImmediatePropagation) ev.stopImmediatePropagation();
-      closeThuliumWindow();
-    }, true);
-  }
-
-  function hideLooseRedControls() {
-    qa('button,div,a,span').forEach(function (el) {
-      if (!el || !el.parentNode) return;
-      if (el.id === 'wtl-thulium-cover-close' || el.id === 'wtl-thulium-cover-min') return;
-      if (el.closest && (el.closest('#wtl-assistant-panel') || el.closest('#pt-layout-ai-window'))) return;
-      var txt = (el.textContent || '').trim();
-      if (txt !== '×' && txt !== 'X') return;
-      try {
-        var r = el.getBoundingClientRect();
-        var cs = window.getComputedStyle(el);
-        var bg = String(cs.backgroundColor || '').toLowerCase();
-        if (r.width <= 42 && r.height <= 42 && (bg.indexOf('239') !== -1 || bg.indexOf('185') !== -1 || bg.indexOf('red') !== -1)) {
-          el.style.setProperty('display', 'none', 'important');
-          el.style.setProperty('visibility', 'hidden', 'important');
-          el.style.setProperty('pointer-events', 'none', 'important');
-        }
-      } catch (e) {}
-    });
-  }
-
-  function mildFitLayoutFrame() {
-    var panel = getPanel();
-    var mount = getMount();
-    var frame = getFrame();
-    if (!panel || !mount || !frame) return;
-    if (!panel.classList.contains('pt-layout-thulium-proxy')) return;
-
-    var n = Date.now();
-    if (n - lastFitAt < 220) return;
-    lastFitAt = n;
-
-    var sig = panel.className + '|' + window.innerWidth + '|' + window.innerHeight;
-    if (sig === lastSignature && frameVisible()) return;
-    lastSignature = sig;
-
-    try {
-      panel.classList.remove('pt-v32-thulium-force-hidden');
-      frame.style.setProperty('position', 'absolute', 'important');
-      frame.style.setProperty('left', '-4px', 'important');
-      frame.style.setProperty('top', '-72px', 'important');
-      frame.style.setProperty('width', 'calc(100% + 8px)', 'important');
-      frame.style.setProperty('height', '750px', 'important');
-      frame.style.setProperty('min-height', '750px', 'important');
-      frame.style.setProperty('max-height', 'none', 'important');
-      frame.style.setProperty('right', 'auto', 'important');
-      frame.style.setProperty('bottom', 'auto', 'important');
-      frame.style.setProperty('opacity', '1', 'important');
-      frame.style.setProperty('visibility', 'visible', 'important');
-      frame.style.setProperty('display', 'block', 'important');
-      frame.style.setProperty('transform', 'none', 'important');
-      frame.style.setProperty('pointer-events', 'auto', 'important');
-      frame.style.setProperty('border', '0', 'important');
-    } catch (e) {}
-  }
-
-  function keepPanelAttachedInLayout() {
-    var panel = getPanel();
-    if (!panel || !document.documentElement.classList.contains('wtl-layout-mode')) return;
-    var thuliumOpen = panel.classList.contains('wtl-thulium-window-open') || panel.classList.contains('pt-layout-thulium-proxy') || frameVisible();
-    if (!thuliumOpen) return;
-    panel.classList.remove('wtl-hidden');
-    panel.classList.add('pt-layout-thulium-proxy');
-    save('layout_thulium_open', true);
-    mildFitLayoutFrame();
-  }
-
-  function closeBlackWindowIfStuck() {
-    var panel = getPanel();
-    if (!panel) return;
-    var open = panel.classList.contains('wtl-thulium-window-open') || panel.classList.contains('pt-layout-thulium-proxy');
-    if (!open) {
-      blackSince = 0;
-      return;
+  document.addEventListener('click', function (e) {
+    var t = e.target;
+    if (!t) return;
+    if (t.id === 'pt-v33-thulium-close' || t.id === 'wtl-thulium-cover-close' || t.id === 'wtl-thulium-cover-min') {
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      closeThulium(true);
+      return false;
     }
+  }, true);
 
-    var opening = panel.classList.contains('pt-v22-thulium-opening') || panel.classList.contains('pt-v20-thulium-opening') || panel.classList.contains('pt-v19-thulium-opening');
-    var ready = panel.classList.contains('pt-v22-thulium-ready') || panel.classList.contains('pt-v20-thulium-ready') || panel.classList.contains('pt-v19-thulium-ready') || panel.classList.contains('pt-thulium-ready');
-
-    if (frameVisible()) {
-      blackSince = 0;
-      return;
+  function start() {
+    injectCss();
+    ensureCloseButton();
+    if (monitor) clearInterval(monitor);
+    monitor = setInterval(monitorTick, 220);
+    if (window.MutationObserver && document.body) {
+      var pending = null;
+      var obs = new MutationObserver(function () {
+        if (pending) return;
+        pending = setTimeout(function () {
+          pending = null;
+          monitorTick();
+        }, 120);
+      });
+      obs.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style'] });
     }
-
-    if (opening && !ready) return;
-
-    if (!blackSince) blackSince = Date.now();
-    if (Date.now() - blackSince > 1300) closeThuliumWindow();
   }
 
-  function startTick() {
-    if (tickTimer) clearInterval(tickTimer);
-    tickTimer = setInterval(function () {
-      injectStyle();
-      bindLateButtons();
-      keepPanelAttachedInLayout();
-      closeBlackWindowIfStuck();
-      hideLooseRedControls();
-    }, 260);
-  }
-
-  function bindLateButtons() {
-    var c1 = document.getElementById('wtl-thulium-cover-close');
-    var c2 = document.getElementById('wtl-thulium-cover-min');
-    [c1, c2].forEach(function (c) {
-      if (!c || c.__ptV32Prepared) return;
-      c.__ptV32Prepared = true;
-      c.setAttribute('title', 'Zamknij Thulium');
-      c.setAttribute('aria-label', 'Zamknij Thulium');
-    });
-  }
-
-  function init() {
-    injectStyle();
-    bindCloseCovers();
-    bindLateButtons();
-    startTick();
-    setTimeout(function () { injectStyle(); bindLateButtons(); }, 500);
-    setTimeout(function () { keepPanelAttachedInLayout(); }, 1200);
-  }
-
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
-  else init();
+  if (document.body) start();
+  else document.addEventListener('DOMContentLoaded', start, { once: true });
 })();

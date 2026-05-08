@@ -8064,57 +8064,72 @@
   else document.addEventListener('DOMContentLoaded', start, { once: true });
 })();
 
-/* PT Assistant V48 iframe soft navigation - platform functional mode.
-   Cel: zachowac plynny soft-navigation bez psucia kolorow, miniaturek i natywnych przyciskow WebToLearn.
-   Zamiast przepisywac DOM strony, ladujemy nawigowane strony w pelnym iframe tej samej domeny.
-   Dzieki temu CSS, slidery, miniatury i przyciski platformy dzialaja natywnie, a nasz panel/layout zostaje w dokumencie rodzica.
+/* PT Assistant V49 iframe soft navigation - no infinite loader.
+   Zmiana wzgledem V48:
+   - loader nie startuje juz na pointerdown, tylko dopiero po przechwyconym clicku/nawigacji,
+   - iframe ma polling gotowosci dokumentu, nie opiera sie tylko na onload,
+   - kazde ladowanie ma token i twardy bezpiecznik,
+   - klikniecia wewnatrz iframe nie odpalaja loadera, jezeli WebToLearn tylko obsluguje dropdown/tab przyciskiem JS,
+   - jezeli iframe nie zaladuje strony, loader znika i dopiero wtedy nastepuje bezpieczny fallback do normalnej nawigacji.
 */
 (function () {
   'use strict';
 
-  if (window.__PT_V48_IFRAME_SOFT_NAV__) return;
-  window.__PT_V48_IFRAME_SOFT_NAV__ = true;
+  if (window.__PT_V49_IFRAME_SOFT_NAV__) return;
+  window.__PT_V49_IFRAME_SOFT_NAV__ = true;
 
   var HOST = 'edu.profitabletrader.ai';
   if (location.hostname !== HOST) return;
 
   var LOGO_URL = 'https://edu.profitabletrader.ai/uploads/media/12510/5/Obszar_roboczy_9%404x.png?_t=1776253923';
   var BG_URL = 'https://edu.profitabletrader.ai/uploads/media/12510/5/TŁO_PT__1_.png?_t=1777481120';
-  var FRAME_ID = 'pt-v48-page-frame';
-  var STYLE_ID = 'pt-v48-soft-frame-style';
-  var LOADER_ID = 'pt-v48-soft-loader';
-  var MIN_VISIBLE = 320;
-  var LOAD_TIMEOUT = 12000;
+  var FRAME_ID = 'pt-v49-page-frame';
+  var STYLE_ID = 'pt-v49-soft-frame-style';
+  var LOADER_ID = 'pt-v49-soft-loader';
+  var MIN_VISIBLE = 360;
+  var READY_TIMEOUT = 9000;
+  var FALLBACK_DELAY = 220;
 
   var frameMode = false;
   var navigating = false;
+  var navToken = 0;
   var shownAt = 0;
   var hideTimer = null;
-  var failTimer = null;
+  var readyTimer = null;
+  var hardTimer = null;
   var lastFrameUrl = '';
-  var bindRetryTimer = null;
 
   function now() { return Date.now ? Date.now() : new Date().getTime(); }
-  function clean(value) { return String(value || '').replace(/\s+/g, ' ').trim(); }
   function escAttr(value) { return String(value || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
+
+  function clearNavTimers() {
+    if (readyTimer) {
+      clearInterval(readyTimer);
+      readyTimer = null;
+    }
+    if (hardTimer) {
+      clearTimeout(hardTimer);
+      hardTimer = null;
+    }
+  }
 
   function ensureStyle() {
     if (document.getElementById(STYLE_ID)) return;
     var css = ''
-      + '#pt-v48-page-frame{position:fixed!important;z-index:2147482500!important;border:0!important;background:#fff!important;display:block!important;opacity:0!important;visibility:hidden!important;pointer-events:none!important;transition:opacity .12s ease!important;}'
-      + 'html.pt-v48-frame-mode #pt-v48-page-frame{opacity:1!important;visibility:visible!important;pointer-events:auto!important;}'
-      + 'html.pt-v48-frame-mode.pt-v48-frame-loading #pt-v48-page-frame{opacity:0!important;pointer-events:none!important;}'
-      + '#pt-v48-soft-loader{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;background:#000 url("' + BG_URL + '") center center/cover no-repeat;opacity:0;visibility:hidden;pointer-events:none;overflow:hidden;transition:opacity .14s ease,visibility 0s linear .14s;}'
-      + '#pt-v48-soft-loader.pt-on{opacity:1;visibility:visible;pointer-events:all;transition:opacity .14s ease,visibility 0s linear 0s;}'
-      + '#pt-v48-soft-loader.pt-off{opacity:0;visibility:visible;pointer-events:none;transition:opacity .18s ease;}'
-      + '#pt-v48-soft-loader-inner{text-align:center;transform:translateY(-4px);padding:24px;max-width:92vw;}'
-      + '#pt-v48-soft-loader-logo{width:min(560px,74vw);height:auto;display:block;margin:0 auto 30px;filter:drop-shadow(0 0 16px rgba(255,255,255,.18));}'
-      + '#pt-v48-soft-loader-bar{position:relative;width:min(420px,60vw);height:5px;background:rgba(255,255,255,.14);border-radius:999px;overflow:hidden;margin:0 auto;box-shadow:0 0 18px rgba(255,255,255,.12);}'
-      + '#pt-v48-soft-loader-progress{position:absolute;left:0;top:0;width:46%;height:100%;background:#fff;border-radius:999px;box-shadow:0 0 14px rgba(255,255,255,.75);transform:translateX(-120%);}'
-      + '#pt-v48-soft-loader.pt-on #pt-v48-soft-loader-progress{animation:ptV48Bar 1.08s cubic-bezier(.65,0,.35,1) infinite;}'
-      + '@keyframes ptV48Bar{0%{transform:translateX(-120%);}58%{transform:translateX(92%);}100%{transform:translateX(248%);}}'
-      + 'html.pt-v48-soft-busy,html.pt-v48-soft-busy body{cursor:wait!important;}'
-      + '@media(max-width:900px){#pt-v48-page-frame{left:0!important;top:58px!important;width:100vw!important;height:calc(100vh - 58px)!important;}}';
+      + '#pt-v49-page-frame{position:fixed!important;z-index:2147482500!important;border:0!important;background:#fff!important;display:block!important;opacity:0!important;visibility:hidden!important;pointer-events:none!important;transition:opacity .12s ease!important;}'
+      + 'html.pt-v49-frame-mode #pt-v49-page-frame{opacity:1!important;visibility:visible!important;pointer-events:auto!important;}'
+      + 'html.pt-v49-frame-mode.pt-v49-frame-loading #pt-v49-page-frame{opacity:0!important;pointer-events:none!important;}'
+      + '#pt-v49-soft-loader{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;background:#000 url("' + BG_URL + '") center center/cover no-repeat;opacity:0;visibility:hidden;pointer-events:none;overflow:hidden;transition:opacity .14s ease,visibility 0s linear .14s;}'
+      + '#pt-v49-soft-loader.pt-on{opacity:1;visibility:visible;pointer-events:all;transition:opacity .14s ease,visibility 0s linear 0s;}'
+      + '#pt-v49-soft-loader.pt-off{opacity:0;visibility:visible;pointer-events:none;transition:opacity .18s ease;}'
+      + '#pt-v49-soft-loader-inner{text-align:center;transform:translateY(-4px);padding:24px;max-width:92vw;}'
+      + '#pt-v49-soft-loader-logo{width:min(560px,74vw);height:auto;display:block;margin:0 auto 30px;filter:drop-shadow(0 0 16px rgba(255,255,255,.18));}'
+      + '#pt-v49-soft-loader-bar{position:relative;width:min(420px,60vw);height:5px;background:rgba(255,255,255,.14);border-radius:999px;overflow:hidden;margin:0 auto;box-shadow:0 0 18px rgba(255,255,255,.12);}'
+      + '#pt-v49-soft-loader-progress{position:absolute;left:0;top:0;width:46%;height:100%;background:#fff;border-radius:999px;box-shadow:0 0 14px rgba(255,255,255,.75);transform:translateX(-120%);}'
+      + '#pt-v49-soft-loader.pt-on #pt-v49-soft-loader-progress{animation:ptV49Bar 1.08s cubic-bezier(.65,0,.35,1) infinite;}'
+      + '@keyframes ptV49Bar{0%{transform:translateX(-120%);}58%{transform:translateX(92%);}100%{transform:translateX(248%);}}'
+      + 'html.pt-v49-soft-busy,html.pt-v49-soft-busy body{cursor:wait!important;}'
+      + '@media(max-width:900px){#pt-v49-page-frame{left:0!important;top:58px!important;width:100vw!important;height:calc(100vh - 58px)!important;}}';
     var style = document.createElement('style');
     style.id = STYLE_ID;
     style.type = 'text/css';
@@ -8130,9 +8145,9 @@
     loader.id = LOADER_ID;
     loader.setAttribute('aria-hidden', 'true');
     loader.innerHTML = ''
-      + '<div id="pt-v48-soft-loader-inner">'
-      + '<img id="pt-v48-soft-loader-logo" src="' + escAttr(LOGO_URL) + '" alt="Profitable Trader">'
-      + '<div id="pt-v48-soft-loader-bar"><div id="pt-v48-soft-loader-progress"></div></div>'
+      + '<div id="pt-v49-soft-loader-inner">'
+      + '<img id="pt-v49-soft-loader-logo" src="' + escAttr(LOGO_URL) + '" alt="Profitable Trader">'
+      + '<div id="pt-v49-soft-loader-bar"><div id="pt-v49-soft-loader-progress"></div></div>'
       + '</div>';
     (document.body || document.documentElement).appendChild(loader);
     return loader;
@@ -8142,7 +8157,7 @@
     var loader = ensureLoader();
     if (hideTimer) clearTimeout(hideTimer);
     shownAt = now();
-    document.documentElement.classList.add('pt-v48-soft-busy');
+    document.documentElement.classList.add('pt-v49-soft-busy');
     loader.classList.remove('pt-off');
     loader.style.visibility = 'visible';
     requestAnimationFrame(function () { loader.classList.add('pt-on'); });
@@ -8155,8 +8170,8 @@
     var wait = force ? 0 : Math.max(0, MIN_VISIBLE - elapsed);
     if (hideTimer) clearTimeout(hideTimer);
     hideTimer = setTimeout(function () {
-      document.documentElement.classList.remove('pt-v48-soft-busy');
-      document.documentElement.classList.remove('pt-v48-frame-loading');
+      document.documentElement.classList.remove('pt-v49-soft-busy');
+      document.documentElement.classList.remove('pt-v49-frame-loading');
       loader.classList.remove('pt-on');
       loader.classList.add('pt-off');
       setTimeout(function () {
@@ -8164,7 +8179,7 @@
           loader.classList.remove('pt-off');
           loader.style.visibility = 'hidden';
         }
-      }, 240);
+      }, 260);
     }, wait);
   }
 
@@ -8184,11 +8199,11 @@
       path.indexOf('/file') !== -1;
   }
 
-  function normalizeUrl(url) {
+  function normalizeUrl(url, allowCurrent) {
     var u;
     try { u = new URL(url, location.href); } catch (e) { return ''; }
     if (u.origin !== location.origin) return '';
-    if (u.pathname === location.pathname && u.search === location.search && (!u.hash || u.hash === location.hash)) return '';
+    if (!allowCurrent && u.pathname === location.pathname && u.search === location.search && (!u.hash || u.hash === location.hash)) return '';
     if (u.hash && u.pathname === location.pathname && u.search === location.search) return '';
     if (blockedPath(u.pathname)) return '';
     return u.href;
@@ -8232,12 +8247,12 @@
     if (!target || isThuliumArea(target)) return '';
 
     var home = target.closest && target.closest('#pt-layout-home,.pt-layout-home,[data-pt-layout-home],[data-pt-v47-home="1"],[data-pt-v46-home="1"]');
-    if (home) return normalizeUrl(location.origin + '/next/public/');
+    if (home) return normalizeUrl(location.origin + '/next/public/', true);
 
     var lastBtn = target.closest && target.closest('#wtl-return-last-lesson');
     if (lastBtn) {
       var lesson = readStorage('last_lesson', null);
-      return lesson && lesson.url ? normalizeUrl(lesson.url) : '';
+      return lesson && lesson.url ? normalizeUrl(lesson.url, false) : '';
     }
 
     var el = closestUrlElement(target);
@@ -8253,7 +8268,7 @@
     )) || '';
     if (!href || href === '#') return '';
     if (/^(mailto:|tel:|javascript:)/i.test(href)) return '';
-    return normalizeUrl(el.href || href);
+    return normalizeUrl(el.href || href, false);
   }
 
   function getLayoutMetrics() {
@@ -8284,11 +8299,11 @@
     }
     frame = document.createElement('iframe');
     frame.id = FRAME_ID;
-    frame.name = 'pt_v48_page_frame';
+    frame.name = 'pt_v49_page_frame';
     frame.setAttribute('title', 'Profitable Trader page');
     frame.setAttribute('loading', 'eager');
     frame.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
-    frame.onload = function () { onFrameLoad(frame); };
+    frame.onload = function () { maybeFinishFrame(frame, navToken, 'load'); };
     document.body.appendChild(frame);
     positionFrame();
     return frame;
@@ -8297,16 +8312,18 @@
   function injectFrameCss(frame) {
     var doc;
     try { doc = frame.contentDocument || (frame.contentWindow && frame.contentWindow.document); } catch (e) { return; }
-    if (!doc || !doc.head || doc.getElementById('pt-v48-frame-css')) return;
+    if (!doc || !doc.head) return;
+    var old = doc.getElementById('pt-v49-frame-css');
+    if (old) return;
     var css = ''
       + 'html,body{overflow-x:hidden!important;}'
       + '.header.header-user,.header-user,.sidebar,.sidebar-wrap,.sidebar-menu,[class*="sidebar-left"],[class*="sidebar-menu"],.main-sidebar,.app-sidebar,.page-sidebar,.left-sidebar,.menu-sidebar,.sidebar-container,#sidebar,#sidebarMenu{display:none!important;visibility:hidden!important;pointer-events:none!important;max-width:0!important;width:0!important;overflow:hidden!important;}'
       + 'body,.content,.main,.page,.page-content,.wrapper,.content-wrapper{margin-left:0!important;padding-left:0!important;}'
       + '.thulium-chat-wrapper,.thulium-chat-frame-wrapper,iframe[title="Thulium Click2Contact"],[class*="thulium-chat"],[class*="click2contact"]{display:none!important;visibility:hidden!important;pointer-events:none!important;}'
       + '#wtl-assistant-panel,#wtl-mini,#wtl-bottom-bar,#wtl-site-switcher,[id^="pt-layout-"],[id^="pt-v"]{display:none!important;visibility:hidden!important;pointer-events:none!important;}'
-      + 'a,button,[role="button"],input,select,textarea{pointer-events:auto!important;}';
+      + 'a,button,[role="button"],input,select,textarea,label{pointer-events:auto!important;}';
     var style = doc.createElement('style');
-    style.id = 'pt-v48-frame-css';
+    style.id = 'pt-v49-frame-css';
     style.type = 'text/css';
     style.appendChild(doc.createTextNode(css));
     doc.head.appendChild(style);
@@ -8318,45 +8335,48 @@
       doc = frame.contentDocument || (frame.contentWindow && frame.contentWindow.document);
       win = frame.contentWindow;
     } catch (e) { return; }
-    if (!doc || !win || doc.__ptV48Bound) return;
-    doc.__ptV48Bound = true;
-
-    try {
-      doc.addEventListener('click', function (e) {
-        if (!e || isModifiedClick(e)) return;
-        var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
-        if (!a) return;
-        if (a.target && a.target !== '_self') return;
-        if (a.hasAttribute && a.hasAttribute('download')) return;
-        var href = a.getAttribute('href') || '';
-        if (!href || href === '#' || /^(mailto:|tel:|javascript:)/i.test(href)) return;
-        var url = normalizeUrl(a.href || href);
-        if (!url) return;
-        // Nie blokujemy natywnej funkcjonalnosci WebToLearn dla przyciskow/zakladek.
-        // Dla zwyklych linkow pozwalamy iframe przejsc naturalnie, tylko pokazujemy loader.
-        showLoader();
-        document.documentElement.classList.add('pt-v48-frame-loading');
-      }, true);
-    } catch (e1) {}
+    if (!doc || !win || doc.__ptV49Bound) return;
+    doc.__ptV49Bound = true;
 
     try {
       win.addEventListener('beforeunload', function () {
+        // Tylko prawdziwa nawigacja iframe powinna pokazywac loader.
         showLoader();
-        document.documentElement.classList.add('pt-v48-frame-loading');
+        document.documentElement.classList.add('pt-v49-frame-loading');
+        startFrameReadyWatch(frame, ++navToken, true);
       });
     } catch (e2) {}
   }
 
-  function onFrameLoad(frame) {
-    if (failTimer) {
-      clearTimeout(failTimer);
-      failTimer = null;
-    }
+  function frameHasUsefulContent(frame) {
+    var doc, win, href, ready, bodyText, bodyChildren;
+    try {
+      win = frame.contentWindow;
+      doc = frame.contentDocument || (win && win.document);
+      href = win && win.location ? win.location.href : '';
+    } catch (e) { return false; }
+    if (!doc || !doc.body || !href || href === 'about:blank') return false;
+    ready = doc.readyState || '';
+    bodyText = (doc.body.textContent || '').replace(/\s+/g, ' ').trim();
+    bodyChildren = doc.body.children ? doc.body.children.length : 0;
+    if (ready !== 'interactive' && ready !== 'complete') return false;
+    if (bodyChildren < 2 && bodyText.length < 80) return false;
+    return true;
+  }
 
+  function maybeFinishFrame(frame, token, reason) {
+    if (!frame || token !== navToken) return false;
+    if (!frameHasUsefulContent(frame)) return false;
+    finishFrame(frame, reason || 'ready');
+    return true;
+  }
+
+  function finishFrame(frame, reason) {
+    clearNavTimers();
     frameMode = true;
     navigating = false;
-    document.documentElement.classList.add('pt-v48-frame-mode');
-    document.documentElement.classList.remove('pt-v48-frame-loading');
+    document.documentElement.classList.add('pt-v49-frame-mode');
+    document.documentElement.classList.remove('pt-v49-frame-loading');
     positionFrame();
     injectFrameCss(frame);
     bindFrameNative(frame);
@@ -8368,17 +8388,17 @@
       title = frame.contentDocument && frame.contentDocument.title ? frame.contentDocument.title : '';
     } catch (e) {}
 
-    if (url && url !== 'about:blank' && url !== lastFrameUrl && normalizeUrl(url)) {
+    if (url && url !== 'about:blank') {
       lastFrameUrl = url;
-      try { history.pushState({ ptFrameNav: true, v: 48 }, title || document.title, url); } catch (e2) {}
-    } else if (url && url !== 'about:blank') {
-      lastFrameUrl = url;
+      try {
+        if (location.href !== url) history.pushState({ ptFrameNav: true, v: 49 }, title || document.title, url);
+      } catch (e2) {}
     }
     if (title) document.title = title;
 
     try {
-      window.dispatchEvent(new CustomEvent('pt:soft-navigation', { detail: { url: lastFrameUrl || url, v: 48, frame: true } }));
-      document.dispatchEvent(new CustomEvent('pt:soft-navigation', { detail: { url: lastFrameUrl || url, v: 48, frame: true } }));
+      window.dispatchEvent(new CustomEvent('pt:soft-navigation', { detail: { url: lastFrameUrl || url, v: 49, frame: true, reason: reason } }));
+      document.dispatchEvent(new CustomEvent('pt:soft-navigation', { detail: { url: lastFrameUrl || url, v: 49, frame: true, reason: reason } }));
     } catch (e3) {}
 
     setTimeout(function () { injectFrameCss(frame); positionFrame(); }, 80);
@@ -8386,35 +8406,80 @@
     hideLoader(false);
   }
 
+  function startFrameReadyWatch(frame, token, fromFrameBeforeUnload) {
+    clearNavTimers();
+    var started = now();
+    readyTimer = setInterval(function () {
+      if (token !== navToken) {
+        clearNavTimers();
+        return;
+      }
+      if (maybeFinishFrame(frame, token, 'poll')) return;
+      if (now() - started > READY_TIMEOUT) {
+        clearNavTimers();
+        navigating = false;
+        document.documentElement.classList.remove('pt-v49-frame-loading');
+        if (frameHasUsefulContent(frame)) {
+          finishFrame(frame, 'timeout-content');
+        } else {
+          hideLoader(true);
+        }
+      }
+    }, 140);
+
+    hardTimer = setTimeout(function () {
+      if (token !== navToken) return;
+      clearNavTimers();
+      navigating = false;
+      document.documentElement.classList.remove('pt-v49-frame-loading');
+      if (frameHasUsefulContent(frame)) {
+        finishFrame(frame, 'hard-content');
+        return;
+      }
+      hideLoader(true);
+      if (!fromFrameBeforeUnload && lastFrameUrl) {
+        setTimeout(function () {
+          try { window.location.href = lastFrameUrl; } catch (e) {}
+        }, FALLBACK_DELAY);
+      }
+    }, READY_TIMEOUT + 1200);
+  }
+
   function navigate(url, replace) {
-    url = normalizeUrl(url);
+    url = normalizeUrl(url, true);
     if (!url) return false;
 
     navigating = true;
     frameMode = true;
     lastFrameUrl = url;
+    navToken++;
+    var token = navToken;
+
     showLoader();
-    document.documentElement.classList.add('pt-v48-frame-mode');
-    document.documentElement.classList.add('pt-v48-frame-loading');
+    document.documentElement.classList.add('pt-v49-frame-mode');
+    document.documentElement.classList.add('pt-v49-frame-loading');
 
     var frame = ensureFrame();
     positionFrame();
 
-    if (failTimer) clearTimeout(failTimer);
-    failTimer = setTimeout(function () {
-      navigating = false;
-      document.documentElement.classList.remove('pt-v48-frame-loading');
-      hideLoader(false);
-    }, LOAD_TIMEOUT);
-
     try {
-      if (replace) history.replaceState({ ptFrameNav: true, v: 48 }, document.title, url);
-      else history.pushState({ ptFrameNav: true, v: 48 }, document.title, url);
+      if (replace) history.replaceState({ ptFrameNav: true, v: 49 }, document.title, url);
+      else if (location.href !== url) history.pushState({ ptFrameNav: true, v: 49 }, document.title, url);
     } catch (e) {}
 
-    try { frame.src = url; } catch (e2) {
+    startFrameReadyWatch(frame, token, false);
+
+    try {
+      if (frame.src === url) {
+        try { frame.contentWindow.location.replace(url); } catch (e1) { frame.src = url; }
+      } else {
+        frame.src = url;
+      }
+    } catch (e2) {
+      clearNavTimers();
       navigating = false;
       hideLoader(true);
+      setTimeout(function () { window.location.href = url; }, FALLBACK_DELAY);
       return false;
     }
     return true;
@@ -8427,12 +8492,6 @@
     e.stopPropagation();
     if (e.stopImmediatePropagation) e.stopImmediatePropagation();
     navigate(url, false);
-  }
-
-  function onParentPointer(e) {
-    var url = urlFromParentClick(e);
-    if (!url) return;
-    showLoader();
   }
 
   function neutralizeHomeButtons() {
@@ -8459,10 +8518,8 @@
   }
 
   window.PTSoftNavigate = function (url, replace) { return navigate(url, !!replace); };
-  window.PTV48FrameNavigate = window.PTSoftNavigate;
+  window.PTV49FrameNavigate = window.PTSoftNavigate;
 
-  window.addEventListener('pointerdown', onParentPointer, true);
-  document.addEventListener('pointerdown', onParentPointer, true);
   window.addEventListener('click', onParentClick, true);
   document.addEventListener('click', onParentClick, true);
   document.addEventListener('keydown', onKey, true);
@@ -8474,10 +8531,21 @@
   });
 
   window.addEventListener('popstate', function () {
-    var url = normalizeUrl(location.href);
+    var url = normalizeUrl(location.href, true);
     if (!url) return;
     if (frameMode) navigate(url, true);
   }, true);
+
+  // Globalny bezpiecznik: nigdy nie pozwalamy, aby loader zostal na stale.
+  setInterval(function () {
+    var loader = document.getElementById(LOADER_ID);
+    if (!loader || !loader.classList.contains('pt-on')) return;
+    if (!shownAt || now() - shownAt < READY_TIMEOUT + 2500) return;
+    clearNavTimers();
+    navigating = false;
+    document.documentElement.classList.remove('pt-v49-frame-loading');
+    hideLoader(true);
+  }, 1000);
 
   neutralizeHomeButtons();
   setInterval(neutralizeHomeButtons, 900);
